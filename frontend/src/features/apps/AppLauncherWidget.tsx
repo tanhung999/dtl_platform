@@ -10,7 +10,7 @@ const APPS: SubAppInfo[] = [
     shortName: 'Báo cáo Thu nhập & Bán hàng',
     description: 'Báo cáo thu nhập, doanh số bán hàng, bảng tính hoa hồng và theo dõi giỏ hàng bất động sản.',
     category: 'Tài Chính & Kinh Doanh',
-    badge: 'FastAPI + React',
+    // badge: 'FastAPI + React',
     themeColor: '#eff6ff',
     iconUrl: '/icon-booking.png',
   },
@@ -20,7 +20,7 @@ const APPS: SubAppInfo[] = [
     shortName: 'Hệ thống Trình ký',
     description: 'Theo dõi luồng xử lý hồ sơ, phê duyệt chứng từ, phân công công việc và quản lý SLA.',
     category: 'Vận Hành',
-    badge: 'FastAPI + AntD',
+    // badge: 'FastAPI + AntD',
     themeColor: '#f5f3ff',
     iconUrl: '/icon-workflow.png',
   },
@@ -30,7 +30,7 @@ const APPS: SubAppInfo[] = [
     shortName: 'Quản lý Tài sản',
     description: 'Quản lý cấp phát thiết bị IT, tài sản hành chính, kiểm kê kho và thủ tục nhân sự onboarding.',
     category: 'Hành Chính & IT',
-    badge: 'Flask + Vue 3',
+    // badge: 'Flask + Vue 3',
     themeColor: '#ecfdf5',
     iconUrl: '/icon-assets.png',
   },
@@ -60,9 +60,9 @@ export const AppLauncherWidget: React.FC = () => {
       <div className="widget-header">
         <div className="widget-title">
           <Sparkles size={18} className="widget-title-icon" />
-          <span>Ứng Dụng Doanh Nghiệp (SSO)</span>
+          <span>Ứng Dụng Doanh Nghiệp</span>
         </div>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Đăng nhập 1 lần</span>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Đăng nhập vào các hệ thống của công ty</span>
       </div>
 
       {errorMessage && (
