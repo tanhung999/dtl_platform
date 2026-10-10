@@ -47,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, activeTab, onTabChange, on
           className={`nav-tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
         >
           <LayoutDashboard size={15} />
-          <span>Bàn làm việc</span>
+          <span>Workspace</span>
         </button>
 
         <button
@@ -56,7 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, activeTab, onTabChange, on
           className={`nav-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
         >
           <UserCheck size={15} />
-          <span>Thông tin tài khoản</span>
+          <span>Profile</span>
         </button>
       </nav>
 
