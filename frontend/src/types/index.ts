@@ -1,0 +1,70 @@
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  full_name: string;
+  role: string;
+  department: string;
+  job_title?: string;
+  employee_code?: string;
+  phone?: string;
+  office_location?: string;
+  avatar_url?: string;
+  bio?: string;
+  allowed_apps?: string;
+  created_at?: string;
+}
+
+export interface AuthSession {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: User;
+}
+
+export interface Note {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  color: string;
+  is_pinned: boolean;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+export interface Task {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  priority: TaskPriority;
+  due_date?: string;
+  is_completed: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Bookmark {
+  id: string;
+  title: string;
+  url: string;
+  icon: string;
+  category: string;
+  is_global: boolean;
+}
+
+export interface SubAppInfo {
+  id: 'bookingreports' | 'workflows' | 'itam';
+  name: string;
+  shortName: string;
+  description: string;
+  category: string;
+  badge?: string;
+  themeColor: string;
+  iconUrl: string;
+}
