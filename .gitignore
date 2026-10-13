@@ -42,6 +42,8 @@ yarn-error.log*
 frontend/dist/
 frontend/node_modules/
 frontend/.env.local
+frontend/tests/artifacts/
+frontend/tests/.browser-tools/
 
 # IDE & OS
 .idea/
@@ -50,3 +52,4 @@ frontend/.env.local
 *.swo
 .DS_Store
 Thumbs.db
+.audit-backups/

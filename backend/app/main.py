@@ -1,17 +1,23 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
-
 from app.core.config import settings
 from app.core.database import Base, engine, async_session_maker
 from app.core.security import hash_password
 from app.db.models import User, Note, Task, Bookmark
+from app.db.migrations.runner import upgrade
+from app.modules.tasks.deadlines import VN
 from app.modules.auth.router import router as auth_router
 from app.modules.sso.router import router as sso_router
 from app.modules.notes.router import router as notes_router
 from app.modules.tasks.router import router as tasks_router
 from app.modules.bookmarks.router import router as bookmarks_router
+from app.modules.calendar.router import router as calendar_router
+from app.modules.realtime.router import router as realtime_router
+from app.modules.workspace.router import router as workspace_router
+from app.core.realtime import listen
 
 
 async def seed_initial_data():
@@ -61,21 +67,21 @@ async def seed_initial_data():
                 user_id=admin.id,
                 title="Kiểm tra hệ thống báo cáo dự án tuần mới",
                 priority="HIGH",
-                due_date="Hôm nay",
+                due_date=datetime.now(VN).date().isoformat(),
                 is_completed=False,
             )
             t2 = Task(
                 user_id=admin.id,
                 title="Duyệt hồ sơ trình ký trên Workflows",
                 priority="URGENT",
-                due_date="Hôm nay",
+                due_date=datetime.now(VN).date().isoformat(),
                 is_completed=False,
             )
             t3 = Task(
                 user_id=admin.id,
                 title="Bàn giao tài sản thiết bị tháng này",
                 priority="MEDIUM",
-                due_date="Tuần này",
+                due_date=(datetime.now(VN).date() + timedelta(days=6 - datetime.now(VN).weekday())).isoformat(),
                 is_completed=True,
             )
             session.add_all([t1, t2, t3])
@@ -100,13 +106,14 @@ async def seed_initial_data():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize DB tables automatically
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    # Seed initial test data
+        await upgrade(conn)
     await seed_initial_data()
-    yield
-    await engine.dispose()
+    try:
+        async with listen(settings.DATABASE_URL):
+            yield
+    finally:
+        await engine.dispose()
 
 
 app = FastAPI(
@@ -115,8 +122,6 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
-
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if settings.DEBUG else settings.CORS_ORIGINS,
@@ -124,13 +129,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Mount Routers
 app.include_router(auth_router)
 app.include_router(sso_router)
 app.include_router(notes_router)
 app.include_router(tasks_router)
 app.include_router(bookmarks_router)
+app.include_router(calendar_router)
+app.include_router(realtime_router)
+app.include_router(workspace_router)
 
 
 @app.get("/api/health", tags=["Health"])

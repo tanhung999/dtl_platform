@@ -4,7 +4,9 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.realtime import mark_changed
 from app.db.models import Note, User, utcnow
+from app.db.workspace_layout import WorkspaceLayout
 from app.modules.auth.dependencies import get_current_user
 from app.modules.notes.schemas import NoteCreate, NoteResponse, NoteUpdate
 
@@ -40,6 +42,7 @@ async def create_note(
     )
     db.add(note)
     await db.flush()
+    mark_changed(db, user.id, "notes")
     return note
 
 
@@ -50,6 +53,7 @@ async def update_note(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    await db.execute(select(User.id).where(User.id == user.id).with_for_update())
     stmt = select(Note).where(Note.id == note_id, Note.user_id == user.id)
     result = await db.execute(stmt)
     note = result.scalar_one_or_none()
@@ -57,10 +61,19 @@ async def update_note(
         raise HTTPException(status_code=404, detail="Không tìm thấy ghi chú")
 
     update_data = payload.model_dump(exclude_unset=True)
+    pin_changed = 'is_pinned' in update_data and update_data['is_pinned'] != note.is_pinned
     for key, value in update_data.items():
         setattr(note, key, value)
     note.updated_at = utcnow()
+    if pin_changed:
+        layout = (await db.execute(select(WorkspaceLayout).where(WorkspaceLayout.user_id == user.id, WorkspaceLayout.kind == 'notes').with_for_update())).scalar_one_or_none()
+        if layout is None:
+            layout = WorkspaceLayout(user_id=user.id, kind='notes', ordered_ids=[], version=0)
+            db.add(layout)
+        layout.version += 1
+        mark_changed(db, user.id, 'layout')
     await db.flush()
+    mark_changed(db, user.id, "notes")
     return note
 
 
@@ -76,4 +89,5 @@ async def delete_note(
     if not note:
         raise HTTPException(status_code=404, detail="Không tìm thấy ghi chú")
     await db.delete(note)
+    mark_changed(db, user.id, "notes")
     return None

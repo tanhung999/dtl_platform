@@ -1,0 +1,13 @@
+.workspace-sort-card { position: relative; }
+.workspace-sort-card.is-dragging { opacity: .4; }
+.workspace-sort-handle { position: absolute; top: 7px; right: 7px; z-index: 2; width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; background: var(--bg-card-solid); color: var(--text-muted); cursor: grab; touch-action: none; }
+.workspace-sort-handle:active { cursor: grabbing; }
+.workspace-sort-handle:focus-visible { outline: 2px solid var(--accent); }
+.workspace-sort-preview { padding: 10px 14px; border: 1px solid var(--accent); border-radius: 8px; background: var(--bg-card-solid); color: var(--text-main); box-shadow: var(--shadow-md); font-size: 13px; }
+.bookmark-sort-card { padding-right: 32px !important; }
+.bookmark-sort-card .workspace-sort-handle { top: 50%; transform: translateY(-50%); right: 4px; }
+.notes-pin-zone { display: flex; align-items: center; gap: 6px; padding: 8px; margin-bottom: 8px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-muted); font-size: 12px; }
+.notes-pin-zone small { margin-left: auto; font-size: 10px; }
+.notes-pin-zone.is-over { border-color: #2563eb; background: var(--primary-light); color: var(--accent); }
+.workspace-sort-card.note-card .note-title { padding-right: 22px; }
+.workspace-sort-card.note-card .note-pin-badge { right: 34px; }

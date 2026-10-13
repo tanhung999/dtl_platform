@@ -1,4 +1,4 @@
-import { AuthSession, Note, Task, Bookmark, User } from '../types';
+import { AuthSession, Note, Bookmark, User } from '../types';
 
 const TOKEN_KEY = 'dtl_platform_token';
 const USER_KEY = 'dtl_platform_user';
@@ -27,7 +27,7 @@ export function clearSession(): void {
   localStorage.removeItem(USER_KEY);
 }
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getStoredToken();
   const headers = new Headers(options.headers || {});
 
@@ -141,29 +141,6 @@ export const api = {
 
   async deleteNote(id: string): Promise<void> {
     return request(`/api/notes/${id}`, { method: 'DELETE' });
-  },
-
-  // Tasks
-  async getTasks(): Promise<Task[]> {
-    return request<Task[]>('/api/tasks');
-  },
-
-  async createTask(payload: { title: string; priority?: string; due_date?: string }): Promise<Task> {
-    return request<Task>('/api/tasks', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async updateTask(id: string, payload: Partial<Task>): Promise<Task> {
-    return request<Task>(`/api/tasks/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async deleteTask(id: string): Promise<void> {
-    return request(`/api/tasks/${id}`, { method: 'DELETE' });
   },
 
   // Bookmarks

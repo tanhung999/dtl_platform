@@ -5,6 +5,7 @@ from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.realtime import mark_changed
 from app.db.models import Bookmark, User
 from app.modules.auth.dependencies import get_current_user
 
@@ -60,6 +61,7 @@ async def create_bookmark(
     )
     db.add(bookmark)
     await db.flush()
+    mark_changed(db, user.id, "bookmarks")
     return bookmark
 
 
@@ -75,4 +77,5 @@ async def delete_bookmark(
     if not bookmark:
         raise HTTPException(status_code=404, detail="Không tìm thấy liên kết hoặc không có quyền xóa")
     await db.delete(bookmark)
+    mark_changed(db, user.id, "bookmarks")
     return None

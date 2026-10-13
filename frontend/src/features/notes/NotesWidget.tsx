@@ -1,15 +1,24 @@
+import { useListMotion } from '../drag-feedback/useListMotion';
 import React, { useEffect, useState } from 'react';
 import { StickyNote, Plus, Pin, Trash2, Calendar } from 'lucide-react';
 import { api } from '../../services/api';
 import { Note } from '../../types';
 import { NoteModal } from './NoteModal';
+import { orderedItems, useWorkspaceLayout } from '../workspace-layout/WorkspaceLayoutProvider';
+import { NotesPinZone, SortableWidgetCard, SortableWidgetGroup } from '../workspace-layout/SortableWidgets';
+import { WORKSPACE_CHANGED } from '../realtime/useWorkspaceRealtime';
 
 export const NotesWidget: React.FC = () => {
+  const layout = useWorkspaceLayout();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const ordered = orderedItems(notes, layout.layout.notes.ids);
+  const visibleNotes = [...ordered.filter(note => note.is_pinned), ...ordered.filter(note => !note.is_pinned)];
 
+  const list = useListMotion(visibleNotes.map(item => item.id), 'data-sort-id');
   const fetchNotes = async () => {
     setLoading(true);
     try {
@@ -24,6 +33,9 @@ export const NotesWidget: React.FC = () => {
 
   useEffect(() => {
     fetchNotes();
+    const changed = (event: Event) => { if ((event as CustomEvent<string[]>).detail.includes('notes')) fetchNotes(); };
+    window.addEventListener(WORKSPACE_CHANGED, changed);
+    return () => window.removeEventListener(WORKSPACE_CHANGED, changed);
   }, []);
 
   const handleSave = async (payload: { title: string; content: string; color: string; is_pinned: boolean }) => {
@@ -68,6 +80,7 @@ export const NotesWidget: React.FC = () => {
         </button>
       </div>
 
+      {actionError && <p role="alert" className="alert-error">{actionError}</p>}
       {loading && notes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8', fontSize: '0.85rem' }}>
           Đang tải ghi chú...
@@ -86,9 +99,9 @@ export const NotesWidget: React.FC = () => {
           Chưa có ghi chú nào. Bấm <strong>Thêm</strong> để tạo ghi chú đầu tiên!
         </div>
       ) : (
-        <div className="notes-grid">
-          {notes.map((note) => (
-            <div
+        <SortableWidgetGroup revision={layout.layout.notes.version} ids={visibleNotes.map(note => note.id)} disabled={layout.busy || layout.loading} pinned={Object.fromEntries(notes.map(note => [note.id, note.is_pinned]))} onSort={async (ids, activeId, pin, restorePin) => { await layout.save('notes', ids, restorePin !== undefined ? { [activeId]: restorePin } : pin ? { [activeId]: true } : {}); if (pin || restorePin !== undefined) await fetchNotes(); }}><div data-sort-group="notes"><NotesPinZone disabled={layout.busy || layout.loading} /><div className="notes-grid" ref={list}>
+          {visibleNotes.map((note) => (
+            <SortableWidgetCard id={note.id} label={note.title} disabled={layout.busy || layout.loading}
               key={note.id}
               className={`note-card ${note.is_pinned ? 'pinned' : ''}`}
               style={{ backgroundColor: note.color || '#fef08a' }}
@@ -115,6 +128,7 @@ export const NotesWidget: React.FC = () => {
                     month: '2-digit',
                   })}
                 </span>
+                <button type="button" className="task-icon-button" title={note.is_pinned ? 'Bỏ ghim' : 'Ghim'} aria-label={`${note.is_pinned ? 'Bỏ ghim' : 'Ghim'} ${note.title}`} onClick={async event => { event.stopPropagation(); setActionError(''); try { await api.updateNote(note.id, { is_pinned: !note.is_pinned }); await fetchNotes(); } catch (reason) { setActionError(reason instanceof Error ? reason.message : 'Không thể đổi trạng thái ghim.'); } }}><Pin size={13} /></button>
                 <button
                   type="button"
                   style={{
@@ -133,9 +147,9 @@ export const NotesWidget: React.FC = () => {
                   <Trash2 size={13} />
                 </button>
               </div>
-            </div>
+            </SortableWidgetCard>
           ))}
-        </div>
+        </div></div></SortableWidgetGroup>
       )}
 
       <NoteModal

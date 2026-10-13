@@ -42,7 +42,10 @@ export interface Task {
   title: string;
   description?: string;
   priority: TaskPriority;
-  due_date?: string;
+  due_date: string | null;
+  due_time: string | null;
+  legacy_due_date?: string | null;
+  deadline_version: number;
   is_completed: boolean;
   display_order: number;
   created_at: string;
