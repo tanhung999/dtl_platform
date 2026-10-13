@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import declarative_base
 
 from app.core.config import settings
+from app.core.realtime import prepare_changes, broadcast
 
 engine = create_async_engine(
     settings.DATABASE_URL,
@@ -23,7 +24,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         try:
             yield session
+            changes = await prepare_changes(session)
             await session.commit()
+            for user_id, topics in changes.items():
+                broadcast({"user_id": user_id, "topics": sorted(topics)})
         except Exception:
             await session.rollback()
             raise

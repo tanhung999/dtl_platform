@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, User as UserIcon, Clock, LayoutDashboard, UserCheck } from 'lucide-react';
+import { LogOut, User as UserIcon, Clock, LayoutDashboard, UserCheck, CalendarDays } from 'lucide-react';
 import { User } from '../types';
 import { ThemeToggle } from './ThemeToggle';
 
 interface NavbarProps {
   user: User;
-  activeTab: 'dashboard' | 'profile';
-  onTabChange: (tab: 'dashboard' | 'profile') => void;
+  activeTab: 'dashboard' | 'profile' | 'calendar';
+  onTabChange: (tab: 'dashboard' | 'profile' | 'calendar') => void;
   onLogout: () => void;
 }
 
@@ -48,6 +48,12 @@ export const Navbar: React.FC<NavbarProps> = ({ user, activeTab, onTabChange, on
         >
           <LayoutDashboard size={15} />
           <span>Workspace</span>
+        </button>
+
+        <button type="button" onClick={() => onTabChange('calendar')}
+          className={`nav-tab-btn ${activeTab === 'calendar' ? 'active' : ''}`}>
+          <CalendarDays size={15} />
+          <span>Lịch</span>
         </button>
 
         <button

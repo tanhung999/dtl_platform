@@ -1,7 +1,10 @@
+import { useListMotion } from '../drag-feedback/useListMotion';
 import React, { useState } from 'react';
 import { ExternalLink, Loader2, Sparkles } from 'lucide-react';
 import { api } from '../../services/api';
 import { SubAppInfo } from '../../types';
+import { orderedItems, useWorkspaceLayout } from '../workspace-layout/WorkspaceLayoutProvider';
+import { SortableWidgetCard, SortableWidgetGroup } from '../workspace-layout/SortableWidgets';
 
 const APPS: SubAppInfo[] = [
   {
@@ -37,9 +40,13 @@ const APPS: SubAppInfo[] = [
 ];
 
 export const AppLauncherWidget: React.FC = () => {
+  const layout = useWorkspaceLayout();
+  const apps = orderedItems(APPS, layout.layout.apps.ids);
+  const disabled = layout.busy || layout.loading;
   const [launchingApp, setLaunchingApp] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const list = useListMotion(apps.map(item => item.id), 'data-sort-id');
   const handleLaunch = async (app: SubAppInfo) => {
     setLaunchingApp(app.id);
     setErrorMessage(null);
@@ -60,9 +67,8 @@ export const AppLauncherWidget: React.FC = () => {
       <div className="widget-header">
         <div className="widget-title">
           <Sparkles size={18} className="widget-title-icon" />
-          <span>Ứng Dụng Doanh Nghiệp</span>
+          <span>Ứng Dụng Doanh Nghiệp (Enterprise Apps)</span>
         </div>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Đăng nhập vào các hệ thống của công ty</span>
       </div>
 
       {errorMessage && (
@@ -71,15 +77,14 @@ export const AppLauncherWidget: React.FC = () => {
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-        {APPS.map((app) => {
+      <SortableWidgetGroup revision={layout.layout.apps.version} ids={apps.map(app => app.id)} disabled={disabled} onSort={ids => layout.save('apps', ids)}><div data-sort-group="apps" ref={list} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        {apps.map((app) => {
           const isLaunching = launchingApp === app.id;
           return (
-            <div
+            <SortableWidgetCard id={app.id} label={app.name} disabled={disabled}
               key={app.id}
               className="app-card"
               onClick={() => handleLaunch(app)}
-              title={`Click để mở ${app.name} với Single Sign-On`}
             >
               <div className="app-card-top">
                 <div
@@ -111,10 +116,10 @@ export const AppLauncherWidget: React.FC = () => {
                   <ExternalLink size={15} />
                 )}
               </div>
-            </div>
+            </SortableWidgetCard>
           );
         })}
-      </div>
+      </div></SortableWidgetGroup>
     </div>
   );
 };

@@ -1,0 +1,78 @@
+.tasks-widget { min-width: 0; }
+.priority-tag { display: inline-flex; align-items: center; gap: 4px; padding: .1rem .4rem; border-radius: 4px; font-weight: 700; font-size: .65rem; background: var(--priority-bg); color: var(--priority-fg); }
+.tasks-widget .task-item.completed .priority-tag { --priority-bg: #e2e8f0; --priority-fg: #334155; opacity: .85; }
+[data-theme="dark"] .tasks-widget .task-item.completed .priority-tag, .dark .tasks-widget .task-item.completed .priority-tag { --priority-bg: #253247; --priority-fg: #e2e8f0; }
+.tasks-widget .task-item.completed .task-meta { color: var(--text-muted); }
+.tasks-widget .widget-header { gap: 0.5rem; flex-wrap: wrap; }
+.task-pending-badge { padding: 3px 8px; background: var(--primary-light); color: var(--accent); border-radius: 12px; font-size: 0.65rem; font-weight: 700; white-space: nowrap; }
+.task-overdue-badge { align-self: flex-start; border: 1px solid #ef444440; border-radius: 8px; padding: 0.4rem 0.7rem; background: #ef444415; color: #dc2626; font: 700 0.75rem var(--font-family); cursor: pointer; }
+.task-quick-form { display: flex; flex-direction: column; gap: 0.6rem; }
+.task-time-default-hint { font-size: 11px; color: var(--text-muted); }
+.tasks-widget .quick-input-bar input { min-width: 0; }
+.task-priority-select { padding: 0.4rem; border: 1px solid var(--border); border-radius: 6px; font: 600 0.75rem var(--font-family); background: var(--input-bg); color: var(--text-main); }
+.task-quick-deadline { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.task-quick-deadline label { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; color: var(--text-muted); font-size: 0.65rem; }
+.task-quick-deadline input { min-width: 0; padding: 0.3rem; border: 1px solid var(--border); border-radius: 5px; color: var(--text-main); background: var(--input-bg); font: 500 0.7rem var(--font-family); }
+.task-filters { display: flex; flex-wrap: wrap; gap: 0.35rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
+.task-filters .btn { padding: 6px 9px; font-size: 0.75rem; min-height: 32px; }
+.task-filters .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; box-shadow: 0 2px 5px #2563eb25; }
+.task-empty { padding: 1.2rem 0.5rem; font-size: 0.8rem; color: var(--text-muted); text-align: center; }
+.tasks-widget .task-item { gap: 0.45rem; padding: 0.65rem; }
+.tasks-widget .task-item.is-overdue { border-color: transparent; border-left: 3px solid #dc2626; background: color-mix(in srgb, #ef4444 3%, var(--bg-card-solid)); }
+.task-date-field { display: flex; flex-direction: column; gap: .4rem; min-width: 0; font-size: .75rem; font-weight: 600; }
+.task-date-field > span { display: inline-flex; align-items: center; gap: 4px; }
+.task-quick-deadline { align-items: flex-end; }
+.task-quick-deadline .task-date-field { color: var(--text-muted); font-size: .7rem; }
+.task-quick-deadline > label { flex-direction: column; align-items: flex-start; }
+.tasks-widget .task-info { min-width: 0; }
+.tasks-widget .task-meta { flex-wrap: wrap; }
+.task-title-button { border: 0; background: transparent; font-family: var(--font-family); text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.task-deadline-button { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: transparent; color: var(--text-muted); font: inherit; cursor: pointer; }
+.task-overdue-text { color: #dc2626; font-weight: 700; }
+.task-legacy-hint { font-size: 0.65rem; color: var(--text-muted); }
+.task-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex-shrink: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.task-icon-button:hover { color: var(--accent); background: var(--bg-subtle); }
+.task-text-button { border: 0; background: transparent; color: var(--accent); font: 600 0.7rem var(--font-family); cursor: pointer; }
+.task-dialog { position: fixed; inset: 0; margin: auto; padding: 0; width: min(500px, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow-y: auto; border: 1px solid var(--border); border-radius: 16px; color: var(--text-main); background: var(--bg-card-solid); box-shadow: var(--shadow-xl); }
+.task-dialog::backdrop { background: #0b0f1988; backdrop-filter: blur(3px); }
+.task-dialog-header, .task-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 1rem 1.25rem; }
+.task-dialog-header { border-bottom: 1px solid var(--border); }
+.task-dialog-header h2 { font-size: 1rem; }
+.task-dialog-footer { border-top: 1px solid var(--border); background: var(--bg-surface); }
+.task-dialog-fields { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; border: 0; min-width: 0; }
+.task-dialog-fields label { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.75rem; font-weight: 600; min-width: 0; }
+.task-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+.task-form-row input { min-width: 0; }
+.task-deadline-help { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: space-between; font-size: 0.65rem; color: var(--text-muted); }
+.task-dialog-error, .task-delete-confirm { margin: 0 1.25rem 1rem; }
+.task-delete-confirm { padding: 0.8rem; border: 1px solid #ef444450; border-radius: 8px; background: #ef444410; font-size: 0.8rem; }
+.task-delete-confirm > div { display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.8rem; }
+.task-reminders { max-width: 1100px; width: calc(100% - 3rem); margin: 1.25rem auto 0; padding: 1rem 1.25rem; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card-solid); box-shadow: var(--shadow-sm); }
+.task-reminders-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.task-reminders-title { display: flex; align-items: center; gap: .7rem; color: var(--accent); }
+.task-reminders-title strong { font-size: 15px; color: var(--text-main); }
+.task-reminders-summary { margin-top: 4px; color: var(--text-main); font-size: 13px; font-weight: 600; line-height: 1.5; }
+.task-reminders-actions, .task-reminder-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.task-reminders-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: .7rem; margin-top: .9rem; }
+.task-reminder { display: flex; align-items: center; gap: .5rem; padding: .8rem; border: 1px solid var(--reminder-border); border-left: 4px solid var(--reminder-accent); border-radius: 8px; background: var(--reminder-bg); min-width: 0; }
+.task-reminder.is-today { --reminder-accent: #ea580c; --reminder-bg: #fff7ed; --reminder-border: #fed7aa; --reminder-fg: #9a3412; }
+.task-reminder.is-tomorrow { --reminder-accent: #0284c7; --reminder-bg: #f0f9ff; --reminder-border: #bae6fd; --reminder-fg: #0369a1; }
+.task-reminder-open { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: transparent; color: var(--text-main); text-align: left; font-family: var(--font-family); cursor: pointer; min-width: 0; }
+.task-reminder-open > strong { font-size: 14px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+.task-reminder-open > span { font-size: 12px; font-weight: 600; color: var(--reminder-fg); line-height: 1.4; }
+.task-reminder .task-icon-button { color: var(--reminder-fg); }
+.task-reminder-stage { font-weight: 400; }
+.task-reminder-overdue { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 6px; padding: .8rem; border: 1px solid #fecdd3; border-left: 4px solid #dc2626; border-radius: 8px; background: #fff1f2; color: #b91c1c; font-family: var(--font-family); text-align: left; cursor: pointer; }
+.task-reminder-overdue strong { font-size: 14px; }
+.task-reminder-overdue span { font-size: 12px; }
+.task-reminders-more { margin-top: .8rem; padding: 4px 0; background: transparent; border: 0; color: var(--accent); font: 600 13px var(--font-family); cursor: pointer; }
+.task-reminders-help { margin-top: .8rem; padding: .7rem; border-radius: 8px; background: var(--bg-surface); color: var(--text-main); font-size: 12px; line-height: 1.6; }
+[data-theme="dark"] .task-reminder.is-today { --reminder-accent: #fb923c; --reminder-bg: #431407; --reminder-border: #7c2d12; --reminder-fg: #fdba74; }
+[data-theme="dark"] .task-reminder.is-tomorrow { --reminder-accent: #38bdf8; --reminder-bg: #082f49; --reminder-border: #075985; --reminder-fg: #7dd3fc; }
+[data-theme="dark"] .task-reminder-overdue { background: #450a0a; border-color: #7f1d1d; border-left-color: #f87171; color: #fca5a5; }
+.tasks-widget { scroll-margin-top: 100px; }
+.task-dialog input[type="date"], .task-dialog input[type="time"], .task-quick-deadline input { color-scheme: light; }
+[data-theme="dark"] .task-dialog input[type="date"], [data-theme="dark"] .task-dialog input[type="time"], [data-theme="dark"] .task-quick-deadline input { color-scheme: dark; }
+[data-theme="dark"] .task-overdue-badge, [data-theme="dark"] .task-overdue-text { color: #f87171; }
+.tasks-widget button:focus-visible, .task-dialog button:focus-visible, .task-reminders button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 768px) { .task-reminders { width: calc(100% - 2rem); padding: 1rem; } .task-reminders-list { grid-template-columns: 1fr; } .tasks-widget { scroll-margin-top: 190px; } }

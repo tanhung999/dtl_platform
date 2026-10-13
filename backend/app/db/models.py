@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, JSON
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, JSON, CheckConstraint, Index
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+from app.db.types import ISODate, ISOTime
 
 
 def utcnow():
@@ -55,19 +56,29 @@ class Note(Base):
 
 class Task(Base):
     __tablename__ = "tasks"
+    __table_args__ = (
+        CheckConstraint("priority IN ('LOW','MEDIUM','HIGH','URGENT')", name="ck_tasks_priority"),
+        CheckConstraint("deadline_version >= 0", name="ck_tasks_deadline_version"),
+        CheckConstraint("due_time IS NULL OR due_date IS NOT NULL", name="ck_tasks_time_requires_date"),
+        Index("ix_tasks_user_deadline", "user_id", "is_completed", "due_date"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    priority = Column(String(20), default="MEDIUM")  # LOW, MEDIUM, HIGH, URGENT
-    due_date = Column(String(50), nullable=True)
-    is_completed = Column(Boolean, default=False)
-    display_order = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), default=utcnow)
-    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    priority = Column(String(20), default="MEDIUM", nullable=False)  # LOW, MEDIUM, HIGH, URGENT
+    due_date = Column(ISODate, nullable=True)
+    due_time = Column(ISOTime, nullable=True)
+    legacy_due_date = Column(String(50), nullable=True)
+    deadline_version = Column(Integer, nullable=False, default=0, server_default="0")
+    is_completed = Column(Boolean, default=False, nullable=False)
+    display_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
     user = relationship("User", back_populates="tasks")
+    reminder_receipts = relationship("TaskReminderReceipt", cascade="all, delete-orphan")
 
 
 class Bookmark(Base):

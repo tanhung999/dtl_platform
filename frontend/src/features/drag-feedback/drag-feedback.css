@@ -1,0 +1,37 @@
+html[data-drag-cursor="grabbing"], html[data-drag-cursor="grabbing"] * { cursor: grabbing !important; }
+html[data-drag-cursor="not-allowed"], html[data-drag-cursor="not-allowed"] * { cursor: not-allowed !important; }
+.drag-floating-preview { transform: rotate(2deg) scale(.95); opacity: .9; box-shadow: 0 14px 34px #0f172a35, 0 4px 10px #0f172a20 !important; transition: border-color 100ms, opacity 100ms; }
+.drag-floating-preview.is-invalid { border-color: #fca5a5 !important; opacity: .65; }
+.drag-preview-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); }
+.drag-settle-copy { padding: 12px 14px; border: 1px solid #93c5fd; border-radius: 10px; background: var(--bg-card-solid); color: var(--text-main); }
+.drag-settle-copy strong { display: block; font-size: 13px; margin-bottom: 6px; }
+.calendar-drop-day.is-drop-ready, .calendar-deadline-drop-zone.is-drop-ready { background: color-mix(in srgb, #2563eb 5%, var(--bg-card-solid)) !important; }
+.calendar-drop-day.is-drop-ready { color: var(--text-main) !important; }
+.calendar-drop-day.is-selected.is-drop-ready { color: #1d4ed8 !important; }
+[data-theme="dark"] .calendar-drop-day.is-selected.is-drop-ready { color: #bfdbfe !important; }
+.calendar-drop-day.is-drop-target, .calendar-deadline-drop-zone.is-drop-target { background: color-mix(in srgb, #2563eb 15%, var(--bg-card-solid)) !important; outline: 2px solid #1d4ed8 !important; outline-offset: -2px; }
+.task-calendar-toast { left: auto !important; right: 24px; transform: none !important; bottom: 24px; }
+.calendar-event-toast { bottom: 24px !important; }
+[data-drag-highlight] { position: relative; }
+[data-drag-highlight]::before { content: ''; position: absolute; inset: 0; z-index: 8; border-radius: inherit; pointer-events: none; background: #fef08a66; animation: drag-change-fade 3s ease-out forwards; }
+[data-drop-flash] { animation: drag-drop-flash 500ms ease-out; }
+.drag-count-change { display: inline-block; animation: drag-count-pop 180ms ease-out; }
+.tasks-widget .task-item.is-dragging, .calendar-deadline-row.is-dragging, .workspace-sort-card.is-dragging, .calendar-event-drag-frame.is-dragging, .calendar-all-day-event-frame.is-dragging { opacity: .4 !important; outline: 1px dashed #2563eb; outline-offset: -1px; }
+.calendar-drag-ghost { position: absolute; left: 2px; right: 2px; z-index: 8; pointer-events: none; padding: 3px 5px; border: 1px dashed #2563eb; border-radius: 5px; background: #2563eb22; color: #1d4ed8; font-size: 11px; font-weight: 600; overflow: hidden; }
+[data-theme="dark"] .calendar-drag-ghost { color: #bfdbfe; background: #2563eb33; }
+.calendar-drag-wrapper { position: relative; min-width: 0; }
+.calendar-widget-week { position: relative; }
+.calendar-widget-week .calendar-drop-day:nth-of-type(-n+2) .calendar-drop-label { left: 0; transform: none; }
+.calendar-widget-week .calendar-drop-day:nth-of-type(n+6) .calendar-drop-label { left: auto; right: 0; transform: none; }
+.drag-edge-indicator { position: absolute; z-index: 9; pointer-events: none; }
+.drag-edge-indicator.is-left, .drag-edge-indicator.is-right { top: 0; bottom: 0; width: 24px; }
+.drag-edge-indicator.is-left { left: 0; background: linear-gradient(to right, #2563eb40, transparent); }
+.drag-edge-indicator.is-right { right: 0; background: linear-gradient(to left, #2563eb40, transparent); }
+.drag-edge-indicator.is-top, .drag-edge-indicator.is-bottom { left: 56px; right: 0; height: 24px; }
+.drag-edge-indicator.is-top { top: 76px; background: linear-gradient(to bottom, #2563eb40, transparent); }
+.drag-edge-indicator.is-bottom { bottom: 0; background: linear-gradient(to top, #2563eb40, transparent); }
+@keyframes drag-change-fade { from { opacity: 1; } to { opacity: 0; } }
+@keyframes drag-drop-flash { from { box-shadow: inset 0 0 0 2px #2563eb; } to { box-shadow: inset 0 0 0 2px transparent; } }
+@keyframes drag-count-pop { from { opacity: .5; scale: .9; } to { opacity: 1; scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .drag-floating-preview { transform: none; transition: none; } [data-drag-highlight]::before, [data-drop-flash], .drag-count-change { animation: none; } }
+@media (max-width: 768px) { .task-calendar-toast { right: 16px; bottom: 16px; } }

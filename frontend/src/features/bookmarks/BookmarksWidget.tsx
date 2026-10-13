@@ -1,14 +1,20 @@
+import { useListMotion } from '../drag-feedback/useListMotion';
 import React, { useEffect, useState } from 'react';
 import { Bookmark as BookmarkIcon, Plus, Trash2, Globe } from 'lucide-react';
 import { api } from '../../services/api';
 import { Bookmark } from '../../types';
+import { orderedItems, useWorkspaceLayout } from '../workspace-layout/WorkspaceLayoutProvider';
+import { SortableWidgetCard, SortableWidgetGroup } from '../workspace-layout/SortableWidgets';
+import { WORKSPACE_CHANGED } from '../realtime/useWorkspaceRealtime';
 
 export const BookmarksWidget: React.FC = () => {
+  const layout = useWorkspaceLayout();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
 
+  const list = useListMotion(orderedItems(bookmarks, layout.layout.bookmarks.ids).map(item => item.id), 'data-sort-id');
   const fetchBookmarks = async () => {
     try {
       const data = await api.getBookmarks();
@@ -20,6 +26,9 @@ export const BookmarksWidget: React.FC = () => {
 
   useEffect(() => {
     fetchBookmarks();
+    const changed = (event: Event) => { if ((event as CustomEvent<string[]>).detail.includes('bookmarks')) fetchBookmarks(); };
+    window.addEventListener(WORKSPACE_CHANGED, changed);
+    return () => window.removeEventListener(WORKSPACE_CHANGED, changed);
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -118,9 +127,9 @@ export const BookmarksWidget: React.FC = () => {
         </form>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px' }}>
-        {bookmarks.map((b) => (
-          <div
+      <SortableWidgetGroup revision={layout.layout.bookmarks.version} ids={orderedItems(bookmarks, layout.layout.bookmarks.ids).map(item => item.id)} disabled={layout.busy || layout.loading} onSort={ids => layout.save('bookmarks', ids)}><div data-sort-group="bookmarks" ref={list} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px' }}>
+        {orderedItems(bookmarks, layout.layout.bookmarks.ids).map((b) => (
+          <SortableWidgetCard id={b.id} label={b.title} disabled={layout.busy || layout.loading} className="bookmark-sort-card"
             key={b.id}
             style={{
               padding: '8px 10px',
@@ -171,9 +180,9 @@ export const BookmarksWidget: React.FC = () => {
                 <Trash2 size={12} />
               </button>
             )}
-          </div>
+          </SortableWidgetCard>
         ))}
-      </div>
+      </div></SortableWidgetGroup>
     </div>
   );
 };

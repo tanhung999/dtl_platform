@@ -423,10 +423,18 @@ body[data-theme="dark"] {
 
 .col-tasks {
   grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
 }
 
 .col-notes {
   grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
 }
 
 @media (max-width: 1200px) {
@@ -440,6 +448,17 @@ body[data-theme="dark"] {
   .col-tasks { grid-column: span 12; }
   .col-notes { grid-column: span 12; }
   .platform-navbar { flex-direction: column; gap: 0.75rem; }
+  .nav-actions { flex-wrap: wrap; justify-content: center; }
+  .nav-clock { display: none; }
+}
+
+@media (min-width: 769px) and (max-width: 1100px) {
+  .platform-navbar { flex-wrap: wrap; gap: 0.75rem; }
+  .nav-actions { margin-left: auto; }
+}
+
+@media (max-width: 480px) {
+  .nav-actions .user-info { display: none; }
 }
 
 /* Widget Container */
@@ -664,10 +683,7 @@ body[data-theme="dark"] {
   background: var(--bg-surface);
 }
 
-.task-item.completed {
-  opacity: 0.55;
-  background: var(--bg-subtle);
-}
+.task-item.completed { background: var(--bg-subtle); }
 
 .task-checkbox {
   width: 18px;
@@ -702,22 +718,6 @@ body[data-theme="dark"] {
   color: var(--text-muted);
 }
 
-.priority-tag {
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  font-weight: 700;
-  font-size: 0.65rem;
-}
-
-.priority-URGENT { background: #fee2e2; color: #dc2626; }
-.priority-HIGH { background: #ffedd5; color: #ea580c; }
-.priority-MEDIUM { background: #fef9c3; color: #ca8a04; }
-.priority-LOW { background: #e0f2fe; color: #0284c7; }
-
-[data-theme="dark"] .priority-URGENT, .dark .priority-URGENT { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-[data-theme="dark"] .priority-HIGH, .dark .priority-HIGH { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
-[data-theme="dark"] .priority-MEDIUM, .dark .priority-MEDIUM { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
-[data-theme="dark"] .priority-LOW, .dark .priority-LOW { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 
 /* Quick Input */
 .quick-input-bar {

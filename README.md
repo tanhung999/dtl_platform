@@ -119,6 +119,9 @@ Dưới đây là danh sách đầu việc chi tiết để bạn phân công ch
 
 ## 📂 5. Cấu trúc Thư mục
 
+Module lịch cá nhân, database và hướng dẫn kiểm thử: [docs/calendar.md](docs/calendar.md).
+Đồng bộ To-Do, nhắc hạn và cập nhật realtime: [docs/task-deadlines.md](docs/task-deadlines.md).
+
 ```text
 dtl-platform/
 ├── backend/
