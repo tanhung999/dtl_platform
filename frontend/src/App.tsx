@@ -1,7 +1,8 @@
+import { authApi } from './features/auth/api';
 import { useState, useEffect } from 'react';
 import { LoginPage } from './features/auth/LoginPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
-import { getStoredToken, getStoredUser, clearSession, api } from './services/api';
+import { getStoredToken, getStoredUser, clearSession } from './services/api';
 import { User, AuthSession } from './types';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -22,7 +23,7 @@ export function AppContent() {
   // Fetch full user profile on mount if token exists
   useEffect(() => {
     if (hasToken) {
-      api.getMe()
+      authApi.getMe()
         .then((user) => setCurrentUser(user))
         .catch(() => {
           // Token might be invalid or expired

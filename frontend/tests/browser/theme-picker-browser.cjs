@@ -1,0 +1,76 @@
+const { chromium } = require('../.browser-tools/node_modules/playwright');
+const { createDragUsers } = require('../support/test-users.cjs');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+(async () => {
+  const fixture = createDragUsers(1); let browser;
+  try {
+    browser = await chromium.launch({ channel: 'msedge', headless: true });
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    page.setDefaultTimeout(20000);
+    const errors = []; page.on('pageerror', e => errors.push(e.message));
+    await page.goto('http://127.0.0.1:5173', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);
+    await page.getByLabel('Mật khẩu', { exact: true }).fill(fixture.accounts[0].password);
+    await page.getByRole('button', { name: 'Đăng nhập hệ thống' }).click();
+    await page.locator('.platform-navbar').waitFor();
+    const token = await page.evaluate(() => localStorage.getItem('dtl_platform_token'));
+    const response = await page.request.post('http://127.0.0.1:5173/api/notes', { headers: { Authorization: 'Bearer ' + token }, data: { title: 'Theme QA note', content: 'Màu ghi chú giữ nguyên trên mọi giao diện.', color: '#fef08a' } });
+    assert.ok(response.ok());
+    const note = page.locator('.note-card').filter({ hasText: 'Theme QA note' }); await note.waitFor();
+    const color = await note.evaluate(el => getComputedStyle(el).backgroundColor);
+    let reads = 0;
+    page.on('request', request => { if (request.method() === 'GET' && new URL(request.url()).pathname.startsWith('/api/')) reads++; });
+    const trigger = page.getByRole('button', { name: 'Chọn giao diện', exact: true });
+    await trigger.click();
+    const dialog = page.getByRole('dialog', { name: 'Không gian của bạn' });
+    assert.equal(await dialog.getByRole('radio').count(), 7);
+    const backgrounds = new Set();
+    for (const [id, name] of [['light', 'Corporate Light'], ['dark', 'Midnight Dark'], ['aurora', 'Aurora Glass'], ['ivory', 'Ivory & Forest'], ['sunset', 'Sunset Coral Glass'], ['obsidian', 'Obsidian Titanium'], ['emerald', 'Emerald Aurora']]) {
+      const before = reads;
+      await dialog.getByRole('radio', { name: new RegExp(name) }).click();
+      await page.waitForFunction(value => document.documentElement.dataset.theme === value, id);
+      await page.waitForTimeout(300);
+      assert.equal(await page.evaluate(() => localStorage.getItem('dtl_theme')), id);
+      assert.equal(await note.evaluate(el => getComputedStyle(el).backgroundColor), color);
+      assert.equal(await page.evaluate(() => document.documentElement.style.colorScheme), id === 'dark' || id === 'obsidian' ? 'dark' : 'light');
+      backgrounds.add(await page.evaluate(() => getComputedStyle(document.body).backgroundImage));
+      assert.equal(reads, before, 'Theme switch must not reload data');
+      fs.mkdirSync('../.audit-backups/theme-previews', { recursive: true });
+      await page.screenshot({ path: '../.audit-backups/theme-previews/' + id + '.png' });
+    }
+    assert.equal(backgrounds.size, 7);
+    await page.keyboard.press('Escape'); assert.equal(await dialog.count(), 0); await trigger.focus();
+    await trigger.click(); await page.locator('.widget-title').first().click(); assert.equal(await dialog.count(), 0);
+    await trigger.click(); await page.keyboard.press('Home'); await page.keyboard.press('ArrowRight');
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    await page.keyboard.press('Escape');
+    assert.equal(await trigger.evaluate(el => document.activeElement === el), true);
+    await page.reload(); await page.locator('.platform-navbar').waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
+    await page.getByRole('button', { name: 'Lịch', exact: true }).click();
+    await page.locator('.calendar-shell').waitFor();
+    await trigger.click(); await page.getByRole('radio', { name: /Ivory & Forest/ }).click(); await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.calendar-shell').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 254, 250)');
+    await trigger.click(); await page.getByRole('radio', { name: /Emerald Aurora/ }).click(); await page.keyboard.press('Escape');
+    await page.reload(); await page.locator('.platform-navbar').waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'emerald');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await trigger.click();
+    await page.getByRole('radio', { name: /Sunset Coral Glass/ }).click();
+    await page.getByRole('radio', { name: /Obsidian Titanium/ }).click();
+    assert.equal(await page.evaluate(() => document.documentElement.style.colorScheme), 'dark');
+    const box = await dialog.boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= 390 && box.y >= 0 && box.y + box.height <= 844);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({ path: '../.audit-backups/theme-previews/mobile.png' });
+    await page.keyboard.press('Escape');
+    assert.deepEqual(errors, []);
+    // A fresh visit handles invalid saved values and unavailable persistence.
+    const blocked = await browser.newPage();
+    await blocked.addInitScript(() => { const get = Storage.prototype.getItem, set = Storage.prototype.setItem; Storage.prototype.getItem = function(key) { if (key === 'dtl_theme') throw new Error('blocked'); return get.call(this, key); }; Storage.prototype.setItem = function(key, value) { if (key === 'dtl_theme') throw new Error('blocked'); return set.call(this, key, value); }; });
+    await blocked.goto('http://127.0.0.1:5173', { waitUntil: 'domcontentloaded', timeout: 60000 }); await blocked.getByRole('button', { name: 'Chọn giao diện' }).click();
+    await blocked.getByRole('radio', { name: /Aurora Glass/ }).click();
+    assert.equal(await blocked.evaluate(() => document.documentElement.dataset.theme), 'aurora'); await blocked.close();
+    console.log('PASS: seven themes, palette distinction, no API reload, note colors, persistence, keyboard/outside dismissal, full Calendar, mobile bounds and disabled storage.');
+  } finally { await browser?.close(); fixture.cleanup(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

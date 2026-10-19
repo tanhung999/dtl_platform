@@ -1,6 +1,7 @@
+import { authApi } from './api';
 import React, { useState } from 'react';
 import { User, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
-import { api } from '../../services/api';
+
 import { AuthSession } from '../../types';
 import { ThemeToggle } from '../../components/ThemeToggle';
 
@@ -25,7 +26,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setError(null);
     setLoading(true);
     try {
-      const session = await api.login(username.trim(), password);
+      const session = await authApi.login(username.trim(), password);
       onLoginSuccess(session);
     } catch (err: any) {
       setError(err?.message || 'Không thể đăng nhập. Vui lòng thử lại.');

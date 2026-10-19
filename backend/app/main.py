@@ -9,15 +9,26 @@ from app.core.security import hash_password
 from app.db.models import User, Note, Task, Bookmark
 from app.db.migrations.runner import upgrade
 from app.modules.tasks.deadlines import VN
+from app.modules.access.router import router as access_router
+from app.modules.calendar_sharing.router import router as sharing_router
 from app.modules.auth.router import router as auth_router
 from app.modules.sso.router import router as sso_router
 from app.modules.notes.router import router as notes_router
+from app.modules.notes.collection import router as notes_collection_router
+from app.modules.notes.ordering import router as notes_ordering_router
+from app.modules.tasks.collection import router as task_collection_router
 from app.modules.tasks.router import router as tasks_router
 from app.modules.bookmarks.router import router as bookmarks_router
 from app.modules.calendar.router import router as calendar_router
+from app.modules.calendar.collection import router as calendar_collection_router
 from app.modules.realtime.router import router as realtime_router
 from app.modules.workspace.router import router as workspace_router
+from app.modules.workspace.widgets_router import router as widget_layout_router
 from app.core.realtime import listen
+from app.modules.notifications.router import router as notifications_router
+from app.modules.notifications.integrations import router as notification_integrations_router
+from app.modules.notifications.worker import run_worker
+from app.modules.notifications.scheduling import sync_task_jobs
 
 
 async def seed_initial_data():
@@ -45,6 +56,9 @@ async def seed_initial_data():
             session.add(admin)
             await session.flush()
 
+            from app.db.access import UserRole
+            session.add(UserRole(user_id=admin.id, role_id='access_admin'))
+
             # Seed sample notes
             n1 = Note(
                 user_id=admin.id,
@@ -55,6 +69,7 @@ async def seed_initial_data():
             )
             n2 = Note(
                 user_id=admin.id,
+                sort_order=1,
                 title="Lịch họp giao ban tuần",
                 content="- Thứ Hai: 8h30 họp kinh doanh toàn công ty\n- Thứ Năm: 14h00 review tiến độ dự án IT\n- Thứ Sáu: Tổng kết tuần",
                 color="#bbf7d0",
@@ -85,6 +100,9 @@ async def seed_initial_data():
                 is_completed=True,
             )
             session.add_all([t1, t2, t3])
+            await session.flush()
+            for task in (t1, t2, t3):
+                await sync_task_jobs(session, task)
 
             # Seed sample bookmarks
             b1 = Bookmark(
@@ -110,7 +128,7 @@ async def lifespan(app: FastAPI):
         await upgrade(conn)
     await seed_initial_data()
     try:
-        async with listen(settings.DATABASE_URL):
+        async with listen(settings.DATABASE_URL), run_worker(settings.NOTIFICATIONS_WORKER_ENABLED):
             yield
     finally:
         await engine.dispose()
@@ -129,14 +147,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(access_router)
+app.include_router(sharing_router)
 app.include_router(auth_router)
+app.include_router(notifications_router)
+app.include_router(notification_integrations_router)
 app.include_router(sso_router)
+app.include_router(calendar_collection_router)
+app.include_router(notes_collection_router)
+app.include_router(notes_ordering_router)
+app.include_router(task_collection_router)
 app.include_router(notes_router)
 app.include_router(tasks_router)
 app.include_router(bookmarks_router)
 app.include_router(calendar_router)
 app.include_router(realtime_router)
 app.include_router(workspace_router)
+app.include_router(widget_layout_router)
 
 
 @app.get("/api/health", tags=["Health"])

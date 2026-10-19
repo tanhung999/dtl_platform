@@ -1,0 +1,1 @@
+.mutation-checking-status { position: fixed; left: 20px; bottom: 20px; z-index: 200; max-width: calc(100vw - 40px); padding: 10px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card-solid); color: var(--text-main); box-shadow: 0 4px 18px #0002; font-size: 13px; }

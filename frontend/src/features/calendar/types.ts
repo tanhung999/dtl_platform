@@ -1,16 +1,19 @@
 export type CalendarView = 'week' | 'month' | 'agenda';
 
 export interface CalendarEventInput {
+  expected_updated_at?: string;
   title: string;
   description: string;
   location: string;
   starts_at: string;
   ends_at: string;
+  is_private?: boolean;
   is_all_day: boolean;
   color: string;
 }
 
 export interface CalendarEvent extends CalendarEventInput {
+  scheduled_note_id?: string | null;
   id: string;
   user_id: string;
   created_at: string;
@@ -33,3 +36,5 @@ export interface CalendarViewProps {
 
 import { Task } from '../../types';
 
+
+export type CalendarDays = Record<string, { events: number; notes: number; tasks: number; attention: boolean }>;

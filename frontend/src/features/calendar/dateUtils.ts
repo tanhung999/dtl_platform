@@ -75,6 +75,31 @@ export function eventLabel(event: CalendarEvent): string {
   return `${start} – ${end}`;
 }
 
+// Nhãn theo đoạn đang xem; mốc kết thúc 00:00 không tạo thêm ngày hiển thị.
+export function eventDayLabel(event: CalendarEvent, day: string, compact = false): string {
+  if (event.is_all_day) return 'Cả ngày';
+  const dayStart = Date.parse(toTimestamp(parseDate(day)));
+  const dayEnd = dayStart + DAY;
+  const start = Date.parse(event.starts_at), end = Date.parse(event.ends_at);
+  const fromPrevious = start < dayStart, intoNext = end > dayEnd;
+  if (fromPrevious && intoNext) return compact ? 'Tiếp tục' : 'Tiếp tục từ ngày trước';
+  if (fromPrevious) return `Đến ${end === dayEnd ? '24:00' : eventTime(event.ends_at)}`;
+  if (intoNext) return `Từ ${eventTime(event.starts_at)}`;
+  return `${eventTime(event.starts_at)} – ${end === dayEnd ? '24:00' : eventTime(event.ends_at)}`;
+}
+
+export function eventContinuation(event: CalendarEvent, day: string, startMinute = 0): string | undefined {
+  if (event.is_all_day) return undefined;
+  const visibleStart = Date.parse(toTimestamp(parseDate(day))) + startMinute * 60000;
+  if (Date.parse(event.starts_at) >= visibleStart || Date.parse(event.ends_at) <= visibleStart) return undefined;
+  return startMinute ? `Tiếp tục từ trước ${String(Math.floor(startMinute / 60)).padStart(2, '0')}:${String(startMinute % 60).padStart(2, '0')}` : 'Tiếp tục từ ngày trước';
+}
+
+export function eventContinuesNextDay(event: CalendarEvent, day: string): boolean {
+  const nextMidnight = Date.parse(toTimestamp(addDays(parseDate(day), 1)));
+  return !event.is_all_day && Date.parse(event.starts_at) < nextMidnight && Date.parse(event.ends_at) > nextMidnight;
+}
+
 export function viewRange(anchor: Date, view: CalendarView): { start: Date; end: Date } {
   if (view === 'month') {
     const days = monthDays(anchor);

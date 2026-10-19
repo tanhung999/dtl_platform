@@ -18,3 +18,15 @@
 .calendar-event-drag-preview strong { font-size: 13px; }
 .calendar-event-drag-preview span { font-size: 12px; }
 .calendar-event-toast { bottom: 80px; }
+
+/* Resize uses one stationary-lane ghost; source boxes retain their layout footprint. */
+.is-resizing-event .calendar-event-drag-frame.is-resize-source { visibility: hidden !important; opacity: 0 !important; outline: none !important; }
+.is-resizing-event .calendar-event-drag-frame:not(.is-resize-source), .is-resizing-event .calendar-all-day-event-frame { opacity: .6; }
+.calendar-event-resize { opacity: 0; }
+.calendar-event-drag-frame:hover .calendar-event-resize.is-end, .calendar-event-resize:focus-visible, .calendar-all-day-event-frame:hover .calendar-event-resize { opacity: 1; }
+.calendar-event-drag-frame .calendar-event-resize.is-start span { opacity: 0; }
+.calendar-event-drag-frame .calendar-event-resize.is-start:focus-visible span { opacity: 1; }
+.is-resizing-event .calendar-event-resize { visibility: hidden; }
+@media (pointer: coarse) { .calendar-event-drag-frame .calendar-event-resize.is-end, .calendar-all-day-event-frame .calendar-event-resize { opacity: 1; } }
+
+.calendar-event-drag-frame > .calendar-event-resize.is-start { left: calc(50% - 12px); width: 24px; height: 5px; }

@@ -1,5 +1,6 @@
 import { HTMLAttributes, useCallback, useEffect, useId, useRef, useState } from 'react';
 const OPEN = 'dtl:drag-toast-open';
+export function dismissDragToasts() { window.dispatchEvent(new CustomEvent(OPEN, { detail: 'dismiss-all' })); }
 
 export function useDragToast<T>(pending = false) {
   const owner = useId();

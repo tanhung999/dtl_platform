@@ -1,10 +1,11 @@
 import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
-import { request } from '../../services/api';
+import { ApiError } from '../../services/api';
+import { LayoutConflictError } from './layoutErrors';
 import { WORKSPACE_CHANGED } from '../realtime/useWorkspaceRealtime';
 
-export type LayoutKind = 'apps' | 'bookmarks' | 'notes';
-interface Order { ids: string[]; version: number }
-type Layout = Record<LayoutKind, Order>;
+import { Layout, LayoutKind } from './types';
+export type { LayoutKind } from './types';
+import { workspaceOrderApi } from './api';
 const empty = (): Layout => ({ apps: { ids: [], version: 0 }, bookmarks: { ids: [], version: 0 }, notes: { ids: [], version: 0 } });
 const Context = createContext<{ layout: Layout; busy: boolean; loading: boolean; error: string; save: (kind: LayoutKind, ids: string[], pins?: Record<string, boolean>) => Promise<void> } | null>(null);
 
@@ -25,17 +26,32 @@ export function WorkspaceLayoutProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     const controller = new AbortController(), version = revision.current;
-    request<Layout>('/api/workspace/layout', { signal: controller.signal }).then(value => { if (!controller.signal.aborted && version === revision.current) { setLayout(value); setError(''); } }).catch(reason => { if (!controller.signal.aborted) setError(reason.message); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    workspaceOrderApi.get(controller.signal).then(value => { if (!controller.signal.aborted && version === revision.current && !locked.current) { setLayout(value); setError(''); } }).catch(reason => { if (!controller.signal.aborted) setError(reason.message); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [refresh]);
   const save = async (kind: LayoutKind, ids: string[], pins: Record<string, boolean> = {}) => {
     if (locked.current) throw new Error('Đang lưu thứ tự. Vui lòng thử lại.');
+    const previous = layout[kind];
     locked.current = true; setBusy(true);
+    revision.current += 1;
+    setLayout(value => ({ ...value, [kind]: { ...previous, ids } }));
     try {
-      const updated = await request<Order>(`/api/workspace/layout/${kind}`, { method: 'PUT', body: JSON.stringify({ ids, expected_version: layout[kind].version, pin_changes: pins }) });
+      const updated = await workspaceOrderApi.save(kind, ids, previous.version, pins);
       revision.current += 1; setLayout(value => ({ ...value, [kind]: updated })); setError('');
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể lưu thứ tự.'); setRefresh(value => value + 1); throw reason; }
-    finally { locked.current = false; setBusy(false); }
+    } catch (reason) {
+      revision.current += 1; setLayout(value => ({ ...value, [kind]: previous }));
+      setError(reason instanceof Error ? reason.message : 'Không thể lưu thứ tự.');
+      if (reason instanceof ApiError && reason.status === 409) {
+        let refreshed = false;
+        try {
+          const latest = await workspaceOrderApi.get();
+          revision.current += 1; setLayout(latest); setError(''); refreshed = true;
+        } catch { /* Keep the last known order; the regular refresh also retries a read. */ }
+        throw new LayoutConflictError(refreshed);
+      }
+      throw reason;
+    }
+    finally { locked.current = false; setBusy(false); setRefresh(value => value + 1); }
   };
   return <Context.Provider value={{ layout, busy, loading, error, save }}>{children}</Context.Provider>;
 }

@@ -1,7 +1,24 @@
-import { AuthSession, Note, Bookmark, User } from '../types';
+import { AuthSession, User } from '../types';
+import { SharedReads } from './sharedReads';
+import { readScopes, workspaceBootstrap } from './realtimeBootstrap';
+
+export class ApiError extends Error { constructor(message: string, public status: number, public current?: any) { super(message); } }
 
 const TOKEN_KEY = 'dtl_platform_token';
 const USER_KEY = 'dtl_platform_user';
+const reads = new SharedReads();
+let sessionGeneration = 0;
+let writeGeneration = 0;
+export const getSessionKey = () => `${sessionGeneration}:${getStoredToken() ?? ''}`;
+export function ensureWorkspaceSession() {
+  const key = getSessionKey();
+  reads.setSession(key); workspaceBootstrap.setSession(getStoredToken() ? key : '');
+  return key;
+}
+function sessionChanged() {
+  sessionGeneration++; ensureWorkspaceSession();
+  window.dispatchEvent(new Event('session:changed'));
+}
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -20,14 +37,19 @@ export function getStoredUser(): User | null {
 export function saveSession(session: AuthSession): void {
   localStorage.setItem(TOKEN_KEY, session.access_token);
   localStorage.setItem(USER_KEY, JSON.stringify(session.user));
+  sessionChanged();
 }
 
 export function clearSession(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  sessionChanged();
 }
 
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  if ((options.method ?? 'GET').toUpperCase() !== 'GET') writeGeneration++;
+  const session = ensureWorkspaceSession();
+  const checkSession = () => { if (getSessionKey() !== session) throw new DOMException('Session changed', 'AbortError'); };
   const token = getStoredToken();
   const headers = new Headers(options.headers || {});
 
@@ -39,123 +61,50 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(endpoint, {
-    ...options,
-    headers,
-  });
-
-  if (response.status === 401) {
-    clearSession();
-    // Dispatch auth state change or reload
-    window.dispatchEvent(new Event('auth:unauthorized'));
-    throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-  }
-
-  if (response.status === 204) {
-    return {} as T;
-  }
-
-  const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const errorMsg = data?.detail || `Yêu cầu thất bại (Mã lỗi HTTP ${response.status})`;
-    throw new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
-  }
-
-  return data as T;
-}
-
-export const api = {
-  // Auth
-  async login(username: string, password: string): Promise<AuthSession> {
-    const session = await request<AuthSession>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password }),
+  const execute = async (signal?: AbortSignal | null): Promise<T> => {
+    const scopes = (options.method ?? 'GET').toUpperCase() === 'GET' ? readScopes(endpoint) : [];
+    if (token && scopes.length) await workspaceBootstrap.wait(signal);
+    checkSession();
+    const response = await fetch(endpoint, {
+      ...options,
+      signal,
+      headers,
     });
-    saveSession(session);
-    return session;
-  },
+    checkSession();
 
-  async getMe(): Promise<User> {
-    const user = await request<User>('/api/auth/me');
-    const existing = getStoredUser();
-    if (existing) {
-      localStorage.setItem('dtl_platform_user', JSON.stringify({ ...existing, ...user }));
-    }
-    return user;
-  },
-
-  async updateProfile(payload: Partial<User>): Promise<User> {
-    const updated = await request<User>('/api/auth/profile', {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
-    localStorage.setItem('dtl_platform_user', JSON.stringify(updated));
-    return updated;
-  },
-
-  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
-    return request('/api/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({
-        current_password: currentPassword,
-        new_password: newPassword,
-      }),
-    });
-  },
-
-  async logout(): Promise<void> {
-    try {
-      await request('/api/auth/logout', { method: 'POST' });
-    } finally {
+    if (response.status === 401) {
       clearSession();
+      // Dispatch auth state change or reload
+      window.dispatchEvent(new Event('auth:unauthorized'));
+      throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     }
-  },
 
-  // SSO Launch
-  async launchSubApp(targetApp: 'bookingreports' | 'workflows' | 'itam'): Promise<{ launch_url: string; ticket: string }> {
-    return request('/api/sso/launch', {
-      method: 'POST',
-      body: JSON.stringify({ target_app: targetApp }),
-    });
-  },
+    if (response.status === 204) {
+      return {} as T;
+    }
 
-  // Notes
-  async getNotes(): Promise<Note[]> {
-    return request<Note[]>('/api/notes');
-  },
+    const data = await response.json().catch(() => null);
+    checkSession();
 
-  async createNote(payload: Partial<Note>): Promise<Note> {
-    return request<Note>('/api/notes', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
+    if (!response.ok) {
+      const errorMsg = data?.detail || `Yêu cầu thất bại (Mã lỗi HTTP ${response.status})`;
+      throw new ApiError(typeof errorMsg === 'string' ? errorMsg : errorMsg.message || JSON.stringify(errorMsg), response.status, errorMsg?.current);
+    }
 
-  async updateNote(id: string, payload: Partial<Note>): Promise<Note> {
-    return request<Note>(`/api/notes/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async deleteNote(id: string): Promise<void> {
-    return request(`/api/notes/${id}`, { method: 'DELETE' });
-  },
-
-  // Bookmarks
-  async getBookmarks(): Promise<Bookmark[]> {
-    return request<Bookmark[]>('/api/bookmarks');
-  },
-
-  async createBookmark(payload: { title: string; url: string; icon?: string; category?: string }): Promise<Bookmark> {
-    return request<Bookmark>('/api/bookmarks', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async deleteBookmark(id: string): Promise<void> {
-    return request(`/api/bookmarks/${id}`, { method: 'DELETE' });
-  },
-};
+    if (scopes.length) {
+      const snapshot = response.headers.get('X-Workspace-Versions');
+      if (snapshot) {
+        try { workspaceBootstrap.observeRead(endpoint, JSON.parse(snapshot)); } catch { /* Invalid metadata never blocks a resource read. */ }
+      }
+    }
+    return data as T;
+  };
+  if ((options.method ?? 'GET').toUpperCase() !== 'GET') return execute(options.signal);
+  const separator = endpoint.indexOf('?');
+  const path = separator < 0 ? endpoint : endpoint.slice(0, separator);
+  const query = separator < 0 ? '' : endpoint.slice(separator + 1);
+  const params = new URLSearchParams(query); params.sort();
+  // A refresh after a write/event must not join an older in-flight snapshot.
+  const key = JSON.stringify([path, params.toString(), [...headers.entries()].sort(), options.cache, options.credentials, options.mode, options.redirect, options.integrity, options.referrer, options.referrerPolicy, writeGeneration, workspaceBootstrap.revision]);
+  return reads.run(key, session, options.signal, execute);
+}

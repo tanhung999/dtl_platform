@@ -1,3 +1,4 @@
+import { MutationUncertainError } from '../../services/mutationRecovery';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CollisionDetection, DndContext, DragEndEvent, DragOverlay, KeyboardSensor, MouseSensor, TouchSensor, UniqueIdentifier, useSensor, useSensors } from '@dnd-kit/core';
@@ -35,7 +36,7 @@ export function TaskCalendarDndProvider({ children }: { children: ReactNode }) {
   const coordinateGetter = useMemo(() => deadlineDropCoordinates(id => { keyboardTarget.current = id; }), []);
   const collisionDetection = useCallback<CollisionDetection>(args => deadlineCollisionDetection(args, keyboardTarget.current), []);
   const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter, scrollBehavior: 'auto' }));
-  const activeTask = data.tasks.find(task => task.id === activeId);
+  const activeTask = activeId ? snapshot.current : undefined;
   useEffect(() => {
     const mouse = (event: MouseEvent) => { pointer.current = { x: event.clientX, y: event.clientY }; };
     const touch = (event: TouchEvent) => { if (event.touches[0]) pointer.current = { x: event.touches[0].clientX, y: event.touches[0].clientY }; };
@@ -57,7 +58,7 @@ export function TaskCalendarDndProvider({ children }: { children: ReactNode }) {
       const applied = await data.setDeadline(task, target.date, time);
       highlightChange('task', task.id);
       setNotice({ message: `Đã đặt hạn ${shortDeadlineDate(target.date)}${target.type === 'calendar-slot' ? ` ${time}` : target.type === 'calendar-all-day' ? ' · Cả ngày' : ''}`, undo: { previous: task, applied, dragId: String(active.id) } });
-    } catch (reason) { revertDragView(String(active.id)); shakeSource(document.querySelector<HTMLElement>(`[data-drag-source-id="${CSS.escape(String(active.id))}"]`)); setNotice({ message: `Không lưu được, đã hoàn lại. ${reason instanceof Error ? reason.message : ''}`, error: true }); data.refresh(); }
+    } catch (reason) { revertDragView(String(active.id)); shakeSource(document.querySelector<HTMLElement>(`[data-drag-source-id="${CSS.escape(String(active.id))}"]`)); setNotice({ message: reason instanceof MutationUncertainError ? reason.message : `Không lưu được, đã hoàn lại. ${reason instanceof Error ? reason.message : ''}`, error: true }); data.refresh(); }
     finally { locked.current = false; setPending(false); }
   };
   const undo = async () => {
@@ -69,7 +70,7 @@ export function TaskCalendarDndProvider({ children }: { children: ReactNode }) {
     finally { locked.current = false; setPending(false); }
   };
 
-  return <PendingContext.Provider value={pending}><DndContext autoScroll={{ canScroll: element => !element.classList.contains("calendar-week-scroll") }} sensors={sensors} collisionDetection={collisionDetection} onDragStart={({ active }) => { keyboardTarget.current = undefined; snapshot.current = active.data.current?.task; pointer.current = undefined; setActiveId(active.data.current?.taskId); }} onDragCancel={() => { keyboardTarget.current = undefined; snapshot.current = undefined; setActiveId(undefined); }} onDragEnd={drop}
+  return <PendingContext.Provider value={pending}><DndContext autoScroll={{ canScroll: element => !element.classList.contains("calendar-week-scroll") }} sensors={sensors} collisionDetection={collisionDetection} onDragStart={({ active }) => { setNotice(undefined); keyboardTarget.current = undefined; snapshot.current = active.data.current?.task; pointer.current = undefined; setActiveId(active.data.current?.taskId); }} onDragCancel={() => { keyboardTarget.current = undefined; snapshot.current = undefined; setActiveId(undefined); }} onDragEnd={drop}
     accessibility={{ screenReaderInstructions: { draggable: 'Nhấn Space hoặc Enter để kéo công việc. Dùng phím mũi tên chọn ngày, Space hoặc Enter để đặt hạn, Escape để hủy.' }, announcements: {
       onDragStart: () => 'Đang kéo công việc. Chọn một ngày trên lịch để đặt hạn.',
       onDragOver: ({ over }) => { const target = deadlineDropTarget(over?.data.current); return target ? deadlineDropLabel(target) : 'Chưa chọn ngày hạn.'; },

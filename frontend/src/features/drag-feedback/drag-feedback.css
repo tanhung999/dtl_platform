@@ -1,6 +1,6 @@
 html[data-drag-cursor="grabbing"], html[data-drag-cursor="grabbing"] * { cursor: grabbing !important; }
 html[data-drag-cursor="not-allowed"], html[data-drag-cursor="not-allowed"] * { cursor: not-allowed !important; }
-.drag-floating-preview { transform: rotate(2deg) scale(.95); opacity: .9; box-shadow: 0 14px 34px #0f172a35, 0 4px 10px #0f172a20 !important; transition: border-color 100ms, opacity 100ms; }
+.drag-floating-preview { transform: scale(.95); opacity: .9; box-shadow: 0 14px 34px #0f172a35, 0 4px 10px #0f172a20 !important; transition: border-color 100ms, opacity 100ms; }
 .drag-floating-preview.is-invalid { border-color: #fca5a5 !important; opacity: .65; }
 .drag-preview-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); }
 .drag-settle-copy { padding: 12px 14px; border: 1px solid #93c5fd; border-radius: 10px; background: var(--bg-card-solid); color: var(--text-main); }
@@ -8,7 +8,7 @@ html[data-drag-cursor="not-allowed"], html[data-drag-cursor="not-allowed"] * { c
 .calendar-drop-day.is-drop-ready, .calendar-deadline-drop-zone.is-drop-ready { background: color-mix(in srgb, #2563eb 5%, var(--bg-card-solid)) !important; }
 .calendar-drop-day.is-drop-ready { color: var(--text-main) !important; }
 .calendar-drop-day.is-selected.is-drop-ready { color: #1d4ed8 !important; }
-[data-theme="dark"] .calendar-drop-day.is-selected.is-drop-ready { color: #bfdbfe !important; }
+:is([data-theme="dark"], [data-theme="obsidian"]) .calendar-drop-day.is-selected.is-drop-ready { color: #bfdbfe !important; }
 .calendar-drop-day.is-drop-target, .calendar-deadline-drop-zone.is-drop-target { background: color-mix(in srgb, #2563eb 15%, var(--bg-card-solid)) !important; outline: 2px solid #1d4ed8 !important; outline-offset: -2px; }
 .task-calendar-toast { left: auto !important; right: 24px; transform: none !important; bottom: 24px; }
 .calendar-event-toast { bottom: 24px !important; }
@@ -18,7 +18,7 @@ html[data-drag-cursor="not-allowed"], html[data-drag-cursor="not-allowed"] * { c
 .drag-count-change { display: inline-block; animation: drag-count-pop 180ms ease-out; }
 .tasks-widget .task-item.is-dragging, .calendar-deadline-row.is-dragging, .workspace-sort-card.is-dragging, .calendar-event-drag-frame.is-dragging, .calendar-all-day-event-frame.is-dragging { opacity: .4 !important; outline: 1px dashed #2563eb; outline-offset: -1px; }
 .calendar-drag-ghost { position: absolute; left: 2px; right: 2px; z-index: 8; pointer-events: none; padding: 3px 5px; border: 1px dashed #2563eb; border-radius: 5px; background: #2563eb22; color: #1d4ed8; font-size: 11px; font-weight: 600; overflow: hidden; }
-[data-theme="dark"] .calendar-drag-ghost { color: #bfdbfe; background: #2563eb33; }
+:is([data-theme="dark"], [data-theme="obsidian"]) .calendar-drag-ghost { color: #bfdbfe; background: #2563eb33; }
 .calendar-drag-wrapper { position: relative; min-width: 0; }
 .calendar-widget-week { position: relative; }
 .calendar-widget-week .calendar-drop-day:nth-of-type(-n+2) .calendar-drop-label { left: 0; transform: none; }
@@ -35,3 +35,14 @@ html[data-drag-cursor="not-allowed"], html[data-drag-cursor="not-allowed"] * { c
 @keyframes drag-count-pop { from { opacity: .5; scale: .9; } to { opacity: 1; scale: 1; } }
 @media (prefers-reduced-motion: reduce) { .drag-floating-preview { transform: none; transition: none; } [data-drag-highlight]::before, [data-drop-flash], .drag-count-change { animation: none; } }
 @media (max-width: 768px) { .task-calendar-toast { right: 16px; bottom: 16px; } }
+
+.calendar-drag-ghost.calendar-resize-ghost { border: 2px solid #2563eb; border-radius: 5px; background: #dbeafe; color: #1e3a8a; padding: 2px 4px; box-shadow: 0 2px 6px #1d4ed820; }
+.calendar-resize-time { display: block; font-size: 10px; font-weight: 700; line-height: 14px; letter-spacing: -.15px; white-space: normal; }
+.calendar-resize-title { display: block; margin-top: 2px; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-resize-ghost.is-short-ghost { padding-top: 0; padding-bottom: 0; }
+.calendar-resize-ghost.is-short-ghost .calendar-resize-time { font-size: 10px; line-height: 11px; }
+.calendar-resize-grip { position: absolute; bottom: 2px; left: calc(50% - 9px); width: 18px; height: 2px; border-radius: 2px; background: #2563eb; }
+.calendar-resize-boundary { position: absolute; left: 0; right: 0; z-index: 6; border-top: 1px dashed #60a5fa; pointer-events: none; }
+.calendar-resize-ghost.is-invalid { border-color: #dc2626; }
+:is([data-theme="dark"], [data-theme="obsidian"]) .calendar-drag-ghost.calendar-resize-ghost { background: #1e3a5f; color: #dbeafe; border-color: #60a5fa; }
+:is([data-theme="dark"], [data-theme="obsidian"]) .calendar-resize-grip { background: #93c5fd; }

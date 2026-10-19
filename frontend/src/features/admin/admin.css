@@ -1,0 +1,38 @@
+.admin-page { max-width:1360px; padding:28px 24px 40px; margin:0 auto; }
+.admin-heading { display:flex; align-items:center; gap:14px; margin-bottom:24px; }
+.admin-heading-icon { width:48px; height:48px; display:grid; place-items:center; border-radius:14px; background:var(--primary-light); color:var(--accent); }
+.admin-heading h1 { font-size:1.35rem; letter-spacing:-.025em; } .admin-heading p { margin-top:5px; color:var(--text-muted); font-size:13px; }
+.admin-layout { display:grid; grid-template-columns:210px minmax(0,1fr); gap:24px; align-items:start; }
+.admin-sidebar,.admin-card { border:1px solid var(--border); border-radius:14px; background:var(--bg-card-solid); box-shadow:var(--shadow-sm); }
+.admin-sidebar { padding:18px 12px; } .admin-sidebar > span { display:block; padding:0 10px 14px; font-size:10px; letter-spacing:.07em; color:var(--text-muted); font-weight:600; }
+.admin-menu-active { display:flex; align-items:center; gap:9px; background:var(--primary-light); color:var(--primary); padding:11px; border-radius:9px; font-size:14px; font-weight:600; }
+.admin-section-heading { margin-bottom:18px; } .admin-section-heading h2 { font-size:19px; } .admin-section-heading p { color:var(--text-muted); margin-top:6px; font-size:13px; }
+.access-management { display:grid; grid-template-columns:minmax(290px,1fr) minmax(0,1.3fr); gap:20px; align-items:start; }
+.admin-card { padding:22px; min-width:0; } .admin-card > h2 { font-size:15px; margin-bottom:10px; } .admin-card > p { font-size:13px; line-height:1.6; color:var(--text-muted); margin-bottom:18px; }
+.access-account-card .calendar-field { margin-top:18px; font-size:12px; } .access-account-card .form-input { font-size:12px; width:100%; }
+.admin-empty { display:flex; min-height:220px; justify-content:center; align-items:center; flex-direction:column; gap:14px; color:var(--text-muted); font-size:13px; text-align:center; line-height:1.6; }
+.access-selected-account { display:flex; gap:12px; align-items:center; padding:16px 0 22px; border-bottom:1px solid var(--border); } .access-selected-account h3 { font-size:15px; margin-bottom:5px; overflow-wrap:anywhere; } .access-selected-account span { color:var(--text-muted); font-size:12px; overflow-wrap:anywhere; }
+.access-avatar { width:42px; height:42px; border-radius:50%; background:var(--primary-light); color:var(--accent); display:grid; place-items:center; font-weight:700; flex-shrink:0; }
+.access-permission-group { padding-top:20px; } .access-group-heading { display:flex; gap:8px; align-items:center; color:var(--primary); } .access-group-heading h3 { font-size:14px; }
+.access-permission-row { display:flex; align-items:flex-start; gap:14px; margin:20px 0 12px; } .access-permission-row h4 { font-size:14px; margin-bottom:7px; } .access-permission-row p,.access-permission-note { color:var(--text-muted); font-size:12px; line-height:1.7; }
+.access-status { flex-shrink:0; margin-left:auto; border-radius:20px; padding:4px 8px; background:var(--bg-subtle); color:var(--text-muted); font-size:11px; font-weight:600; } .access-status.is-enabled { background:var(--primary-light); color:var(--primary); }
+.access-permission-note { padding:10px 12px; background:var(--bg-subtle); border-radius:8px; margin-bottom:18px; }
+.access-revoke-confirm { border:1px solid var(--border); border-left:3px solid #dc2626; padding:14px; border-radius:9px; font-size:13px; } .access-revoke-confirm p { color:var(--text-muted); line-height:1.7; margin:8px 0 14px; } .access-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.access-success { display:flex; align-items:center; gap:7px; color:var(--primary)!important; font-size:13px; padding-top:18px; margin:0!important; }
+@media(max-width:1100px) { .access-management { grid-template-columns:1fr; } }
+@media(max-width:768px) { .admin-page { padding:20px 16px; } .admin-layout { grid-template-columns:1fr; gap:18px; } .admin-sidebar { padding:10px; } .admin-sidebar > span { display:none; } .admin-card { padding:18px; } }
+
+.access-filter { display:grid; gap:7px; margin:14px 0; font-size:12px; color:var(--text-muted); }
+.access-list-summary,.access-hint { font-size:12px; color:var(--text-muted); margin:12px 0; }
+.access-account-list { max-height:410px; margin:10px 0; } .access-account-list button { display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border-light); }
+.access-account-list button:last-child { border-bottom:0; } .access-account-list button.is-selected { background:var(--primary-light); }
+.access-account-identity { min-width:0; } .access-account-identity strong,.access-account-identity small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.access-pagination { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:16px; font-size:12px; color:var(--text-muted); }
+.access-history { margin-top:22px; } .access-history h2 { display:flex; align-items:center; gap:8px; } .access-history ol { list-style:none; padding:0; margin:0; }
+.access-history li { padding:15px 0; border-bottom:1px solid var(--border-light); font-size:12px; } .access-history li:last-child { border-bottom:0; }
+.access-history li > div { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:7px; }
+.access-history time { color:var(--text-muted); font-size:11px; white-space:nowrap; } .access-history p { line-height:1.6; } .access-history p span,.access-history small { color:var(--text-muted); }
+.admin-page .btn-danger-outline { color:#b91c1c; border-color:#fca5a5; } :is([data-theme="dark"], [data-theme="obsidian"]) .admin-page .btn-danger-outline { color:#fca5a5; border-color:#7f1d1d; }
+@media(max-width:600px) { .access-history li > div { flex-direction:column; gap:5px; } }
+
+.access-account-identity strong { display:block; } .access-history li { overflow-wrap:anywhere; }

@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from uuid import UUID
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -6,6 +7,7 @@ PriorityType = Literal["LOW", "MEDIUM", "HIGH", "URGENT"]
 
 
 class TaskCreate(BaseModel):
+    client_request_id: UUID | None = None
     model_config = ConfigDict(extra="forbid")
     title: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=10000)
@@ -19,6 +21,7 @@ class TaskCreate(BaseModel):
         return value.strip() if isinstance(value, str) else value
 
 class TaskUpdate(BaseModel):
+    expected_version: int = Field(ge=0)
     model_config = ConfigDict(extra="forbid")
     title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=10000)
@@ -43,6 +46,7 @@ class TaskUpdate(BaseModel):
 
 
 class TaskResponse(BaseModel):
+    version: int
     model_config = ConfigDict(from_attributes=True)
     id: str
     user_id: str

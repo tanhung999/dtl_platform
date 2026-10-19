@@ -1,3 +1,5 @@
+import { profileApi } from './api';
+import { featureIcons } from '../../assets/featureIcons';
 import React, { useState } from 'react';
 import {
   User as UserIcon,
@@ -12,7 +14,7 @@ import {
   Sparkles,
   Lock,
 } from 'lucide-react';
-import { api } from '../../services/api';
+
 import { User } from '../../types';
 
 interface ProfileTabProps {
@@ -43,7 +45,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
     setSavingProfile(true);
     setProfileMessage(null);
     try {
-      const updated = await api.updateProfile({
+      const updated = await profileApi.updateProfile({
         full_name: fullName.trim(),
         phone: phone.trim(),
         job_title: jobTitle.trim(),
@@ -73,7 +75,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
     setSavingPassword(true);
     setPasswordMessage(null);
     try {
-      await api.changePassword(currentPassword, newPassword);
+      await profileApi.changePassword(currentPassword, newPassword);
       setPasswordMessage({ type: 'success', text: 'Đã đổi mật khẩu thành công!' });
       setCurrentPassword('');
       setNewPassword('');
@@ -318,7 +320,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <img src="/icon-booking.png" alt="Income Statement" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
+                  <img src={featureIcons.income} alt="Income Statement" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
                   <div>
                     <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Income Statement</div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Báo cáo thu nhập & doanh số</div>
@@ -331,7 +333,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <img src="/icon-workflow.png" alt="Workflows" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
+                  <img src={featureIcons.workflow} alt="Workflows" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
                   <div>
                     <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Workflows</div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Luồng trình ký & hồ sơ nội bộ</div>
@@ -344,7 +346,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <img src="/icon-assets.png" alt="Asset Manager" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
+                  <img src={featureIcons.assets} alt="Asset Manager" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
                   <div>
                     <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Asset Manager</div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Quản lý tài sản & cấp phát IT</div>

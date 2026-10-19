@@ -3,7 +3,7 @@
 .priority-HIGH, [data-task-priority="HIGH"] { --priority-bg: #ffedd5; --priority-fg: #9a3412; --priority-accent: #ea580c; }
 .priority-MEDIUM, [data-task-priority="MEDIUM"] { --priority-bg: #fef3c7; --priority-fg: #92400e; --priority-accent: #ca8a04; }
 .priority-LOW, [data-task-priority="LOW"] { --priority-bg: #e0f2fe; --priority-fg: #075985; --priority-accent: #0284c7; }
-[data-theme="dark"] .priority-URGENT, .dark .priority-URGENT, [data-theme="dark"] [data-task-priority="URGENT"] { --priority-bg: #991b1b; --priority-fg: #ffffff; --priority-accent: #f87171; }
-[data-theme="dark"] .priority-HIGH, .dark .priority-HIGH, [data-theme="dark"] [data-task-priority="HIGH"] { --priority-bg: #431407; --priority-fg: #fdba74; --priority-accent: #fb923c; }
-[data-theme="dark"] .priority-MEDIUM, .dark .priority-MEDIUM, [data-theme="dark"] [data-task-priority="MEDIUM"] { --priority-bg: #422006; --priority-fg: #fde68a; --priority-accent: #facc15; }
-[data-theme="dark"] .priority-LOW, .dark .priority-LOW, [data-theme="dark"] [data-task-priority="LOW"] { --priority-bg: #082f49; --priority-fg: #7dd3fc; --priority-accent: #38bdf8; }
+:is([data-theme="dark"], [data-theme="obsidian"]) .priority-URGENT, .dark .priority-URGENT, :is([data-theme="dark"], [data-theme="obsidian"]) [data-task-priority="URGENT"] { --priority-bg: #991b1b; --priority-fg: #ffffff; --priority-accent: #f87171; }
+:is([data-theme="dark"], [data-theme="obsidian"]) .priority-HIGH, .dark .priority-HIGH, :is([data-theme="dark"], [data-theme="obsidian"]) [data-task-priority="HIGH"] { --priority-bg: #431407; --priority-fg: #fdba74; --priority-accent: #fb923c; }
+:is([data-theme="dark"], [data-theme="obsidian"]) .priority-MEDIUM, .dark .priority-MEDIUM, :is([data-theme="dark"], [data-theme="obsidian"]) [data-task-priority="MEDIUM"] { --priority-bg: #422006; --priority-fg: #fde68a; --priority-accent: #facc15; }
+:is([data-theme="dark"], [data-theme="obsidian"]) .priority-LOW, .dark .priority-LOW, :is([data-theme="dark"], [data-theme="obsidian"]) [data-task-priority="LOW"] { --priority-bg: #082f49; --priority-fg: #7dd3fc; --priority-accent: #38bdf8; }

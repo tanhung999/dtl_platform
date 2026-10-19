@@ -1,3 +1,5 @@
+import { useEventDragState } from '../../calendar-dnd/CalendarEventDndProvider';
+import { isTimedEventResize } from '../../calendar-dnd/eventSchedule';
 import { useEffect, useRef } from 'react';
 import { CalendarViewProps } from '../types';
 import { addDays, dateKey, eventTime, formatDate, MIN_EVENT_HEIGHT, startOfWeek, today, WEEKDAYS } from '../dateUtils';
@@ -14,6 +16,7 @@ interface Props extends CalendarViewProps { onShowDay: (date: Date) => void; sho
 
 export function WeekView({ anchor, events, tasks, onCreate, onSelect, onShowDay, showEarlyHours, onChangeWeek }: Props) {
   const { now } = useTasks();
+  const { active } = useEventDragState();
   const scroll = useRef<HTMLDivElement>(null);
   const edge = useDragEdges(scroll, anchor, onChangeWeek, 56);
   const startMinute = showEarlyHours ? 0 : 360;
@@ -29,7 +32,7 @@ export function WeekView({ anchor, events, tasks, onCreate, onSelect, onShowDay,
   }, [weekKey, startMinute]);
 
   return (
-    <div className="calendar-drag-wrapper"><div className="calendar-week-scroll" ref={scroll}>
+    <div className={`calendar-drag-wrapper ${isTimedEventResize(active) ? 'is-resizing-event' : ''}`}><div className="calendar-week-scroll" ref={scroll}>
       <div className="calendar-week">
         <div className="calendar-week-header">
           <span className="calendar-zone">GMT+7</span>
@@ -46,7 +49,7 @@ export function WeekView({ anchor, events, tasks, onCreate, onSelect, onShowDay,
               const height = item.kind === 'deadline' ? DEADLINE_MARKER_HEIGHT : Math.max(MIN_EVENT_HEIGHT, item.end - item.start);
               const style = { position: 'absolute' as const, top: `${item.start - startMinute}px`, height: `${height}px`, left: `calc(${item.lane / item.lanes * 100}% + 2px)`, width: `calc(${100 / item.lanes}% - 4px)` };
               return item.kind === 'event'
-                ? <EventButton key={`event-${item.event.id}`} event={item.event} day={dateKey(day)} onSelect={onSelect} style={style} narrow={item.lanes > 1} />
+                ? <EventButton key={`event-${item.event.id}`} event={item.event} day={dateKey(day)} onSelect={onSelect} style={style} startMinute={startMinute} narrow={item.lanes > 1} />
                 : <div key={`deadline-${item.task.id}`} className="calendar-timed-deadline" style={style}><DeadlineRow task={item.task} /></div>;
             })}
             {dateKey(day) === todayKey && currentMinute >= startMinute && <div className="calendar-now-line" style={{ top: currentMinute - startMinute }}><span /></div>}

@@ -2,11 +2,12 @@ import { createContext, ReactNode, useContext, useEffect, useRef, useState } fro
 import { createPortal } from 'react-dom';
 import { DragOverlay, useDndMonitor } from '@dnd-kit/core';
 import { X } from 'lucide-react';
-import { request } from '../../services/api';
+import { calendarApi } from '../calendar/api';
+import { MutationUncertainError } from '../../services/mutationRecovery';
 import { CalendarEvent } from '../calendar/types';
 import { eventTime, formatDate, parseDate } from '../calendar/dateUtils';
 import { deadlineDropTarget } from '../task-calendar/deadlineDropTargets';
-import { EventDragData, EventSchedule, eventSchedule, slotMinute } from './eventSchedule';
+import { EventDragData, EventSchedule, eventSchedule, isTimedEventResize, slotMinute } from './eventSchedule';
 import './calendar-dnd.css';
 import { vietnamDay } from '../tasks/deadlineUtils';
 import { WORKSPACE_CHANGED } from '../realtime/useWorkspaceRealtime';
@@ -15,7 +16,7 @@ import { highlightChange, shakeSource } from '../drag-feedback/changeHighlight';
 import { revertDragView } from '../drag-feedback/dragFeedbackEvents';
 import { useDragToast } from '../drag-feedback/useDragToast';
 
-const Context = createContext<{ busy: boolean; label: string }>({ busy: false, label: '' });
+const Context = createContext<{ busy: boolean; label: string; active?: EventDragData }>({ busy: false, label: '' });
 export const useEventDragState = () => useContext(Context);
 const scheduleLabel = (schedule: EventSchedule) => schedule.is_all_day ? 'Cả ngày' : `${eventTime(schedule.starts_at)} – ${eventTime(schedule.ends_at)}`;
 
@@ -32,7 +33,7 @@ export function CalendarEventDndProvider({ children }: { children: ReactNode }) 
     return () => { document.removeEventListener('mousemove', mouse, true); document.removeEventListener('touchmove', touch, true); };
   }, []);
   const write = async (event: CalendarEvent, schedule: EventSchedule) => {
-    try { return await request<CalendarEvent>(`/api/calendar/events/${encodeURIComponent(event.id)}/schedule`, { method: 'PATCH', body: JSON.stringify({ ...schedule, expected_updated_at: event.updated_at }) }); }
+    try { return await calendarApi.schedule(event, schedule); }
     finally { window.dispatchEvent(new CustomEvent(WORKSPACE_CHANGED, { detail: ['calendar'] })); }
   };
   useDndMonitor({
@@ -58,7 +59,7 @@ export function CalendarEventDndProvider({ children }: { children: ReactNode }) 
       if (Date.parse(schedule.starts_at) === Date.parse(data.event.starts_at) && Date.parse(schedule.ends_at) === Date.parse(data.event.ends_at) && schedule.is_all_day === data.event.is_all_day) return;
       locked.current = true; setBusy(true);
       try { const updated = await write(data.event, schedule); highlightChange('event', data.event.id); setNotice({ text: `Đã cập nhật sự kiện · ${scheduleLabel(schedule)}`, undo: { original: data.event, updated, dragId: String(event.active.id) } }); }
-      catch (reason) { revertDragView(String(event.active.id)); shakeSource(document.querySelector<HTMLElement>(`[data-drag-source-id="${CSS.escape(String(event.active.id))}"]`)); setNotice({ text: `Không lưu được, đã hoàn lại. ${reason instanceof Error ? reason.message : ''}`, error: true }); }
+      catch (reason) { revertDragView(String(event.active.id)); shakeSource(document.querySelector<HTMLElement>(`[data-drag-source-id="${CSS.escape(String(event.active.id))}"]`)); setNotice({ text: reason instanceof MutationUncertainError ? reason.message : `Không lưu được, đã hoàn lại. ${reason instanceof Error ? reason.message : ''}`, error: true }); }
       finally { locked.current = false; setBusy(false); }
     },
   });
@@ -70,8 +71,8 @@ export function CalendarEventDndProvider({ children }: { children: ReactNode }) 
     finally { locked.current = false; setBusy(false); }
   };
   const label = preview ? scheduleLabel(preview) : '';
-  return <Context.Provider value={{ busy, label }}>{children}
-    {createPortal(<DragOverlay zIndex={130} dropAnimation={null}>{active && <div data-feedback-preview={feedback.scope} className={`calendar-event-drag-preview drag-floating-preview ${feedback.valid === false ? 'is-invalid' : ''}`}><strong>{active.event.title}</strong><span>{preview ? `${formatDate(parseDate(vietnamDay(new Date(preview.starts_at))))} · ${label}` : scheduleLabel(active.event)}</span></div>}</DragOverlay>, document.body)}
+  return <Context.Provider value={{ busy, label, active }}>{children}
+    {createPortal(<DragOverlay zIndex={130} dropAnimation={null}>{active && !isTimedEventResize(active) && <div data-feedback-preview={feedback.scope} className={`calendar-event-drag-preview drag-floating-preview ${feedback.valid === false ? 'is-invalid' : ''}`}><strong>{active.event.title}</strong><span>{preview ? `${formatDate(parseDate(vietnamDay(new Date(preview.starts_at))))} · ${label}` : scheduleLabel(active.event)}</span></div>}</DragOverlay>, document.body)}
     {notice && createPortal(<div className={`task-calendar-toast calendar-event-toast ${notice.error ? 'is-error' : ''}`} role={notice.error ? 'alert' : 'status'} {...hoverProps}><span>{notice.text}</span>{notice.undo && <button disabled={busy} onClick={undo}>Hoàn tác</button>}<button disabled={busy} aria-label="Đóng thông báo sự kiện" onClick={() => setNotice(undefined)}><X size={16} /></button></div>, document.body)}
   </Context.Provider>;
 }
