@@ -16,24 +16,24 @@ Sự kiện cả ngày có thời lượng tối thiểu một ngày. Vùng Cả
 thả so với các ô giờ bị che phía sau khi cuộn.
 
 Trong lịch Tháng, kéo sự kiện vào ngày khác để dời, giữ giờ và thời lượng.
-Click ngắn vẫn mở chi tiết; kéo cạnh không mở form. Có preview giờ mới,
+Bấm ngắn vẫn mở chi tiết; kéo cạnh không mở biểu mẫu. Có xem trước giờ mới,
 thông báo thành công và Hoàn tác. Chỉ cập nhật lịch, giữ tên, nội dung, địa điểm,
 màu; kiểm tra updated_at để tránh ghi đè thay đổi mới hơn. Thời gian dùng UTC+7.
 
-Mã frontend trong `features/calendar-dnd/`: tính khoảng thời gian,
-provider theo dõi dnd-kit, các tay nắm và thanh nhiều ngày. Các vị trí thả dùng
-chung với deadline, xử lý va chạm/bàn phím vẫn nằm trong `features/task-calendar/`.
-API PATCH `/api/calendar/events/{id}/schedule` có schema riêng
+Mã giao diện trong `features/calendar-dnd/`: tính khoảng thời gian,
+bộ cung cấp ngữ cảnh theo dõi dnd-kit, các tay nắm và thanh nhiều ngày. Các vị trí thả dùng
+chung với hạn công việc, xử lý va chạm/bàn phím vẫn nằm trong `features/task-calendar/`.
+API PATCH `/api/calendar/events/{id}/schedule` có lược đồ riêng
 `modules/calendar/interaction_schemas.py`; không cần thêm cột vào bảng sự kiện.
 
 ## Thứ tự và ghim
 
-- Dùng tay nắm trên các thẻ Ứng dụng, Bookmarks, Notes để đổi thứ tự, tránh mở
+- Dùng tay nắm trên các thẻ Ứng dụng, Liên kết, Ghi chú để đổi thứ tự, tránh mở
   ứng dụng/liên kết/form ghi chú trong lúc kéo.
-- Bookmarks, gồm cả liên kết chung, có thứ tự riêng theo người dùng; không đổi
+- Liên kết, gồm cả liên kết chung, có thứ tự riêng theo người dùng; không đổi
   thứ tự mặc định của liên kết chung cho những người khác.
-- Notes luôn đặt các note ghim trước note thường. Kéo vào vùng Ghim lên đầu
-  vừa ghim vừa đưa note lên đầu, lưu trong một transaction. Nút Ghim/Bỏ ghim
+- Ghi chú luôn đặt các ghi chú ghim trước ghi chú thường. Kéo vào vùng Ghim lên đầu
+  vừa ghim vừa đưa ghi chú lên đầu, lưu trong một giao dịch. Nút Ghim/Bỏ ghim
   vẫn có thể dùng riêng; kéo thông thường thay thứ tự, không tự bỏ ghim.
 
 Bảng mới `workspace_layouts` gồm khóa `(user_id, kind)`, `ordered_ids` JSON và
@@ -42,16 +42,16 @@ có, có khóa ngoại xóa theo tài khoản. Không sửa hay xóa dữ liệu
 GET `/api/workspace/layout`, PUT `/api/workspace/layout/{kind}` kiểm tra quyền,
 danh sách ID và expected_version. Xung đột trả 409, không ghi đè.
 
-Frontend trong `features/workspace-layout/`: provider tải/lưu thứ tự và bộ
-component sortable dùng dnd-kit/sortable. SSE truyền layout/notes/bookmarks
-sau commit. Widget ghi chú và liên kết nghe topic tương ứng, cập nhật ngay ở
+Giao diện trong `features/workspace-layout/`: bộ cung cấp ngữ cảnh tải/lưu thứ tự và bộ
+thành phần sắp xếp được dùng dnd-kit/sortable. SSE truyền layout/notes/bookmarks
+sau xác nhận giao dịch. Tiện ích ghi chú và liên kết nghe chủ đề tương ứng, cập nhật ngay ở
 các phiên cùng người dùng. Lựa chọn có hiệu lực khi mở lại hoặc đổi thiết bị.
 
 ## Kiểm tra
 
-Backend: `python -m unittest discover -s tests` từ thư mục backend.
-Frontend: build Docker; `node tests/calendar-event-dnd-browser.cjs` và
-`node tests/workspace-drag-browser.cjs` từ frontend. Hai bài mới tạo tài khoản QA
+Máy chủ: `python -m unittest discover -s tests` từ thư mục máy chủ.
+Giao diện: dựng bản ứng dụng Docker; `node tests/browser/calendar-event-dnd-browser.cjs` và
+`node tests/browser/workspace-drag-browser.cjs` từ giao diện. Hai bài mới tạo tài khoản QA
 tạm có tên dragqa_, kiểm tra hai phiên độc lập và xóa chính các tài khoản đó
 cùng dữ liệu của chúng sau khi xong; không thay thứ tự của tài khoản thật.
 

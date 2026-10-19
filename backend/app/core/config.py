@@ -15,6 +15,15 @@ class Settings(BaseSettings):
     
     # Database (defaults to local SQLite for instant developer setup, or postgres in production)
     DATABASE_URL: str = "sqlite+aiosqlite:///./platform.db"
+    DB_POOL_SIZE: int = 8
+    DB_MAX_OVERFLOW: int = 4
+    DB_POOL_TIMEOUT: int = 5
+    DB_STATEMENT_TIMEOUT_MS: int = 8000
+    DB_LOCK_TIMEOUT_MS: int = 3000
+    NOTIFICATIONS_WORKER_ENABLED: bool = True
+    NOTIFICATIONS_BOOKINGREPORTS_SECRET: str = ''
+    NOTIFICATIONS_WORKFLOWS_SECRET: str = ''
+    NOTIFICATIONS_ITAM_SECRET: str = ''
     
     # CORS
     CORS_ORIGINS: List[str] = [

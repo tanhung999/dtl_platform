@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.realtime import mark_changed
 from app.db.models import Bookmark, User
 from app.modules.auth.dependencies import get_current_user
+from app.modules.workspace.order import remove_order_ids
 
 router = APIRouter(prefix="/api/bookmarks", tags=["Bookmarks (Quick Links)"])
 
@@ -34,7 +35,7 @@ class BookmarkResponse(BaseModel):
 @router.get("", response_model=List[BookmarkResponse])
 async def list_bookmarks(
     user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     stmt = (
         select(Bookmark)
@@ -49,7 +50,7 @@ async def list_bookmarks(
 async def create_bookmark(
     payload: BookmarkCreate,
     user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     bookmark = Bookmark(
         user_id=user.id,
@@ -69,13 +70,14 @@ async def create_bookmark(
 async def delete_bookmark(
     bookmark_id: str,
     user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     stmt = select(Bookmark).where(Bookmark.id == bookmark_id, Bookmark.user_id == user.id)
     result = await db.execute(stmt)
     bookmark = result.scalar_one_or_none()
     if not bookmark:
         raise HTTPException(status_code=404, detail="Không tìm thấy liên kết hoặc không có quyền xóa")
+    await remove_order_ids(db, "bookmarks", {bookmark.id}, None if bookmark.is_global else user.id)
     await db.delete(bookmark)
     mark_changed(db, user.id, "bookmarks")
     return None

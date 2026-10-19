@@ -1,0 +1,57 @@
+const { chromium } = require('../.browser-tools/node_modules/playwright');
+const { createDragUsers } = require('../support/test-users.cjs');
+const assert = require('node:assert/strict');
+(async () => {
+  const fixture = createDragUsers(1); let browser;
+  try {
+    browser = await chromium.launch({ channel: 'msedge', headless: true });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, timezoneId: 'America/New_York' });
+    page.setDefaultTimeout(15000); const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.goto('http://127.0.0.1:5173');
+    await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);
+    await page.getByLabel('Mật khẩu', { exact: true }).fill(fixture.accounts[0].password);
+    await page.getByRole('button', { name: 'Đăng nhập hệ thống' }).click(); await page.locator('.calendar-widget').waitFor();
+    const api = (path, body) => page.evaluate(async ({path,body}) => {
+      const response = await fetch('/api/' + path, { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('dtl_platform_token'), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!response.ok) throw new Error(await response.text()); return response.json();
+    }, {path,body});
+    const first = '2026-10-16', middle = '2026-10-17', last = '2026-10-18';
+    const note = await api('notes', { title: 'Ghi chú nhiều ngày có tiêu đề dài để kiểm tra ô hẹp', calendar_schedule: { starts_at: first + 'T09:03:00+07:00', ends_at: last + 'T09:33:00+07:00', is_all_day: false } });
+    const ordinary = await api('calendar/events', { title: 'Sự kiện thường', starts_at: first + 'T09:14:00+07:00', ends_at: first + 'T09:44:00+07:00' });
+    const allDay = await api('notes', { title: 'Ghi chú cả ngày', calendar_schedule: { starts_at: first + 'T00:00:00+07:00', ends_at: middle + 'T00:00:00+07:00', is_all_day: true } });
+    await page.getByRole('button', { name: 'Lịch', exact: true }).click(); const calendar = page.locator('.calendar-page');
+    const item = day => calendar.locator(`.calendar-time-column[data-date="${day}"] button[data-event-id="${note.calendar_schedule.event_id}"]`);
+    await item(first).waitFor();
+    assert.equal(await item(first).locator('.calendar-event-time').innerText(), 'Từ 09:03');
+    assert.equal(await item(first).locator('..').evaluate(element => element.style.top), '183px');
+    assert.equal(await item(first).locator('.calendar-event-status').count(), 0, 'narrow overlapping items omit status text');
+    assert.equal(await item(first).locator('.calendar-note-label').count(), 0);
+    assert.equal(await item(first).getByRole('img', { name: 'Ghi chú', exact: true }).count(), 1);
+    const layout = await item(first).evaluate(element => { const icon = element.querySelector('.calendar-item-icon'), name = element.querySelector('.calendar-item-name'); return { iconFirst: !!(icon.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING), shrink: getComputedStyle(icon).flexShrink, border: getComputedStyle(element).borderLeftStyle }; });
+    assert.deepEqual(layout, { iconFirst: true, shrink: '0', border: 'dashed' });
+    assert.equal(await item(middle).locator('.calendar-event-time').innerText(), 'Tiếp tục từ ngày trước');
+    assert.equal(await item(middle).locator('..').evaluate(element => element.style.top), '0px');
+    assert.equal(await item(middle).getByRole('img', { name: 'Tiếp tục từ trước 06:00', exact: true }).count(), 1);
+    assert.equal(await item(last).locator('.calendar-event-time').innerText(), 'Đến 09:33');
+    assert.match(await item(last).getAttribute('title'), /Ghi chú.*16\/10\/2026 09:03.*18\/10\/2026 09:33/);
+    for (const day of [first, middle]) assert.equal(await item(day).getByRole('img', { name: 'Tiếp tục sang ngày sau', exact: true }).count(), 1);
+    assert.equal(await item(last).getByRole('img', { name: 'Tiếp tục sang ngày sau', exact: true }).count(), 0);
+    const normal = calendar.locator(`button[data-event-id="${ordinary.id}"]`);
+    assert.equal(await normal.getByRole('img', { name: 'Sự kiện', exact: true }).count(), 1);
+    assert.match(await normal.getAttribute('title'), /^Sự kiện ·/);
+    assert.equal(await normal.evaluate(element => getComputedStyle(element).borderLeftStyle), 'solid');
+    assert.equal(await calendar.locator(`.calendar-week-all-day button[data-event-id="${allDay.calendar_schedule.event_id}"]`).count(), 1);
+    assert.equal(await calendar.locator(`.calendar-time-column button[data-event-id="${allDay.calendar_schedule.event_id}"]`).count(), 0);
+    await item(first).click(); const editor = page.getByRole('dialog', { name: 'Ghi chú', exact: true }); await editor.waitFor();
+    await editor.getByText('Ghi chú kéo dài liên tục qua nhiều ngày', { exact: false }).waitFor();
+    await editor.getByRole('button', { name: 'Hủy', exact: true }).click();
+    await calendar.getByRole('checkbox', { name: 'Hiện khung giờ đêm', exact: true }).check();
+    await item(middle).getByRole('img', { name: 'Tiếp tục từ ngày trước', exact: true }).waitFor();
+    await calendar.getByRole('checkbox', { name: 'Hiện khung giờ đêm', exact: true }).uncheck();
+    require('node:fs').mkdirSync('tests/artifacts', { recursive: true });
+    await item(middle).locator('.calendar-event-continues-next').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: 'tests/artifacts/calendar-continuation-bottom.png', fullPage: true });
+    assert.deepEqual(errors, []);
+    console.log('PASS: per-day timed labels, clipping arrows, fixed leading type icons, narrow content, full tooltips, all-day notes and original editor');
+  } finally { if (browser) await browser.close(); fixture.cleanup(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

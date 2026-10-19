@@ -1,7 +1,8 @@
-import { useListMotion } from '../drag-feedback/useListMotion';
+import { appsApi } from './api';
+import { featureIcons } from '../../assets/featureIcons';
 import React, { useState } from 'react';
 import { ExternalLink, Loader2, Sparkles } from 'lucide-react';
-import { api } from '../../services/api';
+
 import { SubAppInfo } from '../../types';
 import { orderedItems, useWorkspaceLayout } from '../workspace-layout/WorkspaceLayoutProvider';
 import { SortableWidgetCard, SortableWidgetGroup } from '../workspace-layout/SortableWidgets';
@@ -15,7 +16,7 @@ const APPS: SubAppInfo[] = [
     category: 'Tài Chính & Kinh Doanh',
     // badge: 'FastAPI + React',
     themeColor: '#eff6ff',
-    iconUrl: '/icon-booking.png',
+    iconUrl: featureIcons.income,
   },
   {
     id: 'workflows',
@@ -25,7 +26,7 @@ const APPS: SubAppInfo[] = [
     category: 'Vận Hành',
     // badge: 'FastAPI + AntD',
     themeColor: '#f5f3ff',
-    iconUrl: '/icon-workflow.png',
+    iconUrl: featureIcons.workflow,
   },
   {
     id: 'itam',
@@ -35,7 +36,7 @@ const APPS: SubAppInfo[] = [
     category: 'Hành Chính & IT',
     // badge: 'Flask + Vue 3',
     themeColor: '#ecfdf5',
-    iconUrl: '/icon-assets.png',
+    iconUrl: featureIcons.assets,
   },
 ];
 
@@ -46,12 +47,11 @@ export const AppLauncherWidget: React.FC = () => {
   const [launchingApp, setLaunchingApp] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const list = useListMotion(apps.map(item => item.id), 'data-sort-id');
   const handleLaunch = async (app: SubAppInfo) => {
     setLaunchingApp(app.id);
     setErrorMessage(null);
     try {
-      const result = await api.launchSubApp(app.id);
+      const result = await appsApi.launchSubApp(app.id);
       if (result.launch_url) {
         window.open(result.launch_url, '_blank', 'noopener,noreferrer');
       }
@@ -77,7 +77,7 @@ export const AppLauncherWidget: React.FC = () => {
         </div>
       )}
 
-      <SortableWidgetGroup revision={layout.layout.apps.version} ids={apps.map(app => app.id)} disabled={disabled} onSort={ids => layout.save('apps', ids)}><div data-sort-group="apps" ref={list} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+      <SortableWidgetGroup revision={layout.layout.apps.version} ids={apps.map(app => app.id)} disabled={disabled} onSort={ids => layout.save('apps', ids)}><div data-sort-group="apps" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {apps.map((app) => {
           const isLaunching = launchingApp === app.id;
           return (
@@ -94,7 +94,7 @@ export const AppLauncherWidget: React.FC = () => {
                   <img
                     src={app.iconUrl}
                     alt={app.name}
-                    style={{ width: '30px', height: '30px', objectFit: 'contain' }}
+                    style={{ width: '36px', height: '36px', objectFit: 'contain' }}
                   />
                 </div>
                 <span className="app-card-badge">{app.badge}</span>

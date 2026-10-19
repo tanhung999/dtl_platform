@@ -23,6 +23,8 @@ export interface AuthSession {
 }
 
 export interface Note {
+  calendar_schedule?: import("../features/note-scheduling/types").NoteSchedule | null;
+  version: number;
   id: string;
   user_id: string;
   title: string;
@@ -37,6 +39,7 @@ export interface Note {
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 export interface Task {
+  version: number;
   id: string;
   user_id: string;
   title: string;

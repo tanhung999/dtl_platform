@@ -1,3 +1,4 @@
+import { isTimedEventResize } from '../calendar-dnd/eventSchedule';
 import { CSSProperties, ReactNode, useCallback, useRef } from 'react';
 import { useDndContext, useDroppable } from '@dnd-kit/core';
 import { DeadlineDropTarget, deadlineDropLabel } from './deadlineDropTargets';
@@ -14,7 +15,7 @@ export function CalendarDeadlineDropZone({ target, className, style, onClick, la
   const feedback = useDragFeedback(), node = useRef<HTMLElement | null>(null);
   const { setNodeRef, isOver } = useDroppable({ id: `${target.type}:${target.date}:${target.time || ''}`, data: { ...target, get node() { return node.current; } }, disabled: pending || eventState.busy });
   const ref = useCallback((value: HTMLElement | null) => { node.current = value; setNodeRef(value); }, [setNodeRef]);
-  const ready = ['task', 'calendar-event'].includes(feedback.source?.type) && !pending && !eventState.busy;
+  const ready = !isTimedEventResize(feedback.source) && ['task', 'calendar-event'].includes(feedback.source?.type) && !pending && !eventState.busy;
   const highlighted = isOver && ready;
   const props = { ref, className: `${className} calendar-deadline-drop-zone ${ready ? 'is-drop-ready' : ''} ${highlighted ? 'is-drop-target' : ''}`, style, 'data-drop-date': target.date, 'data-drop-time': target.time, 'data-drop-type': target.type };
   const caption = highlighted && <span className="calendar-deadline-drop-caption">{feedback.label || (active?.data.current?.type === 'calendar-event' ? `Sự kiện · ${eventState.label || 'Dời ngày'}` : deadlineDropLabel(target))}</span>;

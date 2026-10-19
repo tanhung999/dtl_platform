@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
 
 CALENDAR_TIMEZONE = timezone(timedelta(hours=7))
 
@@ -13,6 +15,7 @@ class EventWrite(BaseModel):
     location: str = Field(default="", max_length=255)
     starts_at: datetime
     ends_at: datetime
+    is_private: bool = False
     is_all_day: bool = False
     color: str = Field(default="#2563eb", pattern=r"^#[0-9a-fA-F]{6}$")
 
@@ -41,6 +44,7 @@ class EventWrite(BaseModel):
 
 
 class EventResponse(BaseModel):
+    scheduled_note_id: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -50,6 +54,7 @@ class EventResponse(BaseModel):
     location: str
     starts_at: datetime
     ends_at: datetime
+    is_private: bool = False
     is_all_day: bool
     color: str
     created_at: datetime
@@ -61,4 +66,19 @@ class EventResponse(BaseModel):
         # SQLite returns naive timestamps for UTC values; PostgreSQL preserves tzinfo.
         if value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+class EventCreate(EventWrite):
+    client_request_id: UUID | None = None
+
+
+class EventUpdate(EventWrite):
+    expected_updated_at: datetime
+
+    @field_validator("expected_updated_at")
+    @classmethod
+    def require_expected_timezone(cls, value):
+        if value.tzinfo is None:
+            raise ValueError("Phiên bản sự kiện phải kèm múi giờ.")
         return value.astimezone(timezone.utc)

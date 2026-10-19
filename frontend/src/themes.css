@@ -1,0 +1,201 @@
+/* Theme tokens are shared by widgets, full pages, forms and portal dialogs.
+   Note colors and semantic priority/status colors remain independent. */
+:root[data-theme="light"] {
+  --bg-main: #eef5fd;
+  --bg-page-gradient: radial-gradient(ellipse at 8% 15%, #cce5ff80, transparent 48%), radial-gradient(ellipse at 95% 65%, #d8eaff99, transparent 50%), linear-gradient(135deg, #eff7ff 0%, #fafcff 55%, #eaf3fe 100%);
+  --bg-card: #ffffffed;
+  --glass-border: #d9e8f6;
+  --glass-shadow: 0 8px 32px #346aa00c;
+}
+:root[data-theme="dark"] {
+  --bg-main: #080f1c;
+  --bg-page-gradient: radial-gradient(ellipse at 0% 15%, #153e6a66, transparent 55%), radial-gradient(ellipse at 95% 70%, #15294966, transparent 50%), linear-gradient(145deg, #0b1628, #080f1c 65%);
+  --bg-card: #0f1d30eb;
+  --bg-card-solid: #101e31;
+  --bg-surface: #14243a;
+  --navbar-bg: #0b1629ed;
+  --glass-border: #24436a;
+  --glass-shadow: 0 10px 36px #00000030, inset 0 1px 0 #568eff0a;
+}
+:root[data-theme="aurora"] {
+  --primary: #293f91;
+  --primary-hover: #384db1;
+  --primary-light: #e4eaff;
+  --accent: #4f5ee8;
+  --accent-gradient: linear-gradient(135deg, #3d65ee, #7164e9);
+  --bg-main: #d9e5fc;
+  --bg-page-gradient: radial-gradient(ellipse at 0% 5%, #b8edffdd, transparent 48%), radial-gradient(ellipse at 95% 8%, #a9b6f6cc, transparent 52%), radial-gradient(ellipse at 85% 95%, #d8c7f9dd, transparent 55%), radial-gradient(ellipse at 5% 85%, #b7e9f7dd, transparent 50%), linear-gradient(130deg, #dfeeff, #e8ddfa);
+  --bg-card: #ffffff8c;
+  --bg-card-solid: #f6f8ff;
+  --bg-surface: #edf2ff;
+  --bg-subtle: #e6ecfc;
+  --border: #cdd8ef;
+  --border-light: #e4eafb;
+  --border-hover: #899bed;
+  --glass-border: #ffffffc9;
+  --text-main: #17264f;
+  --text-secondary: #35456a;
+  --text-muted: #596a90;
+  --text-sub: #7181a5;
+  --navbar-bg: #ffffff85;
+  --footer-bg: #ffffff60;
+  --nav-pill-bg: #e1e8ff8c;
+  --nav-pill-active-bg: #ffffffdf;
+  --nav-pill-active-color: #354cc3;
+  --nav-pill-inactive-color: #52638e;
+  --input-bg: #ffffffd6;
+  --input-disabled-bg: #e8edfa;
+  --input-border: #cbd7f0;
+  --glass-shadow: 0 12px 40px #4f62a31a, inset 0 1px 0 #ffffffed;
+}
+:root[data-theme="ivory"] {
+  --primary: #245247;
+  --primary-hover: #193e34;
+  --primary-light: #e6f0e9;
+  --accent: #306653;
+  --accent-gradient: linear-gradient(135deg, #386e5a, #254e42);
+  --bg-main: #f3f0e9;
+  --bg-page-gradient: radial-gradient(ellipse at 0% 5%, #fffdf4e6, transparent 50%), radial-gradient(ellipse at 100% 85%, #c9d1bd80, transparent 48%), radial-gradient(ellipse at 5% 100%, #dfd7c780, transparent 50%), linear-gradient(130deg, #f7f4ed, #ecebe3);
+  --bg-card: #fffefaeb;
+  --bg-card-solid: #fffefa;
+  --bg-surface: #f5f5ef;
+  --bg-subtle: #eeefe7;
+  --border: #dfe3d9;
+  --border-light: #eceee5;
+  --border-hover: #8ea794;
+  --glass-border: #e4e6dc;
+  --text-main: #1e302a;
+  --text-secondary: #3f5048;
+  --text-muted: #637269;
+  --text-sub: #7b877e;
+  --navbar-bg: #fffefaed;
+  --footer-bg: #fffefabf;
+  --nav-pill-bg: #eceee6;
+  --nav-pill-active-bg: #fffefa;
+  --nav-pill-active-color: #285443;
+  --nav-pill-inactive-color: #617268;
+  --input-bg: #fffefa;
+  --input-disabled-bg: #eeefe7;
+  --input-border: #d9dfd2;
+  --glass-shadow: 0 8px 30px #3d4b3310;
+  --shadow-sm: 0 1px 3px #283c2710;
+  --shadow-md: 0 4px 14px #283c2712;
+  --shadow-lg: 0 10px 28px #283c2718;
+  --shadow-xl: 0 20px 45px #283c2724;
+}
+:root[data-theme="sunset"] {
+  --primary: #97216f;
+  --primary-hover: #7d165e;
+  --primary-light: #fbe5f0;
+  --accent: #b8237d;
+  --accent-gradient: linear-gradient(135deg, #e45375, #b21c8c);
+  --bg-main: #f2d7df;
+  --bg-page-gradient: radial-gradient(ellipse at 4% 80%, #ffb875d9, transparent 48%), radial-gradient(ellipse at 90% 15%, #b6a2e3cc, transparent 50%), radial-gradient(ellipse at 80% 85%, #ffceabe6, transparent 48%), linear-gradient(125deg, #e9c8e5 0%, #fbc7bc 40%, #d6c7ed 72%, #f9c6b5 100%);
+  --bg-card: #fff8f5b8;
+  --bg-card-solid: #fff8fb;
+  --bg-surface: #fff0f5;
+  --bg-subtle: #f6e8ef;
+  --border: #ead2df;
+  --border-light: #f3e5ec;
+  --border-hover: #cf8bb4;
+  --glass-border: #fff6f5cf;
+  --text-main: #34203e;
+  --text-secondary: #57405f;
+  --text-muted: #79647f;
+  --text-sub: #907a96;
+  --navbar-bg: #fff6f5b5;
+  --footer-bg: #fff6f58f;
+  --nav-pill-bg: #fff0f580;
+  --nav-pill-active-bg: #fff9fc;
+  --nav-pill-active-color: #97216f;
+  --nav-pill-inactive-color: #775780;
+  --input-bg: #fffbfbe6;
+  --input-disabled-bg: #f3e5ee;
+  --input-border: #e6cfde;
+  --glass-shadow: 0 12px 40px #8e437b1a, inset 0 1px 0 #ffffffe6;
+  --shadow-xl: 0 20px 45px #79376730;
+}
+:root[data-theme="obsidian"] {
+  --primary: #5eead4;
+  --primary-hover: #99f6e4;
+  --primary-light: #5eead41a;
+  --accent: #5eead4;
+  --accent-gradient: linear-gradient(135deg, #5eead4, #2dd4bf);
+  --bg-main: #111419;
+  --bg-page-gradient: linear-gradient(137deg, transparent 15%, #56646c1f 15.1%, #11141900 29%), linear-gradient(153deg, transparent 67%, #5eead42b 67.1%, #123c3d33 67.4%, transparent 72%), radial-gradient(ellipse at 0% 90%, #0f4c4a66, transparent 45%), linear-gradient(130deg, #111419, #0a1117 55%, #1a232c);
+  --bg-card: #20252deb;
+  --bg-card-solid: #20252d;
+  --bg-surface: #262e37;
+  --bg-subtle: #2b3540;
+  --border: #343c46;
+  --border-light: #2d343e;
+  --border-hover: #5c9995;
+  --glass-border: #3e535bcc;
+  --text-main: #f1f5f9;
+  --text-secondary: #d0dbe1;
+  --text-muted: #a6b6c1;
+  --text-sub: #8597a4;
+  --navbar-bg: #10181feb;
+  --footer-bg: #10181fcc;
+  --nav-pill-bg: #18272e;
+  --nav-pill-active-bg: #5eead41f;
+  --nav-pill-active-color: #5eead4;
+  --nav-pill-inactive-color: #afbec8;
+  --input-bg: #1a232c;
+  --input-disabled-bg: #151c24;
+  --input-border: #3b4853;
+  --glass-shadow: 0 10px 32px #0005, inset 0 1px 0 #8abfc30c;
+}
+:root[data-theme="emerald"] {
+  --primary: #047857;
+  --primary-hover: #065f46;
+  --primary-light: #d9f6eb;
+  --accent: #00866b;
+  --accent-gradient: linear-gradient(135deg, #10b981, #00866b);
+  --bg-main: #ecfdf5;
+  --bg-page-gradient: radial-gradient(ellipse at 0% 0%, #198f8cba, transparent 54%), radial-gradient(ellipse at 100% 85%, #6eddbf99, transparent 48%), radial-gradient(ellipse at 8% 100%, #34bd9273, transparent 48%), linear-gradient(135deg, #c7f3e8, #ecfdf5 65%, #d3f6e8);
+  --bg-card: #fafffcd9;
+  --bg-card-solid: #fbfffd;
+  --bg-surface: #f1fcf7;
+  --bg-subtle: #e1f5ed;
+  --border: #c5e9da;
+  --border-light: #e0f4eb;
+  --border-hover: #75bda4;
+  --glass-border: #eafff5d9;
+  --text-main: #163c32;
+  --text-secondary: #365e52;
+  --text-muted: #58786d;
+  --text-sub: #748f84;
+  --navbar-bg: #f0fff9bd;
+  --footer-bg: #f0fff9ad;
+  --nav-pill-bg: #def5ebc7;
+  --nav-pill-active-bg: #fbfffd;
+  --nav-pill-active-color: #047857;
+  --nav-pill-inactive-color: #52796a;
+  --input-bg: #fbfffde8;
+  --input-disabled-bg: #e5f5ed;
+  --input-border: #c8e7d9;
+  --glass-shadow: 0 10px 32px #12765e12, inset 0 1px 0 #ffffffc9;
+  --shadow-xl: 0 20px 45px #12634b26;
+}
+html:is([data-theme="dark"], [data-theme="obsidian"]) body { background-color: var(--bg-main) !important; }
+html:is([data-theme="sunset"], [data-theme="emerald"]) .glass-panel { backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+html[data-theme="sunset"] .app-card { background: #fff9fbd4; border-color: #fff4f6d9; box-shadow: 0 4px 18px #aa5f8510, inset 0 1px 0 #ffffffb3; }
+html[data-theme="emerald"] .app-card { background: #ffffffb8; }
+html[data-theme="obsidian"] :is(.btn-primary, .task-filters .btn[aria-pressed="true"], .user-avatar) { color: #092c2b; }
+html[data-theme="obsidian"] .theme-choice-check { background: var(--accent); color: #092c2b; }
+html[data-theme="obsidian"] .note-pin-badge { color: #14665b; }
+html[data-theme="obsidian"] .app-card { background: linear-gradient(135deg, #252e37, #1c242d); }
+html:is([data-theme="sunset"], [data-theme="obsidian"], [data-theme="emerald"]) :is(.calendar-week-day.is-today > button, .calendar-day-number.is-today, .calendar-agenda-date.is-today strong, .calendar-widget-week .is-selected, .calendar-mini-grid .is-selected) { background: var(--accent); }
+html[data-theme="obsidian"] :is(.calendar-week-day.is-today > button, .calendar-day-number.is-today, .calendar-agenda-date.is-today strong, .calendar-widget-week .is-selected, .calendar-mini-grid .is-selected) { color: #092c2b !important; }
+html:is([data-theme="sunset"], [data-theme="obsidian"], [data-theme="emerald"]) :is(.calendar-mini-grid .is-viewed-week:not(.is-selected), .calendar-all-day-background.is-today, .calendar-time-column.is-today) { background: color-mix(in srgb, var(--accent) 7%, var(--bg-card-solid)); }
+html[data-theme="aurora"] .glass-panel { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glass-shadow); }
+html[data-theme="aurora"] .app-card { background: #ffffffa6; border-color: #ffffffcf; box-shadow: inset 0 1px 0 #fff, 0 4px 16px #4f62a30a; }
+html[data-theme="aurora"] .platform-navbar { border-bottom-color: #ffffffb3; box-shadow: 0 5px 24px #4f62a310; }
+html[data-theme="ivory"] .glass-panel { backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-theme="ivory"] :is(.calendar-week-day.is-today > button, .calendar-day-number.is-today, .calendar-agenda-date.is-today strong, .calendar-widget-week .is-selected) { background: var(--accent); }
+html[data-theme="ivory"] .calendar-mini-grid .is-selected { background: var(--accent); }
+html[data-theme="ivory"] :is(.calendar-mini-grid .is-viewed-week:not(.is-selected), .calendar-all-day-background.is-today, .calendar-time-column.is-today) { background: color-mix(in srgb, var(--accent) 7%, var(--bg-card-solid)); }
+@media (prefers-reduced-motion: reduce) {
+  body, .platform-navbar, .glass-panel, .nav-tab-btn, .theme-toggle-btn { transition: none; }
+}

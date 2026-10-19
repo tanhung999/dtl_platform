@@ -1,0 +1,68 @@
+const { chromium } = require('../.browser-tools/node_modules/playwright');
+const { createDragUsers } = require('../support/test-users.cjs');
+const assert = require('node:assert/strict');
+async function main() {
+  const fixture = createDragUsers(1); let browser;
+  try {
+    browser = await chromium.launch({ channel: 'msedge', headless: true });
+    const context = await browser.newContext({ viewport: { width: 1600, height: 1400 } }), page = await context.newPage();
+    page.setDefaultTimeout(30000); page.setDefaultNavigationTimeout(60000); const errors = []; page.on('pageerror', e => errors.push(e.message));
+    const base = 'http://127.0.0.1:5173'; let token;
+    const api = async (method, path, data) => { const r = await fetch(base + '/api/' + path, { method, body: data === undefined ? undefined : JSON.stringify(data), headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }); if (!r.ok) throw new Error(`${path} ${r.status()} ${await r.text()}`); return r.status === 204 ? null : r.json(); };
+    await page.goto(base, { waitUntil: 'domcontentloaded' }); await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username); await page.getByLabel('Mật khẩu', { exact: true }).fill(fixture.accounts[0].password); await page.getByRole('button', { name: 'Đăng nhập hệ thống' }).click(); await page.locator('.calendar-widget').waitFor();
+    token = await page.evaluate(() => localStorage.getItem('dtl_platform_token'));
+    const today = await page.evaluate(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const later = new Date(Date.parse(today + 'T00:00:00Z') + 2 * 86400000).toISOString().slice(0, 10);
+    const tasks = [];
+    for (let i = 0; i < 31; i++) tasks.push(await api('POST', 'tasks', { title: `Task ${i}`, due_date: i === 30 ? later : today, priority: i === 0 ? 'URGENT' : 'MEDIUM' }));
+    const notes = [];
+    for (let i = 0; i < 30; i++) notes.push(await api('POST', 'notes', { title: i === 2 ? 'Biên bản ĐIỀU HÀNH' : `Note ${i}`, content: 'Long content '.repeat(100) }));
+    await api('PUT', 'workspace/layout/notes', { ids: notes.map(n => n.id), expected_version: 0 });
+    const event = await api('POST', 'calendar/events', { title: 'Versioned event', starts_at: today + 'T09:00:00+07:00', ends_at: today + 'T10:00:00+07:00' });
+    await page.reload(); await page.locator('.tasks-widget .task-item').nth(24).waitFor();
+    assert.equal(await page.locator('.tasks-widget .task-item').count(), 25);
+    await page.locator('.tasks-widget').getByRole('button', { name: 'Trang sau', exact: true }).click();
+    await page.locator(`[data-task-id="${tasks[30].id}"]`).waitFor(); assert.equal(await page.locator('.tasks-widget .task-item').count(), 6);
+    await page.locator(`.calendar-widget-week [data-date="${later}"]`).click(); await page.locator(`.calendar-widget [data-deadline-id="${tasks[30].id}"]`).waitFor();
+    await page.locator('.tasks-widget').getByRole('button', { name: 'Trang trước', exact: true }).click();
+    const taskCard = page.locator(`[data-task-id="${tasks[0].id}"]`); await taskCard.getByRole('button', { name: tasks[0].title, exact: true }).click();
+    const taskEditor = page.getByRole('dialog', { name: 'Chi tiết công việc', exact: true });
+    await taskEditor.getByLabel('Tên công việc', { exact: true }).fill('Local task draft');
+    await api('PATCH', 'tasks/' + tasks[0].id, { title: 'Remote task saved', expected_version: tasks[0].version });
+    await taskEditor.getByRole('button', { name: 'Lưu công việc', exact: true }).click(); await taskEditor.getByRole('alert').waitFor();
+    assert.equal(await taskEditor.getByLabel('Tên công việc', { exact: true }).inputValue(), 'Local task draft');
+    assert.equal((await api('GET', 'tasks/' + tasks[0].id)).title, 'Remote task saved');
+    await taskEditor.getByRole('button', { name: 'Đóng công việc', exact: true }).click();
+    console.log('PASS: Tasks server pages retain calendar deadlines outside the To-Do page; stale task form cannot overwrite.');
+    await page.locator('.calendar-widget').getByRole('button', { name: 'Về hôm nay', exact: true }).click();
+    await page.locator(`.calendar-widget-event[data-event-id="${event.id}"]`).click();
+    const eventEditor = page.locator('.calendar-event-dialog'); await eventEditor.getByLabel('Tên sự kiện', { exact: true }).fill('Local event draft');
+    await api('PUT', 'calendar/events/' + event.id, { title: 'Remote event saved', description: '', location: '', starts_at: event.starts_at, ends_at: event.ends_at, is_all_day: false, color: event.color, expected_updated_at: event.updated_at });
+    await eventEditor.getByRole('button', { name: 'Lưu sự kiện', exact: true }).click(); await eventEditor.getByRole('alert').waitFor();
+    assert.equal(await eventEditor.getByLabel('Tên sự kiện', { exact: true }).inputValue(), 'Local event draft'); assert.equal((await api('GET', 'calendar/events/' + event.id)).title, 'Remote event saved');
+    await eventEditor.getByRole('button', { name: 'Đóng', exact: true }).click();
+    console.log('PASS: stale event form preserves its draft and cannot overwrite a newer save.');
+    // No reminders polling on SSE heartbeat while idle.
+    let reminderReads = 0; page.on('request', r => { if (r.url().includes('/api/tasks/reminders')) reminderReads++; });
+    await page.waitForTimeout(800); const beforeIdle = reminderReads; await page.waitForTimeout(16500); assert.equal(reminderReads, beforeIdle);
+    console.log('PASS: idle SSE heartbeat causes no reminder API request.');
+    const card = id => page.locator(`[data-sort-id="${id}"]`), noteEditor = () => page.getByRole('dialog', { name: 'Ghi chú', exact: true });
+    await card(notes[0].id).click(); await noteEditor().getByPlaceholder('Nhập nội dung ghi chú ở đây...').fill('Offline draft remains');
+    await context.setOffline(true);
+    await api('PATCH', 'notes/' + notes[0].id, { title: 'Changed during disconnection', expected_version: notes[0].version });
+    const savedOrder = (await api('GET', 'notes/collection/page')).order_version;
+    await api('POST', `notes/${notes[1].id}/move`, { expected_version: savedOrder, placement: 'before', anchor_id: notes[0].id });
+    await context.setOffline(false);
+    await noteEditor().getByText('Ghi chú đã được cập nhật ở nơi khác.', { exact: false }).waitFor();
+    assert.equal(await noteEditor().getByPlaceholder('Nhập nội dung ghi chú ở đây...').inputValue(), 'Offline draft remains');
+    await noteEditor().getByRole('button', { name: 'Đóng ghi chú', exact: true }).click();
+    await page.waitForFunction(id => document.querySelector('.notes-widget [data-sort-id]')?.getAttribute('data-sort-id') === id, notes[1].id);
+    console.log('PASS: reconnect restores Notes content/order and warns the open editor without replacing its draft.');
+    await page.locator('.notes-view-all').click(); await page.locator('.notes-full-collection .note-card').nth(23).waitFor();
+    const limited = await api('GET', 'notes/collection/page'); assert.equal(limited.order_ids.length, 24); assert.ok(limited.items.every(n => !('content' in n)));
+    await page.getByRole('searchbox', { name: 'Tìm ghi chú' }).fill('bien ban dieu hanh'); await card(notes[2].id).waitFor(); await page.waitForFunction(() => document.querySelectorAll('.notes-full-collection .note-card').length === 1);
+    assert.deepEqual(errors, []);
+    console.log('PASS: SQL Notes pages return only visible ordering IDs and Vietnamese search still matches.');
+  } finally { if (browser) await browser.close(); fixture.cleanup(); }
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });

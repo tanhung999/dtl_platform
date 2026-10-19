@@ -1,6 +1,7 @@
 import { TaskPriority } from '../../types';
 
 export interface TaskInput {
+  expected_version?: number;
   title: string;
   description?: string | null;
   priority: TaskPriority;
@@ -8,13 +9,11 @@ export interface TaskInput {
   due_time: string | null;
 }
 
-export interface TaskReminder {
-  task_id: string;
-  title: string;
-  due_date: string;
-  due_time: string | null;
-  priority: TaskPriority;
-  deadline_version: number;
-  kind: 'before' | 'day';
-  scheduled_at: string;
+export type TaskFilter = 'ALL' | 'PENDING' | 'DONE' | 'OVERDUE';
+export interface TaskCollection {
+  server_now: string; next_refresh_at: string | null;
+  next_cursor: string | null; overdue_next_cursor: string | null;
+  items: import('../../types').Task[]; overdue: import('../../types').Task[];
+  counts: Record<TaskFilter, number>; offset: number; limit: number; total: number; has_more: boolean;
+  overdue_offset: number; overdue_has_more: boolean;
 }

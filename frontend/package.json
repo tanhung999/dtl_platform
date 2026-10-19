@@ -7,8 +7,12 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test:calendar": "node --test tests/calendar-date-utils.test.cjs tests/calendar-event-status.test.cjs tests/calendar-deadline-placements.test.cjs tests/calendar-event-schedule.test.cjs",
-    "test:deadlines": "node --test tests/task-deadlines.test.cjs tests/task-reminders.test.cjs tests/task-date-input.test.cjs"
+    "test:calendar": "node --test tests/unit/calendar-date-utils.test.cjs tests/unit/calendar-event-status.test.cjs tests/unit/calendar-deadline-placements.test.cjs tests/unit/calendar-event-schedule.test.cjs",
+    "test:deadlines": "node --test tests/unit/task-deadlines.test.cjs tests/unit/task-date-input.test.cjs",
+    "test": "node --test tests/unit/*.test.cjs",
+    "test:unit": "node --test tests/unit/*.test.cjs",
+    "test:notifications": "node tests/browser/notifications-browser.cjs",
+    "test:load": "node tests/load/collections-load.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

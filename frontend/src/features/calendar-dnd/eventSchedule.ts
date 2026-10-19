@@ -3,7 +3,9 @@ import { addDays, dateKey, parseDate, toTimestamp } from '../calendar/dateUtils'
 import { DeadlineDropTarget } from '../task-calendar/deadlineDropTargets';
 
 export type EventDragAction = 'move' | 'start' | 'end';
-export interface EventDragData { type: 'calendar-event'; event: CalendarEvent; sourceDay: string; action: EventDragAction }
+export interface EventLane { left: string; width: string }
+export interface EventDragData { type: 'calendar-event'; event: CalendarEvent; sourceDay: string; action: EventDragAction; lane?: EventLane }
+export const isTimedEventResize = (data?: Record<string, any>) => data?.type === 'calendar-event' && (data.action === 'start' || data.action === 'end') && !data.event.is_all_day;
 export interface EventSchedule { starts_at: string; ends_at: string; is_all_day: boolean }
 const DAY = 86400000, STEP = 15 * 60000;
 

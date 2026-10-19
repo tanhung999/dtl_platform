@@ -1,5 +1,6 @@
 from typing import Annotated
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request, Response
+import json
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,8 +13,10 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
+    request: Request,
+    response: Response,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ) -> User:
     if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(
@@ -38,4 +41,9 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="Tài khoản không tồn tại hoặc đã bị khóa")
+    from app.core.workspace_versions import read_scopes, read_versions
+    scopes = read_scopes(request.url.path) if request.method == 'GET' else ()
+    if scopes:
+        response.headers['X-Workspace-Versions'] = json.dumps(await read_versions(db, user.id, scopes), separators=(',', ':'))
+        response.headers['Cache-Control'] = 'no-store'
     return user

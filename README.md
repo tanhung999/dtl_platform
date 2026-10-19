@@ -1,153 +1,141 @@
-# DTL Platform (Digital Workplace & SSO Portal)
+# DTL Platform — Cổng làm việc số và đăng nhập một lần
 
-> Cổng làm việc số tập trung cho cán bộ nhân viên **Đông Tây Land**: Tích hợp Đăng nhập một lần (**Single Sign-On - SSO**) vào 3 hệ thống nghiệp vụ, đồng thời cung cấp bàn làm việc cá nhân (**Start.me style**) gồm **Ghi chú nhanh (Notes)**, **Quản lý công việc (Tasks)** và **Liên kết nhanh (Bookmarks)**.
+Cổng làm việc tập trung cho cán bộ nhân viên **Đông Tây Land**, kết nối đăng nhập một lần (SSO) tới Booking Reports, Workflows và Asset Manager. Không gian cá nhân gồm Ghi chú, Công việc, Liên kết, Lịch cá nhân và Thông báo.
 
----
+## Kiến trúc và công nghệ
 
-## 📌 1. Kiến trúc & Công nghệ (Tech Stack)
+- Giao diện: React 18, TypeScript, Vite, biểu tượng Lucide React; CSS hỗ trợ sáng/tối và nhiều kích thước màn hình. Kéo thả dùng dnd-kit.
+- Máy chủ: FastAPI, Python, SQLAlchemy bất đồng bộ.
+- Cơ sở dữ liệu: SQLite cho phát triển cục bộ; PostgreSQL cho môi trường vận hành. PostgreSQL LISTEN/NOTIFY kết hợp SSE chuyển cập nhật giữa các phiên và tiến trình.
+- Phiên đăng nhập/vé SSO dùng JWT với PyJWT. Mật khẩu được băm PBKDF2-HMAC-SHA256.
+- Mỗi chức năng quản lý API tại `features/<feature>/api.ts`; phần HTTP, thời gian chờ và đối soát thao tác nằm trong `services/`.
 
-- **Frontend**:
-  - React 18+ (TypeScript), Vite
-  - Lucide React (Bộ icon hiện đại)
-  - CSS Glassmorphism & Responsive Grid layout
-  - REST API Client (`api.ts`) với lưu trữ phiên an toàn
-- **Backend**:
-  - FastAPI (Python 3.10+ / 3.11+ async)
-  - SQLAlchemy 2.0 (Async ORM)
-  - CSDL: Hỗ trợ SQLite (chạy dev tức thì) hoặc PostgreSQL (Production)
-  - PyJWT (Mã hóa phiên Bearer và ký vé SSO Ticket HMAC SHA-256)
-  - Passlib / PBKDF2 HMAC SHA-256 (Hash mật khẩu an toàn)
+## Khởi chạy trực tiếp bằng Python và Node.js
 
----
+Từ thư mục dự án, tạo môi trường máy chủ:
 
-## 🚀 2. Hướng dẫn Khởi chạy Nhanh (Quickstart)
-
-### Cách 1: Chạy trực tiếp bằng Python & Node.js
-
-#### Bước 1: Khởi động Backend
-```bash
+```powershell
 cd backend
 python -m venv .venv
-# Trên Windows:
 .venv\Scripts\activate
-# Trên Linux/macOS:
-source .venv/bin/activate
-
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
-> Khi khởi động lần đầu, Backend sẽ **tự động tạo database `platform.db`** và khởi tạo tài khoản mặc định:
-> - **Username**: `admin`
-> - **Password**: `admin123`
 
-Swagger UI xem API: `http://localhost:8000/docs`
+Trên Linux/macOS, kích hoạt môi trường bằng `source .venv/bin/activate` thay cho lệnh Windows. Có thể đặt cấu hình tại `backend/.env`, tham khảo `.env.example` ở thư mục gốc. Nếu không đổi cấu hình, máy chủ dùng SQLite `platform.db` trong thư mục chạy.
 
-#### Bước 2: Khởi động Frontend
-```bash
+Lần khởi động đầu tạo dữ liệu mẫu nếu chưa có quản trị viên:
+
+- Tên đăng nhập: `admin`.
+- Mật khẩu: `admin123`.
+
+Xem tài liệu API tại `http://localhost:8000/docs`.
+
+Mở cửa sổ lệnh khác để chạy giao diện:
+
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
-Truy cập giao diện: `http://localhost:5173`
 
----
+Truy cập `http://localhost:5173`.
 
-### Cách 2: Chạy toàn bộ bằng Docker Compose
-```bash
-docker compose up -d
-```
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:8000`
+## Khởi chạy bằng Docker Compose
 
----
+Từ thư mục gốc:
 
-## 🔑 3. Luồng hoạt động của Single Sign-On (SSO)
-
-```
-[User trên Platform]
-       |
-       | 1. Bấm vào Card "Booking Reports" / "Workflows" / "Asset Manager"
-       v
-[Platform Backend: POST /api/sso/launch]
-       |
-       | 2. Ký SSO Ticket (JWT 60s, Single-Use) bằng SSO_SECRET_KEY
-       v
-[Mở tab mới với URL Callback]
-       | https://reports.dtl.vn/sso-callback?ticket=eyJhbGciOi...
-       v
-[Sub-App Backend: POST /api/auth/sso-login]
-       | 3. Giải mã ticket với SSO_SECRET_KEY
-       | 4. Tìm User theo email / username trong DB của Sub-App
-       | 5. Cấp Session / Token nội bộ của Sub-App
-       v
-[User vào thẳng Dashboard của Sub-App mà không cần nhập mật khẩu!]
+```sh
+docker compose up -d --build
 ```
 
----
+- Giao diện: `http://localhost:5173`.
+- API: `http://localhost:8000`.
+- PostgreSQL lưu dữ liệu trong volume `platform_db_data`.
+- Mã giao diện được gắn trực tiếp vào container; mã máy chủ được sao chép khi dựng image. Sau khi sửa mã máy chủ, cần dựng lại:
 
-## 📋 4. BẢNG PHÂN CHIA NHIỆM VỤ CHO DEVELOPER (TASK BACKLOG)
+```sh
+docker compose up -d --build platform-backend
+```
 
-Dưới đây là danh sách đầu việc chi tiết để bạn phân công cho các thành viên trong nhóm:
+## Đăng nhập một lần vào ứng dụng doanh nghiệp
 
-### 🧩 Task 1: Tích hợp SSO Receiver cho `bookingreports` (Dev Backend/Frontend)
-- [ ] **Backend `bookingreports`**: Bổ sung endpoint `POST /api/auth/sso-login`:
-  - Giải mã ticket gửi lên bằng `SSO_SECRET_KEY`.
-  - Tìm `users` theo `email` hoặc `username`.
-  - Gọi hàm `issue_refresh_token(conn, user['id'])` và trả về `auth_response(...)`.
-- [ ] **Frontend `bookingreports`**: Thêm route `/sso-callback` để nhận `ticket` từ query params và lưu phiên vào localStorage/cookie rồi chuyển hướng vào `/`.
+1. Người dùng bấm thẻ Booking Reports, Workflows hoặc Asset Manager.
+2. Giao diện gọi POST `/api/sso/launch` với `target_app`.
+3. Máy chủ ký vé JWT bằng `SSO_SECRET_KEY`, mặc định có hiệu lực 60 giây, trả `launch_url`.
+4. Trình duyệt mở `/sso-callback?ticket=...` của ứng dụng đích.
+5. Ứng dụng đích xác thực vé, đối chiếu tài khoản và tạo phiên nội bộ, rồi đưa người dùng vào ứng dụng.
 
-### 🧩 Task 2: Tích hợp SSO Receiver cho `Workflows` (Dev Backend/Frontend)
-- [ ] **Backend `Workflows`**: Bổ sung endpoint `POST /api/auth/sso-login`:
-  - Giải mã ticket gửi lên bằng `SSO_SECRET_KEY`.
-  - Tìm `User` trong DB theo `username == claims['sub']`.
-  - Tạo record phiên trong bảng `auth_sessions`, sinh refresh token và trả về `TokenResponse`.
-- [ ] **Frontend `Workflows`**: Thêm route `/sso-callback` nhận ticket và gọi API đăng nhập.
+Ứng dụng đích có thể gọi POST `/api/sso/verify` để đối soát tập trung. Cần cấu hình đúng địa chỉ `BOOKING_REPORTS_URL`, `WORKFLOWS_URL`, `ASSET_MANAGER_URL` và triển khai phần nhận vé ở từng hệ thống. Luồng chi tiết và cách cấp phiên phải đối chiếu với mã nguồn của ứng dụng đích.
 
-### 🧩 Task 3: Tích hợp SSO Receiver cho `Asset-Manager` (Dev Backend/Frontend)
-- [ ] **Backend `Asset-Manager`**: Bổ sung endpoint `POST /api/auth/sso-login`:
-  - Giải mã ticket gửi lên bằng `SSO_SECRET_KEY`.
-  - Tìm `User` trong DB theo `username`.
-  - Thiết lập `session['user_id'] = user.id` và sinh JWT `generate_local_jwt`.
-- [ ] **Frontend `Asset-Manager`**: Bổ sung route `/sso-callback` đón vé và vào màn hình chính.
+## Phần tích hợp phía các ứng dụng doanh nghiệp
 
-### 🧩 Task 4: Nâng cấp Bàn làm việc Platform (Dev Frontend Platform)
-- [ ] **Drag & Drop Layout**: Tích hợp `@dnd-kit` hoặc `react-grid-layout` để người dùng có thể kéo thả hoán đổi vị trí các cột Widget trên Dashboard.
-- [ ] **Rich-text Note**: Tích hợp thư viện Tiptap hoặc Markdown editor mini cho Sticky Notes.
-- [ ] **Badges đếm thông báo**: Bổ sung API poll ngầm số lượng hồ sơ chờ duyệt trên Workflows để hiển thị con số ngay trên thẻ App Launcher.
+Các mục dưới đây là phần việc tại hệ thống bên ngoài, không phải xác nhận rằng ba ứng dụng đã được kết nối đầy đủ trong kho mã này.
 
----
+- Booking Reports: bổ sung POST `/api/auth/sso-login`, xác thực vé, tìm tài khoản theo email/tên đăng nhập và cấp phiên bằng luồng hiện có; trang `/sso-callback` nhận vé, gọi API rồi chuyển vào ứng dụng. Các hàm cấp phiên như `issue_refresh_token` và `auth_response` cần đối chiếu với dự án đích.
+- Workflows: bổ sung API nhận vé, tìm tài khoản theo thông tin đã xác thực, tạo phiên theo `auth_sessions`/`TokenResponse` của hệ thống; trang `/sso-callback` gọi API đăng nhập.
+- Asset Manager: bổ sung API nhận vé, ánh xạ tài khoản và tạo phiên theo cơ chế của ứng dụng; trang `/sso-callback` chuyển vào màn hình chính.
+- Thông báo: Platform đã có API tiếp nhận có chữ ký riêng cho từng nguồn. Phía ứng dụng cần gửi sự kiện và ánh xạ đúng ID người nhận. Xem [tài liệu Thông báo](docs/notifications.md). Hiện chưa xác nhận kết nối thực tế hoặc mở thẳng vào hồ sơ của ba ứng dụng.
 
-## 📂 5. Cấu trúc Thư mục
+## Chức năng và tài liệu
 
-Module lịch cá nhân, database và hướng dẫn kiểm thử: [docs/calendar.md](docs/calendar.md).
-Đồng bộ To-Do, nhắc hạn và cập nhật realtime: [docs/task-deadlines.md](docs/task-deadlines.md).
+- [Lịch cá nhân](docs/calendar.md): xem tuần/tháng/danh sách, tạo/sửa/xóa sự kiện, kéo dời và co giãn.
+- [Đồng bộ công việc với lịch](docs/task-deadlines.md): hạn, hoàn thành hai chiều và hiển thị quá hạn.
+- [Đặt lịch cho ghi chú](docs/note-scheduling.md): lịch hẹn riêng, ngày giờ dùng chung, lưu nguyên tử và cập nhật tức thời.
+- [Thông báo](docs/notifications.md): chuông, lịch sử, đọc/ẩn, nhắc hạn ở máy chủ và hợp đồng tích hợp.
+- [Bố cục tiện ích](docs/dashboard-widget-layout.md) và [sắp xếp các mục](docs/workspace-drag-and-events.md).
+- [Phản hồi khi kéo thả](docs/drag-feedback.md).
+- [Phân trang và phục hồi kết nối](docs/calendar-tasks-notes-scaling.md).
+- [Đo tải 300 tài khoản, 200 phiên](docs/collections-capacity-300.md).
+- [Quy ước cấu trúc mã nguồn](docs/project-structure.md).
+
+Ghi chú có định dạng phong phú và số đếm nghiệp vụ ngay trên từng thẻ ứng dụng là các hướng mở rộng riêng, không được coi là đã hoàn thành chỉ vì có mô-đun Thông báo.
+
+## Cấu trúc thư mục
 
 ```text
 dtl-platform/
 ├── backend/
 │   ├── app/
-│   │   ├── core/          # config.py, database.py, security.py (SSO & JWT)
-│   │   ├── db/            # models.py (User, Note, Task, Bookmark)
-│   │   ├── modules/
-│   │   │   ├── auth/      # Login, logout, getMe
-│   │   │   ├── sso/       # Tạo vé SSO Ticket & API verify
-│   │   │   ├── notes/     # CRUD Ghi chú màu sắc, ghim
-│   │   │   ├── tasks/     # CRUD To-do list, ưu tiên, deadline
-│   │   │   └── bookmarks/ # CRUD Phím tắt liên kết nội bộ
-│   │   └── main.py        # Khởi tạo FastAPI, CORS, auto-seed admin
-│   ├── requirements.txt
-│   └── Dockerfile
+│   │   ├── core/          # Cấu hình, cơ sở dữ liệu, bảo mật, cập nhật thời gian thực
+│   │   ├── db/            # Mô hình dữ liệu và các bản nâng cấp
+│   │   ├── modules/       # Xác thực, SSO, công việc, lịch, ghi chú, thông báo...
+│   │   └── main.py        # Khởi tạo ứng dụng và vòng đời máy chủ
+│   └── tests/
+│       ├── integration/  # Kiểm thử tích hợp trên SQLite cô lập
+│       ├── postgres/     # Kiểm tra riêng PostgreSQL
+│       └── support/      # Dữ liệu và tiện ích kiểm thử dùng chung
 ├── frontend/
 │   ├── src/
-│   │   ├── assets/        # Logo Đông Tây Land
-│   │   ├── components/    # Navbar, Footer
-│   │   ├── features/      # auth, apps (SSO launcher), notes, tasks, bookmarks
-│   │   ├── services/      # api.ts
-│   │   ├── types/         # index.ts
+│   │   ├── assets/        # Logo và tài nguyên
+│   │   ├── components/    # Thành phần giao diện dùng chung
+│   │   ├── features/      # Mỗi chức năng có API và giao diện riêng
+│   │   ├── services/      # HTTP, phiên đăng nhập, thời gian chờ, đối soát
+│   │   ├── types/         # Kiểu dữ liệu chung
 │   │   ├── App.tsx
-│   │   └── index.css      # Giao diện glassmorphism, responsive widget grid
-│   ├── package.json
-│   └── vite.config.ts
+│   │   └── index.css      # Biến màu và kiểu giao diện chung
+│   └── tests/             # Kiểm thử đơn vị, trình duyệt, tích hợp, tải, tiện ích
+├── docs/                  # Tài liệu tiếng Việt
 ├── docker-compose.yml
 └── README.md
 ```
+
+## Kiểm thử
+
+Từ `backend`:
+
+```sh
+python -m unittest discover -s tests -q
+```
+
+Từ `frontend`:
+
+```sh
+npm test
+npm run build
+npm run test:notifications
+```
+
+Các bộ kiểm thử trình duyệt yêu cầu Docker đang chạy. Chi tiết nhóm, điều kiện và lệnh tại [hướng dẫn kiểm thử giao diện](frontend/tests/README.md) và [hướng dẫn kiểm thử máy chủ](backend/tests/README.md).
+
+Cấp quyền chia sẻ và xem lịch cá nhân: [hướng dẫn chia sẻ lịch](docs/calendar-sharing.md).

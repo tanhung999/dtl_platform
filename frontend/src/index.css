@@ -1,8 +1,5 @@
 :root,
-:root[data-theme="light"],
-html[data-theme="light"],
-body[data-theme="light"],
-.light {
+:root[data-theme="light"] {
   --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   
   /* Brand Palette: Dong Tay Land Sapphire & Classic Blue */
@@ -62,10 +59,7 @@ body[data-theme="light"],
 }
 
 :root[data-theme="dark"],
-html[data-theme="dark"],
-body[data-theme="dark"],
-.dark,
-[data-theme="dark"] {
+:root[data-theme="obsidian"] {
   /* Brand Palette (Dark Mode) */
   --primary: #60a5fa;
   --primary-hover: #93c5fd;
@@ -183,9 +177,10 @@ body[data-theme="dark"] {
 }
 
 .nav-brand-logo {
-  height: 40px;
+  height: 62.4px;
   width: auto;
   object-fit: contain;
+  transform: translateY(-5%);
 }
 
 .nav-brand-text h1 {
@@ -250,7 +245,22 @@ body[data-theme="dark"] {
   gap: 6px;
   color: var(--text-muted);
   font-size: 0.85rem;
+  flex-shrink: 0;
 }
+
+.nav-clock svg { flex-shrink: 0; }
+.nav-clock-time {
+  display: inline-block;
+  width: 8ch;
+  flex: 0 0 8ch;
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.nav-tabs-pill { max-width: 100%; flex-shrink: 0; overflow-x: auto; }
+.nav-tab-btn { flex-shrink: 0; white-space: nowrap; }
 
 /* Theme Toggle Button */
 .theme-toggle-btn {
@@ -452,7 +462,7 @@ body[data-theme="dark"] {
   .nav-clock { display: none; }
 }
 
-@media (min-width: 769px) and (max-width: 1100px) {
+@media (min-width: 769px) and (max-width: 1400px) {
   .platform-navbar { flex-wrap: wrap; gap: 0.75rem; }
   .nav-actions { margin-left: auto; }
 }
@@ -635,29 +645,6 @@ body[data-theme="dark"] {
   margin-top: 0.5rem;
   font-size: 0.7rem;
   color: #64748b;
-}
-
-/* Dark mode styling for Sticky Notes: Elegant tinted dark panels */
-[data-theme="dark"] .note-card,
-.dark .note-card {
-  background-color: var(--bg-card-solid) !important;
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-[data-theme="dark"] .note-title,
-.dark .note-title {
-  color: var(--text-main) !important;
-}
-
-[data-theme="dark"] .note-content,
-.dark .note-content {
-  color: var(--text-secondary) !important;
-}
-
-[data-theme="dark"] .note-footer,
-.dark .note-footer {
-  color: var(--text-muted) !important;
 }
 
 /* Tasks / To-do list */

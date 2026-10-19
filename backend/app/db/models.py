@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, JSON, CheckConstraint, Index
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, BigInteger, String, Text, JSON, CheckConstraint, Index, event, inspect
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -40,6 +40,7 @@ class User(Base):
 
 class Note(Base):
     __tablename__ = "notes"
+    __table_args__ = (CheckConstraint("version >= 0", name="ck_notes_version"), Index("ix_notes_owner_archive_created", "user_id", "is_archived", "created_at", "id"), Index("ix_notes_owner_order", "user_id", "is_archived", "is_pinned", "sort_order", "id"))
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -50,6 +51,11 @@ class Note(Base):
     is_archived = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    version = Column(Integer, nullable=False, default=0, server_default="0")
+
+    sort_order = Column(BigInteger, nullable=False, default=0, server_default="0")
+    search_text = Column(Text, nullable=False, default="", server_default="")
 
     user = relationship("User", back_populates="notes")
 
@@ -65,6 +71,7 @@ class Task(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    version = Column(Integer, nullable=False, default=0, server_default="0")
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     priority = Column(String(20), default="MEDIUM", nullable=False)  # LOW, MEDIUM, HIGH, URGENT
@@ -95,3 +102,12 @@ class Bookmark(Base):
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
     user = relationship("User", back_populates="bookmarks")
+
+
+@event.listens_for(Note, "before_insert")
+@event.listens_for(Note, "before_update")
+def note_search_text(mapper, connection, note):
+    from app.core.text_search import fold_text
+    state = inspect(note)
+    if state.pending or state.attrs.title.history.has_changes() or state.attrs.content.history.has_changes():
+        note.search_text = fold_text(f"{note.title or ''}\n{note.content or ''}")

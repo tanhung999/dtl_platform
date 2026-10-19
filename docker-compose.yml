@@ -12,6 +12,15 @@ services:
     environment:
       - APP_ENV=production
       - DEBUG=false
+      - DB_POOL_SIZE=8
+      - DB_MAX_OVERFLOW=4
+      - DB_POOL_TIMEOUT=5
+      - DB_STATEMENT_TIMEOUT_MS=8000
+      - DB_LOCK_TIMEOUT_MS=3000
+      - NOTIFICATIONS_WORKER_ENABLED=${NOTIFICATIONS_WORKER_ENABLED:-true}
+      - NOTIFICATIONS_BOOKINGREPORTS_SECRET=${NOTIFICATIONS_BOOKINGREPORTS_SECRET:-}
+      - NOTIFICATIONS_WORKFLOWS_SECRET=${NOTIFICATIONS_WORKFLOWS_SECRET:-}
+      - NOTIFICATIONS_ITAM_SECRET=${NOTIFICATIONS_ITAM_SECRET:-}
       - SECRET_KEY=dtl_platform_production_secret_key_change_me
       - SSO_SECRET_KEY=dtl_sso_shared_secret_for_ticket_exchange_32_chars
       - DATABASE_URL=postgresql+asyncpg://platform_user:platform_pass@platform-db:5432/dtl_platform_db

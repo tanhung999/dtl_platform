@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 @router.post("/login", response_model=TokenResponse)
 async def login(
     payload: LoginRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     username = payload.username.strip().lower()
     stmt = select(User).where(
@@ -68,7 +68,7 @@ async def get_me(user: Annotated[User, Depends(get_current_user)]):
 async def update_profile(
     payload: ProfileUpdate,
     user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     data = payload.model_dump(exclude_unset=True)
     for key, value in data.items():
@@ -83,7 +83,7 @@ async def update_profile(
 async def change_password(
     payload: ChangePasswordRequest,
     user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác.")

@@ -1,14 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import { NoteScheduleFields, initialNoteSchedule } from '../note-scheduling/NoteScheduleFields';
+import { NoteSchedule } from '../note-scheduling/types';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Pin, Trash2 } from 'lucide-react';
+import { X, Pin, Trash2, Archive } from 'lucide-react';
 import { Note } from '../../types';
+import { NoteCreateAttempt } from './createNote';
+import { DeleteNoteDialog } from './DeleteNoteDialog';
+import { ApiError } from '../../services/api';
+import { notesApi } from './api';
+import { NoteWrite } from './types';
+import { WORKSPACE_CHANGED } from '../realtime/useWorkspaceRealtime';
+import './notes.css';
 
 interface NoteModalProps {
   note: Partial<Note> | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (payload: { title: string; content: string; color: string; is_pinned: boolean }) => void;
-  onDelete?: (id: string) => void;
+  onSave: (payload: NoteWrite, attempt?: NoteCreateAttempt) => Promise<void>;
+  onDelete?: (id: string, verifyOnly?: boolean, expectedVersion?: number) => Promise<void>;
+  onArchive?: (id: string, expectedVersion: number, payload: NoteWrite) => Promise<void>;
 }
 
 const PASTEL_COLORS = [
@@ -26,13 +36,26 @@ export const NoteModal: React.FC<NoteModalProps> = ({
   onClose,
   onSave,
   onDelete,
+  onArchive,
 }) => {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [error, setError] = useState('');
+  const [remote, setRemote] = useState(false);
+  const version = useRef(note?.version ?? 0);
+  const creationAttempt = useRef<NoteCreateAttempt>();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [color, setColor] = useState('#fef08a');
   const [isPinned, setIsPinned] = useState(false);
+  const [schedule, setSchedule] = useState<NoteSchedule>();
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   useEffect(() => {
+    creationAttempt.current = undefined;
+    setSchedule(note?.calendar_schedule ?? undefined); setScheduleOpen(!!note?.calendar_schedule);
+    version.current = note?.version ?? 0; setError(''); setRemote(false); setConfirmDelete(false);
     if (note) {
       setTitle(note.title || '');
       setContent(note.content || '');
@@ -46,21 +69,61 @@ export const NoteModal: React.FC<NoteModalProps> = ({
     }
   }, [note, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const element = dialog.current;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    element?.showModal();
+    return () => { element?.close(); previousFocus?.focus(); };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !note?.id) return;
+    let live = true, requestId = 0;
+    const changed = async (event?: Event) => {
+      if (event?.type === WORKSPACE_CHANGED && !(event as CustomEvent<string[]>).detail.includes('notes')) return;
+      const id = ++requestId;
+      try {
+        const updated = await notesApi.get(note.id!);
+        if (live && id === requestId && updated.version !== version.current) { setRemote(true); }
+      } catch (reason) { if (live && reason instanceof ApiError && reason.status === 404) setError('Ghi chú đã bị xóa hoặc lưu trữ. Bạn có thể sao chép bản nháp trước khi đóng.'); }
+    };
+    window.addEventListener(WORKSPACE_CHANGED, changed); window.addEventListener('focus', changed);
+    void changed();
+    return () => { live = false; window.removeEventListener(WORKSPACE_CHANGED, changed); window.removeEventListener('focus', changed); };
+  }, [isOpen, note?.id]);
+
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave({
-      title: title.trim() || 'Ghi chú',
-      content: content.trim(),
-      color,
-      is_pinned: isPinned,
-    });
-    onClose();
+  const buildPayload = (): NoteWrite => {
+    if (dialog.current?.querySelector('form')?.reportValidity() === false) throw new Error('Vui lòng kiểm tra lại ngày giờ đang nhập.');
+    if (scheduleOpen && schedule && Date.parse(schedule.ends_at) <= Date.parse(schedule.starts_at)) throw new Error('Giờ kết thúc phải sau giờ bắt đầu.');
+    return { ...(scheduleOpen && schedule ? { calendar_schedule: schedule } : {}), title: title.trim() || 'Ghi chú', content: content.trim(), color, is_pinned: isPinned, ...(note?.id ? { expected_version: version.current } : {}) };
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); e.stopPropagation(); if (busy) return;
+    setBusy(true); setError('');
+    try {
+      const payload = buildPayload();
+      if (!note?.id) creationAttempt.current ??= { requestId: crypto.randomUUID(), original: { ...payload } };
+      await onSave(payload, creationAttempt.current);
+      onClose();
+    } catch (reason) {
+      if (!note?.id && reason instanceof ApiError && [400, 404, 422].includes(reason.status)) creationAttempt.current = undefined;
+      setError(reason instanceof Error ? reason.message : 'Không thể lưu ghi chú. Bản nháp vẫn được giữ.');
+      if (note?.id && reason instanceof ApiError && reason.status === 409) {
+        setRemote(true);
+      }
+    } finally { setBusy(false); }
   };
 
   return createPortal(
-    <div className="modal-overlay" onClick={onClose}>
+    <><dialog ref={dialog} className="note-editor-dialog" aria-label="Ghi chú" onCancel={e => { e.preventDefault(); e.stopPropagation(); if (!busy) onClose(); }} onClick={e => {
+      if (e.target !== e.currentTarget || busy) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) onClose();
+    }}>
       <div
         className="modal-content"
         style={{ backgroundColor: color }}
@@ -76,6 +139,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
                 color: isPinned ? 'white' : '#64748b',
                 padding: '4px 8px',
               }}
+              disabled={busy}
               onClick={() => setIsPinned(!isPinned)}
               title={isPinned ? 'Bỏ ghim' : 'Ghim ghi chú'}
             >
@@ -85,6 +149,8 @@ export const NoteModal: React.FC<NoteModalProps> = ({
           </div>
           <button
             type="button"
+            disabled={busy}
+            aria-label="Đóng ghi chú"
             onClick={onClose}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
           >
@@ -92,11 +158,17 @@ export const NoteModal: React.FC<NoteModalProps> = ({
           </button>
         </div>
 
+        {remote && <div className="note-editor-message" role="status">Ghi chú đã được cập nhật ở nơi khác. Bản nháp của bạn được giữ nguyên. <button type="button" disabled={busy} onClick={async () => {
+          setBusy(true); try { const value = await notesApi.get(note!.id!); setTitle(value.title); setContent(value.content); setColor(value.color); setIsPinned(value.is_pinned); setSchedule(value.calendar_schedule ?? undefined); setScheduleOpen(!!value.calendar_schedule); version.current = value.version; setRemote(false); setError(''); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Không tải được bản mới.'); } finally { setBusy(false); }
+        }}>Bỏ bản nháp, tải bản mới</button></div>}
+        {error && <p className="note-editor-message" role="alert">{error}</p>}
         <form onSubmit={handleSubmit}>
+          <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div className="modal-body">
             <input
               type="text"
               placeholder="Tiêu đề ghi chú..."
+              maxLength={200}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               style={{
@@ -114,6 +186,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
 
             <textarea
               placeholder="Nhập nội dung ghi chú ở đây..."
+              maxLength={50000}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={6}
@@ -150,6 +223,10 @@ export const NoteModal: React.FC<NoteModalProps> = ({
                 ))}
               </div>
             </div>
+            {!note?.is_archived && <>
+              <div className="note-schedule-actions"><button type="button" className="btn btn-outline btn-sm" disabled={!!creationAttempt.current} aria-expanded={scheduleOpen} onClick={() => { setSchedule(value => value ?? initialNoteSchedule()); setScheduleOpen(true); }}>Gắn vào lịch</button></div>
+              {scheduleOpen && schedule && <><fieldset disabled={!!creationAttempt.current} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><NoteScheduleFields value={schedule} onChange={setSchedule} /></fieldset>{!schedule.event_id && <button type="button" className="btn btn-outline btn-sm" disabled={!!creationAttempt.current} onClick={() => { setScheduleOpen(false); setSchedule(undefined); }}>Bỏ chọn lịch</button>}</>}
+            </>}
           </div>
 
           <div
@@ -160,19 +237,20 @@ export const NoteModal: React.FC<NoteModalProps> = ({
               justifyContent: 'space-between',
             }}
           >
-            <div>
+            <div className="note-editor-secondary-actions">
+              {note?.id && onArchive && !note.is_archived && <button type="button" className="btn btn-outline btn-sm" onClick={async () => {
+                setBusy(true); setError('');
+                try { await onArchive(note.id!, version.current, buildPayload()); onClose(); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể lưu trữ.'); if (reason instanceof ApiError && reason.status === 409) setRemote(true); } finally { setBusy(false); }
+              }}><Archive size={14} /> Lưu trữ</button>}
               {note?.id && onDelete && (
                 <button
                   type="button"
                   className="btn btn-danger-outline btn-sm"
-                  onClick={() => {
-                    onDelete(note.id!);
-                    onClose();
-                  }}
+                  onClick={() => setConfirmDelete(true)}
                   title="Xóa ghi chú"
                 >
                   <Trash2 size={14} />
-                  <span>Xóa</span>
+                  <span>Xóa ghi chú</span>
                 </button>
               )}
             </div>
@@ -185,9 +263,12 @@ export const NoteModal: React.FC<NoteModalProps> = ({
               </button>
             </div>
           </div>
+          </fieldset>
         </form>
       </div>
-    </div>,
+    </dialog>
+    {confirmDelete && note?.id && onDelete && <DeleteNoteDialog note={{ id: note.id, title: note.title }} onClose={() => setConfirmDelete(false)} onDelete={async (verifyOnly, expectedVersion) => { await onDelete(note.id!, verifyOnly, expectedVersion); setConfirmDelete(false); onClose(); }} />}
+    </>,
     document.body
   );
 };

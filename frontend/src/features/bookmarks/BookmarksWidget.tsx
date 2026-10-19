@@ -1,7 +1,7 @@
-import { useListMotion } from '../drag-feedback/useListMotion';
+import { bookmarksApi } from './api';
 import React, { useEffect, useState } from 'react';
 import { Bookmark as BookmarkIcon, Plus, Trash2, Globe } from 'lucide-react';
-import { api } from '../../services/api';
+
 import { Bookmark } from '../../types';
 import { orderedItems, useWorkspaceLayout } from '../workspace-layout/WorkspaceLayoutProvider';
 import { SortableWidgetCard, SortableWidgetGroup } from '../workspace-layout/SortableWidgets';
@@ -14,10 +14,9 @@ export const BookmarksWidget: React.FC = () => {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
 
-  const list = useListMotion(orderedItems(bookmarks, layout.layout.bookmarks.ids).map(item => item.id), 'data-sort-id');
   const fetchBookmarks = async () => {
     try {
-      const data = await api.getBookmarks();
+      const data = await bookmarksApi.getBookmarks();
       setBookmarks(data);
     } catch (err) {
       console.error('Lỗi tải liên kết:', err);
@@ -41,7 +40,7 @@ export const BookmarksWidget: React.FC = () => {
     }
 
     try {
-      const created = await api.createBookmark({
+      const created = await bookmarksApi.createBookmark({
         title: title.trim(),
         url: targetUrl,
         category: 'Cá nhân',
@@ -57,7 +56,7 @@ export const BookmarksWidget: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await api.deleteBookmark(id);
+      await bookmarksApi.deleteBookmark(id);
       setBookmarks((prev) => prev.filter((b) => b.id !== id));
     } catch (err) {
       console.error('Lỗi xóa liên kết:', err);
@@ -127,7 +126,7 @@ export const BookmarksWidget: React.FC = () => {
         </form>
       )}
 
-      <SortableWidgetGroup revision={layout.layout.bookmarks.version} ids={orderedItems(bookmarks, layout.layout.bookmarks.ids).map(item => item.id)} disabled={layout.busy || layout.loading} onSort={ids => layout.save('bookmarks', ids)}><div data-sort-group="bookmarks" ref={list} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px' }}>
+      <SortableWidgetGroup revision={layout.layout.bookmarks.version} ids={orderedItems(bookmarks, layout.layout.bookmarks.ids).map(item => item.id)} disabled={layout.busy || layout.loading} onSort={ids => layout.save('bookmarks', ids)}><div data-sort-group="bookmarks" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px' }}>
         {orderedItems(bookmarks, layout.layout.bookmarks.ids).map((b) => (
           <SortableWidgetCard id={b.id} label={b.title} disabled={layout.busy || layout.loading} className="bookmark-sort-card"
             key={b.id}

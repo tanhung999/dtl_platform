@@ -1,41 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import { LogOut, User as UserIcon, Clock, LayoutDashboard, UserCheck, CalendarDays } from 'lucide-react';
+import { NotificationBell } from '../features/notifications/NotificationBell';
+import React from 'react';
+import { LogOut, User as UserIcon, UserCheck, ShieldCheck, CalendarDays } from 'lucide-react';
+import { FeatureIcon } from './FeatureIcon';
+import brandLogo from '../assets/logo.jpg';
 import { User } from '../types';
+import { NavbarClock } from './NavbarClock';
 import { ThemeToggle } from './ThemeToggle';
 
 interface NavbarProps {
   user: User;
-  activeTab: 'dashboard' | 'profile' | 'calendar';
-  onTabChange: (tab: 'dashboard' | 'profile' | 'calendar') => void;
+  activeTab: 'dashboard' | 'profile' | 'calendar' | 'notifications' | 'admin';
+  onTabChange: (tab: 'dashboard' | 'profile' | 'calendar' | 'admin') => void;
+  canManage: boolean;
   onLogout: () => void;
+  onOpenNotifications: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ user, activeTab, onTabChange, onLogout }) => {
-  const [timeStr, setTimeStr] = useState<string>('');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTimeStr(
-        now.toLocaleTimeString('vi-VN', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        })
-      );
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
+export const Navbar: React.FC<NavbarProps> = ({ user, activeTab, onTabChange, onLogout, onOpenNotifications, canManage }) => {
   return (
     <header className="platform-navbar">
       <div className="nav-brand">
-        <img src="/logo.png" alt="Đông Tây Land" className="nav-brand-logo" />
+        <img src={brandLogo} alt="Đông Tây One" className="nav-brand-logo" />
         <div className="nav-brand-text">
-          <h1>ĐÔNG TÂY LAND</h1>
-          <span>Digital Workplace & SSO Platform</span>
+          <h1>ĐÔNG TÂY ONE</h1>
+          <span>Everything. In One Place</span>
         </div>
       </div>
 
@@ -46,7 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, activeTab, onTabChange, on
           onClick={() => onTabChange('dashboard')}
           className={`nav-tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
         >
-          <LayoutDashboard size={15} />
+          <FeatureIcon name="platform" size={22} />
           <span>Workspace</span>
         </button>
 
@@ -64,17 +52,19 @@ export const Navbar: React.FC<NavbarProps> = ({ user, activeTab, onTabChange, on
           <UserCheck size={15} />
           <span>Profile</span>
         </button>
+        {canManage && <button type="button" onClick={() => onTabChange('admin')}
+          className={`nav-tab-btn ${activeTab === 'admin' ? 'active' : ''}`}>
+          <ShieldCheck size={15} /><span>Quản trị</span>
+        </button>}
       </nav>
 
       <div className="nav-actions">
         {/* Clock */}
-        <div className="nav-clock">
-          <Clock size={15} />
-          <span style={{ fontWeight: 600 }}>{timeStr}</span>
-        </div>
+        <NavbarClock />
 
         {/* Dark/Light Theme Toggle */}
         <ThemeToggle />
+        <NotificationBell onOpenAll={onOpenNotifications} />
 
         {/* User Badge */}
         <div

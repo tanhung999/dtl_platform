@@ -1,6 +1,8 @@
 .workspace-sort-card { position: relative; }
 .workspace-sort-card.is-dragging { opacity: .4; }
 .workspace-sort-handle { position: absolute; top: 7px; right: 7px; z-index: 2; width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; background: var(--bg-card-solid); color: var(--text-muted); cursor: grab; touch-action: none; }
+.workspace-sort-handle { opacity: .3; transition: opacity .15s ease; }
+.workspace-sort-card:hover > .workspace-sort-handle, .workspace-sort-card:focus-within > .workspace-sort-handle, .workspace-sort-card.is-dragging > .workspace-sort-handle { opacity: 1; }
 .workspace-sort-handle:active { cursor: grabbing; }
 .workspace-sort-handle:focus-visible { outline: 2px solid var(--accent); }
 .workspace-sort-preview { padding: 10px 14px; border: 1px solid var(--accent); border-radius: 8px; background: var(--bg-card-solid); color: var(--text-main); box-shadow: var(--shadow-md); font-size: 13px; }
@@ -9,5 +11,11 @@
 .notes-pin-zone { display: flex; align-items: center; gap: 6px; padding: 8px; margin-bottom: 8px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-muted); font-size: 12px; }
 .notes-pin-zone small { margin-left: auto; font-size: 10px; }
 .notes-pin-zone.is-over { border-color: #2563eb; background: var(--primary-light); color: var(--accent); }
-.workspace-sort-card.note-card .note-title { padding-right: 22px; }
-.workspace-sort-card.note-card .note-pin-badge { right: 34px; }
+.workspace-sort-card.note-card .note-title { padding-right: 30px; }
+.workspace-sort-card.note-card.pinned .note-title { padding-right: 54px; }
+.workspace-sort-card.note-card .note-pin-badge { top: 7px; right: 38px; width: 16px; height: 22px; display: grid; place-items: center; }
+
+@media (any-pointer: coarse) { .workspace-sort-handle { opacity: 1; } }
+
+.notes-drop-area [data-sort-section] { min-height: 24px; }
+.notes-drop-area [data-sort-section] + [data-sort-section] { margin-top: 12px; }

@@ -1,23 +1,32 @@
-import { request } from '../../services/api';
 import { Task } from '../../types';
-import { TaskInput, TaskReminder } from './types';
+import { TaskInput, TaskFilter, TaskCollection } from './types';
+import { requestWithTimeout } from '../../services/requestTimeout';
+import { CreateAttempt, createWithRecovery, deleteWithRecovery, recoverMutation } from '../../services/mutationRecovery';
+
+export interface TaskRange { items: Task[]; total: number; truncated: boolean }
+const matchesTask = (task: Task, payload: Partial<TaskInput> & { is_completed?: boolean }) => Object.entries(payload).every(([key, value]) => {
+  if (key.startsWith('expected_')) return true;
+  if (key === 'description') return (task.description ?? '') === (value ?? '');
+  if (key === 'title') return task.title === String(value).trim();
+  if (key === 'due_date' && !value && payload.due_time) return task.due_date === new Date(task.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  return task[key as keyof Task] === value;
+});
 
 export const tasksApi = {
-  list(signal?: AbortSignal) { return request<Task[]>('/api/tasks', { signal }); },
-  create(payload: TaskInput) { return request<Task>('/api/tasks', { method: 'POST', body: JSON.stringify(payload) }); },
+  get(id: string) { return requestWithTimeout<Task>(`/api/tasks/${encodeURIComponent(id)}`, { cache: 'no-store' }, 5000); },
+  collection(filter: TaskFilter, offset: number, overdueOffset: number, signal?: AbortSignal, after?: string, overdueAfter?: string) {
+    const params = new URLSearchParams({ filter, offset: String(offset), overdue_offset: String(overdueOffset) });
+    if (after) params.set('after', after); if (overdueAfter) params.set('overdue_after', overdueAfter);
+    return requestWithTimeout<TaskCollection>(`/api/tasks/collection?${params}`, { signal });
+  },
+  calendar(start: string, end: string, signal?: AbortSignal) { return requestWithTimeout<TaskRange>(`/api/tasks/calendar/page?${new URLSearchParams({ start, end })}`, { signal }); },
+  create(payload: TaskInput, attempt: CreateAttempt<TaskInput>) {
+    return createWithRecovery<Task, TaskInput>('/api/tasks', payload, attempt, matchesTask,
+      (task, input) => tasksApi.update(task.id, { ...input, expected_version: task.version }));
+  },
   update(id: string, payload: Partial<TaskInput> & { is_completed?: boolean; expected_deadline_version?: number }) {
-    return request<Task>(`/api/tasks/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    return recoverMutation(() => requestWithTimeout<Task>(`/api/tasks/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+      () => tasksApi.get(id), task => task.version > (payload.expected_version ?? -1) && matchesTask(task, payload));
   },
-  remove(id: string) { return request<void>(`/api/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
-  reminders(signal?: AbortSignal) { return request<TaskReminder[]>('/api/tasks/reminders', { signal }); },
-  dismiss(reminder: TaskReminder) {
-    return request<void>(`/api/tasks/${encodeURIComponent(reminder.task_id)}/reminders/${reminder.kind}/dismiss`, {
-      method: 'POST', body: JSON.stringify({ deadline_version: reminder.deadline_version }),
-    });
-  },
-  snooze(reminder: TaskReminder) {
-    return request<void>(`/api/tasks/${encodeURIComponent(reminder.task_id)}/reminders/${reminder.kind}/snooze`, {
-      method: 'POST', body: JSON.stringify({ deadline_version: reminder.deadline_version }),
-    });
-  },
+  remove(id: string, version: number) { return deleteWithRecovery(`/api/tasks/${encodeURIComponent(id)}`, new URLSearchParams({ expected_version: String(version) })); },
 };
