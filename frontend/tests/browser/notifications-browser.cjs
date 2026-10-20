@@ -1,5 +1,5 @@
 const { chromium } = require('../.browser-tools/node_modules/playwright');
-const { createDragUsers } = require('../support/test-users.cjs');
+const { createTestUsers } = require('../support/test-users.cjs');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -23,7 +23,7 @@ async def run():
 asyncio.run(run())`;
 
 (async () => {
-  const fixture = createDragUsers(2);
+  const fixture = createTestUsers(2);
   let browser;
   try {
     browser = await chromium.launch({ channel: 'msedge', headless: true });
@@ -93,7 +93,7 @@ asyncio.run(run())`;
     const box = await dialog.boundingBox();
     assert.ok(box.x >= 0 && box.x + box.width <= 391, JSON.stringify(box));
     await page.screenshot({ path: '../.audit-backups/notifications-mobile.png', fullPage: true });
-    await page.keyboard.press('Escape'); await dialog.waitFor({ state: 'hidden' });
+    await page.keyboard.press('Escape'); assert.ok(await dialog.isVisible()); await dialog.getByRole('button', { name: 'Đóng thông báo' }).click(); await dialog.waitFor({ state: 'hidden' });
     console.log('PASS: offline durable delivery, read/hide/restore, Tasks unchanged, SSE, cursor paging, source filtering, preferences, mobile bell and Escape.');
   } finally {
     if (browser) await browser.close();

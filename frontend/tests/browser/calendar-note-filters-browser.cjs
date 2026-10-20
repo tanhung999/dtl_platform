@@ -1,8 +1,8 @@
 const { chromium } = require('../.browser-tools/node_modules/playwright');
-const { createDragUsers } = require('../support/test-users.cjs');
+const { createTestUsers } = require('../support/test-users.cjs');
 const assert = require('node:assert/strict');
 (async () => {
- const fixture = createDragUsers(1); let browser;
+ const fixture = createTestUsers(1); let browser;
  try {
   browser = await chromium.launch({channel:'msedge',headless:true}); const page = await browser.newPage({viewport:{width:1440,height:1100}}); page.setDefaultTimeout(15000);
   const errors=[]; page.on('pageerror', error=>errors.push(error.message));

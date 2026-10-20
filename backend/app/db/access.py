@@ -1,6 +1,7 @@
 """Capability roles and explicit, read-only calendar grants."""
 import uuid
-from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, Index, JSON
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Integer, String, UniqueConstraint, Index, JSON
+from app.db.types import UTCDateTime
 from app.core.database import Base
 from app.db.models import utcnow
 
@@ -39,9 +40,9 @@ class CalendarShare(Base):
     share_tasks = Column(Boolean, nullable=False, default=False)
     share_notes = Column(Boolean, nullable=False, default=False)
     version = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
-    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(UTCDateTime(), nullable=False, default=utcnow)
+    updated_at = Column(UTCDateTime(), nullable=False, default=utcnow, onupdate=utcnow)
+    revoked_at = Column(UTCDateTime(), nullable=True)
 
 
 class AccessAccountVersion(Base):
@@ -66,4 +67,4 @@ class AccessAuditLog(Base):
     subject_username = Column(String(80), nullable=False)
     action = Column(String(50), nullable=False)
     changes = Column(JSON, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
+    created_at = Column(UTCDateTime(), nullable=False, default=utcnow)

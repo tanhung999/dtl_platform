@@ -7,4 +7,3 @@ pyjwt>=2.8.0
 python-multipart>=0.0.9
 asyncpg>=0.29.0
 aiosqlite>=0.20.0
-redis>=5.0.0

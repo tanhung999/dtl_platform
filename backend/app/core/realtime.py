@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import make_url
 
 CHANNEL = "dtl_workspace_changes"
-ALL_TOPICS = ["tasks", "calendar", "notes", "layout", "widget-layout", "notifications", "calendar-sharing", "shared-calendar", "bookmarks"]
+ALL_TOPICS = ["tasks", "calendar", "notes", "notifications", "calendar-sharing", "shared-calendar", "bookmarks"]
 subscribers: dict[str, set[asyncio.Queue]] = {}
 
 
@@ -46,9 +46,12 @@ async def prepare_changes(session):
     from app.core.workspace_versions import advance_versions
     versions = await advance_versions(session, changes)
     if session.bind.dialect.name == "postgresql":
-        for user_id, topics in changes.items():
-            await session.execute(text("SELECT pg_notify(:channel, :payload)"),
-                {"channel": CHANNEL, "payload": json.dumps({"user_id": user_id, "topics": sorted(topics), 'versions': versions[user_id]})})
+        # Each recipient retains a separate, small payload; batch the SQL round trips.
+        payloads = [json.dumps({"user_id": user_id, "topics": sorted(topics), 'versions': versions[user_id]})
+                    for user_id, topics in changes.items()]
+        for offset in range(0, len(payloads), 200):
+            await session.execute(text("SELECT pg_notify(:channel, payload) FROM jsonb_array_elements_text(CAST(:payloads AS jsonb)) AS batch(payload)"),
+                {"channel": CHANNEL, "payloads": json.dumps(payloads[offset:offset + 200])})
         return {}
     return changes
 

@@ -1,4 +1,5 @@
-.note-schedule-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:12px; margin-top:12px; border:1px solid rgba(71,85,105,.25); border-radius:10px; background:rgba(255,255,255,.45); color:#334155; }
+.note-schedule-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:12px; margin-top:12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-card-solid); color:var(--text-main); }
 .note-schedule-fields > div { min-width:0; display:flex; flex-direction:column; gap:6px; font-size:13px; }
 .note-schedule-fields .app-date-picker, .note-schedule-fields .app-time-picker { width:100%; }
 .note-schedule-fields p { grid-column:1/-1; margin:0; font-size:12px; }
+.note-editor-dialog .note-schedule-fields { background:#ffffff55; border-color:#0002; color:#334155; }

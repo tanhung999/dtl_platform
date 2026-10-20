@@ -7,6 +7,8 @@ import { DatePicker } from '../../../components/date-time/DatePicker';
 import { TimePicker } from '../../../components/date-time/TimePicker';
 import { ApiError } from '../../../services/api';
 import { useMutationChecking } from '../../mutations/useMutationChecking';
+import { PrivacyToggle } from '../../access/PrivacyToggle';
+import { RescheduleControl } from '../../rescheduling/RescheduleControl';
 
 interface Props {
   task: Task;
@@ -20,8 +22,11 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
   const [priority, setPriority] = useState(task.priority);
+  const [isPrivate, setIsPrivate] = useState(task.is_private ?? false);
   const [dueDate, setDueDate] = useState(task.due_date ?? '');
   const [dueTime, setDueTime] = useState(task.due_time ?? '');
+  const [version, setVersion] = useState(task.version);
+  const [savedDeadline, setSavedDeadline] = useState({ due_date: task.due_date, due_time: task.due_time });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(false);
@@ -40,7 +45,7 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true); setError('');
-    try { await onSave(task.id, { title: title.trim(), description, priority, due_date: dueDate || null, due_time: dueTime || null, expected_version: task.version }); if (mounted.current) onClose(); }
+    try { await onSave(task.id, { title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, expected_version: version }); if (mounted.current) onClose(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể lưu công việc.'); }
     finally { setBusy(false); }
   };
@@ -55,7 +60,7 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
     }
     finally { setBusy(false); }
   };
-  return <dialog className="task-dialog" ref={dialog} aria-labelledby="task-dialog-title" onCancel={e => { e.preventDefault(); onClose(); }}>
+  return <dialog className="task-dialog" ref={dialog} aria-labelledby="task-dialog-title" onCancel={e => { e.preventDefault(); e.stopPropagation(); }}>
     <form onSubmit={submit}>
       <header className="task-dialog-header"><h2 id="task-dialog-title">Chi tiết công việc</h2><button type="button" className="task-icon-button" aria-label="Đóng công việc" onClick={onClose}><X size={18} /></button></header>
       <fieldset disabled={busy} className="task-dialog-fields">
@@ -64,6 +69,12 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
         <div className="task-form-row"><div className="task-date-field"><span>Ngày hạn</span><DatePicker clearLabel="Xóa hạn" label="Ngày hạn" value={dueDate} disabled={busy} onChange={value => { setDueDate(value); if (!value) setDueTime(''); }} /></div><div className="task-date-field"><span>Giờ hạn (tùy chọn)</span><TimePicker label="Giờ hạn (tùy chọn)" value={dueTime} disabled={busy} onChange={setDueTime} /></div></div>
         <div className="task-deadline-help"><span>{!dueDate && dueTime ? 'Chỉ chọn giờ: hạn vào ngày tạo công việc.' : 'Giờ Việt Nam · Không đặt giờ: hết ngày mới quá hạn.'}</span>{dueDate && <button type="button" className="task-text-button" onClick={() => { setDueDate(''); setDueTime(''); }}>Xóa hạn</button>}</div>
         <label>Mô tả công việc<textarea className="form-input" rows={3} maxLength={10000} value={description} onChange={e => setDescription(e.target.value)} /></label>
+        <PrivacyToggle label="Công việc riêng tư" value={isPrivate} onChange={setIsPrivate} />
+        <RescheduleControl kind="task" id={task.id} title={task.title} current={savedDeadline} version={version} disabled={busy} onMoved={change => {
+          setDueDate(change.after.due_date || ''); setDueTime(change.after.due_time || '');
+          setSavedDeadline({ due_date: change.after.due_date ?? null, due_time: change.after.due_time ?? null });
+          setVersion(change.guard.expected_version!); setDeleteVersion(change.guard.expected_version!);
+        }}/>
       </fieldset>
       {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
       {error && <p className="alert-error task-dialog-error" role="alert">{error}</p>}

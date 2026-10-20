@@ -1,23 +1,25 @@
-.notification-bell { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--bg-card-solid); color: var(--text-main); cursor: pointer; }
+.notification-bell { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--bg-subtle); color: var(--accent-text); cursor: pointer; transition: color .2s ease, background-color .2s ease, border-color .2s ease; }
+.notification-bell:hover, .notification-bell[aria-expanded="true"] { background: var(--primary-light); border-color: var(--accent); }
+.notification-bell:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .notification-unread-count { position: absolute; right: -7px; top: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 12px; background: #dc2626; color: #fff; font: 700 10px/18px var(--font-family); text-align: center; }
 .notification-popover { position: fixed; z-index: 180; width: 440px; max-width: calc(100vw - 24px); max-height: min(78vh, 720px); display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-card-solid); color: var(--text-main); box-shadow: 0 12px 40px #0f172a26; overflow: hidden; }
 .notification-popover header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; }
 .notification-popover h2 { font-size: 17px; margin: 0; }
 .notification-icon, .notification-card-actions button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--text-muted); cursor: pointer; }
-.notification-icon:hover, .notification-card-actions button:hover { background: var(--primary-light); color: var(--accent); }
+.notification-icon:hover, .notification-card-actions button:hover { background: var(--primary-light); color: var(--accent-text); }
 .notification-icon:disabled, .notification-card-actions button:disabled { opacity: .5; cursor: wait; }
 .notification-toolbar { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
 .notification-filters { display: flex; gap: 6px; flex-wrap: wrap; }
 .notification-filters button { border: 0; border-radius: 18px; padding: 7px 12px; font: 600 13px var(--font-family); background: var(--input-bg); color: var(--text-muted); cursor: pointer; }
-.notification-filters button[aria-pressed="true"] { background: var(--primary-light); color: var(--accent); }
-.notification-text-button { padding: 3px 0; border: 0; background: transparent; color: var(--accent); font: 600 12px var(--font-family); cursor: pointer; }
+.notification-filters button[aria-pressed="true"] { background: var(--primary-light); color: var(--accent-text); }
+.notification-text-button { padding: 3px 0; border: 0; background: transparent; color: var(--accent-text); font: 600 12px var(--font-family); cursor: pointer; }
 .notification-text-button:disabled { opacity: .5; cursor: default; }
 .notification-popover-list { overflow-y: auto; min-height: 0; }
 .notification-card { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--border); border-left: 3px solid transparent; background: var(--bg-card-solid); }
 .notification-card.is-unread { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--bg-card-solid)); }
 .notification-card.is-overdue { border-left-color: #dc2626; }
 .notification-card-main { display: flex; gap: 10px; flex: 1; min-width: 0; }
-.notification-card-main > svg { flex-shrink: 0; margin-top: 3px; color: var(--accent); }
+.notification-card-main > svg { flex-shrink: 0; margin-top: 3px; color: var(--accent-text); }
 .notification-card-main > div { min-width: 0; flex: 1; }
 .notification-open { display: block; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; color: var(--text-main); font: 600 13px/1.5 var(--font-family); cursor: pointer; overflow-wrap: anywhere; }
 .notification-card.is-read .notification-open { font-weight: 500; }
@@ -30,7 +32,7 @@
 .notification-action-error, .notification-error { flex-basis: 100%; margin: 8px 0; font-size: 12px; color: #b91c1c; }
 .notification-error { padding: 0 16px; }
 .notification-error button { margin-left: 8px; }
-.notification-view-all { flex-shrink: 0; padding: 14px; border: 0; border-top: 1px solid var(--border); background: transparent; color: var(--accent); font: 600 13px var(--font-family); cursor: pointer; }
+.notification-view-all { flex-shrink: 0; padding: 14px; border: 0; border-top: 1px solid var(--border); background: transparent; color: var(--accent-text); font: 600 13px var(--font-family); cursor: pointer; }
 .notification-empty { padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
 .notifications-page { max-width: 1050px; margin: 24px auto; padding: 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--bg-card-solid); }
 .notifications-page-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
@@ -47,6 +49,6 @@
 .notification-settings label { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13px; }
 .notification-settings input { width: 16px; height: 16px; accent-color: var(--accent); }
 .notification-settings small { color: var(--text-muted); }
-:is([data-theme="dark"], [data-theme="obsidian"]) .notification-state.is-overdue { background: #450a0a; color: #fecaca; }
-:is([data-theme="dark"], [data-theme="obsidian"]) .notification-error, :is([data-theme="dark"], [data-theme="obsidian"]) .notification-action-error { color: #fca5a5; }
+[data-color-mode="dark"] .notification-state.is-overdue { background: #450a0a; color: #fecaca; }
+[data-color-mode="dark"] .notification-error, [data-color-mode="dark"] .notification-action-error { color: #fca5a5; }
 @media(max-width: 768px) { .notifications-page { margin: 16px 12px; padding: 12px; } .notification-toolbar { padding: 10px 6px; } .notification-popover { max-height: 72vh; } .notification-card { padding: 12px 8px; } .notification-card-actions { margin-left: auto; } }

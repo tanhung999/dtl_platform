@@ -4,8 +4,7 @@
 .app-date-picker .app-date-input input { width: 100%; min-width: 0; border: 0; outline: none; background: transparent; padding: 7px 8px; color: var(--text-main); font: 500 12px var(--font-family); }
 .app-date-picker button { display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 5px; background: transparent; color: var(--text-main); cursor: pointer; font: 500 12px var(--font-family); }
 .app-date-input > button { padding: 6px; flex-shrink: 0; }
-.app-date-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 260px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card-solid); box-shadow: var(--shadow-xl); }
-.app-date-popover.is-end-aligned { left: auto; right: 0; }
+.app-date-popover { position: fixed; inset: auto; margin: 0; box-sizing: border-box; overflow: auto; color: var(--text-main); z-index: 20; width: 260px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card-solid); box-shadow: var(--shadow-xl); }
 .app-date-picker button:disabled { opacity: .4; cursor: not-allowed; }
 .app-date-heading, .app-date-footer { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .app-date-heading strong { font-size: 13px; }
@@ -16,6 +15,6 @@
 .app-date-grid .outside-month { color: var(--text-muted); }
 .app-date-picker button:hover { background: var(--bg-subtle); }
 .app-date-grid .is-today { box-shadow: inset 0 0 0 1px var(--accent); }
-.app-date-grid button[aria-pressed="true"] { background: var(--accent); color: white; font-weight: 700; }
+.app-date-grid button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 700; }
 .app-date-footer { border-top: 1px solid var(--border); padding-top: 7px; }
-.app-date-footer button { color: var(--accent); padding: 5px; }
+.app-date-footer button { color: var(--accent-text); padding: 5px; }

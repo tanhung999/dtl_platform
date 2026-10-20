@@ -19,14 +19,12 @@ export const NotificationBell = memo(function NotificationBell({ onOpenAll }: { 
           right: Math.max(12, Math.min(window.innerWidth - width - 12, window.innerWidth - rect.right)) });
       }
     };
-    const outside = (event: PointerEvent) => { if (!panel.current?.contains(event.target as Node) && !button.current?.contains(event.target as Node)) setOpen(false); };
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); button.current?.focus(); } };
     place(); panel.current?.focus();
-    window.addEventListener('resize', place); window.addEventListener('scroll', place, true); document.addEventListener('pointerdown', outside); document.addEventListener('keydown', escape);
-    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
+    window.addEventListener('resize', place); window.addEventListener('scroll', place, true);
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
   }, [open]);
   const count = data.summary?.unread_count ?? 0;
-  return <><button type="button" ref={button} className="notification-bell" aria-label={`Thông báo${count ? `, ${count} chưa đọc` : ''}`} aria-expanded={open} onClick={() => setOpen(value => !value)}><Bell size={20} />{count > 0 && <span className="notification-unread-count">{count > 99 ? '99+' : count}</span>}</button>
+  return <><button type="button" ref={button} className="notification-bell" aria-label={`Thông báo${count ? `, ${count} chưa đọc` : ''}`} aria-expanded={open} onClick={() => setOpen(true)}><Bell size={20} />{count > 0 && <span className="notification-unread-count">{count > 99 ? '99+' : count}</span>}</button>
     {open && createPortal(<div ref={panel} className="notification-popover" style={position} role="dialog" aria-label="Thông báo" tabIndex={-1}>
       <header><h2>Thông báo</h2><button type="button" className="notification-icon" aria-label="Đóng thông báo" onClick={() => setOpen(false)}><X size={18} /></button></header>
       <div className="notification-toolbar"><div className="notification-filters">{(['all', 'unread'] as const).map(filter => <button key={filter} type="button" aria-pressed={feed.filter === filter} onClick={() => feed.setFilter(filter)}>{filter === 'all' ? 'Tất cả' : 'Chưa đọc'}</button>)}</div><button type="button" className="notification-text-button" disabled={!count || data.busyIds.includes('all')} onClick={async () => { setError(''); try { await data.readAll(); } catch (reason) { setError((reason as Error).message); } }}>Đánh dấu tất cả đã đọc</button></div>

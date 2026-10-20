@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && tsc -p tsconfig.node.json && vite build",
     "preview": "vite preview",
-    "test:calendar": "node --test tests/unit/calendar-date-utils.test.cjs tests/unit/calendar-event-status.test.cjs tests/unit/calendar-deadline-placements.test.cjs tests/unit/calendar-event-schedule.test.cjs",
+    "test:calendar": "node --test tests/unit/calendar-date-utils.test.cjs tests/unit/calendar-event-status.test.cjs tests/unit/calendar-deadline-placements.test.cjs",
     "test:deadlines": "node --test tests/unit/task-deadlines.test.cjs tests/unit/task-date-input.test.cjs",
     "test": "node --test tests/unit/*.test.cjs",
     "test:unit": "node --test tests/unit/*.test.cjs",
@@ -15,10 +15,6 @@
     "test:load": "node tests/load/collections-load.cjs"
   },
   "dependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
-    "clsx": "^2.1.1",
     "lucide-react": "^0.363.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

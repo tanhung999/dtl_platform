@@ -15,34 +15,47 @@ interface TasksState {
   tasks: Task[]; overdue: Task[]; now: Date;
   loading: boolean; error: string; busyIds: string[]; revision: number;
   counts: Record<TaskFilter, number>; filter: TaskFilter; setFilter: (filter: TaskFilter) => void;
+  query: string; setQuery: (query: string) => void;
   page?: TaskCollection; setOffset: (value: number) => void; setOverdueOffset: (value: number) => void;
   refresh: () => void; edit: (task: Task) => void; openTask: (id: string) => Promise<void>;
   create: (payload: TaskInput, attempt: CreateAttempt<TaskInput>) => Promise<void>;
   update: (id: string, payload: Partial<TaskInput> & { is_completed?: boolean }) => Promise<void>;
-  setDeadline: (task: Task, date: string | null, time: string | null) => Promise<Task>;
   toggle: (task: Task) => Promise<void>; remove: (id: string, version?: number) => Promise<void>;
   overdueRequest: number; showOverdue: () => void; acknowledgeOverdue: () => void;
 }
 const Context = createContext<TasksState | null>(null);
 const emptyCounts = { ALL: 0, PENDING: 0, DONE: 0, OVERDUE: 0 };
-export function TasksProvider({ children }: { children: ReactNode }) {
+export function TasksProvider({ children, fullPage = false }: { children: ReactNode; fullPage?: boolean }) {
   useWorkspaceRealtime();
   const [page, setPage] = useState<TaskCollection>();
-  const [filter, selectFilter] = useState<TaskFilter>('ALL'), [offset, setOffset] = useState(0), [overdueOffset, setOverdueOffset] = useState(0);
-  const cursors = useRef<Record<number, string>>({}), overdueCursors = useRef<Record<number, string>>({});
+  const view = fullPage ? 'full' : 'widget', limit = fullPage ? 25 : 8;
+  const [views, setViews] = useState<Record<'widget' | 'full', { filter: TaskFilter; offset: number; query: string }>>({
+    widget: { filter: 'ALL', offset: 0, query: '' }, full: { filter: 'ALL', offset: 0, query: '' },
+  });
+  const { filter, offset, query } = views[view];
+  const [debounced, setDebounced] = useState('');
+  useEffect(() => { const timer = setTimeout(() => setDebounced(query), 300); return () => clearTimeout(timer); }, [query]);
+  const search = fullPage ? debounced : '';
+  const [overdueOffset, setOverdueOffset] = useState(0);
+  const cursors = useRef<Record<string, Record<number, string>>>({}), overdueCursors = useRef<Record<number, string>>({});
+  const cursorScope = `${view}/${filter}/${search}`;
+  const setOffset = (value: number) => setViews(previous => ({ ...previous, [view]: { ...previous[view], offset: value } }));
+  const setQuery = (value: string) => { cursors.current = {}; setViews(previous => ({ ...previous, [view]: { ...previous[view], query: value, offset: 0 } })); };
   const [loading, setLoading] = useState(true), [error, setError] = useState(''), [busyIds, setBusyIds] = useState<string[]>([]);
-  const scope = `${filter}/${offset}/${overdueOffset}`;
+  const scope = `${view}/${filter}/${offset}/${overdueOffset}/${limit}/${search}`;
   const [loadedScope, setLoadedScope] = useState('');
   const [editing, setEditing] = useState<Task>(), [now, setNow] = useState(new Date()), [overdueRequest, setOverdueRequest] = useState(0);
   const [revision, refresh] = useInvalidation();
   const busy = useRef(new Set<string>()), mutation = useRef(0);
-  const setFilter = (value: TaskFilter) => { if (value !== filter) cursors.current = {}; selectFilter(value); setOffset(0); };
+  const setFilter = (value: TaskFilter) => { cursors.current = {}; setViews(previous => ({ ...previous, [view]: { ...previous[view], filter: value, offset: 0 } })); };
   useEffect(() => {
+    if (fullPage && query !== debounced) { setLoading(true); return; }
     const controller = new AbortController(), version = mutation.current;
     setLoading(true);
-    tasksApi.collection(filter, offset, overdueOffset, controller.signal, cursors.current[offset], overdueCursors.current[overdueOffset]).then(value => {
+    const anchors = cursors.current[cursorScope] ??= {};
+    tasksApi.collection(filter, offset, overdueOffset, controller.signal, anchors[offset], overdueCursors.current[overdueOffset], limit, search).then(value => {
       if (!controller.signal.aborted && version === mutation.current) {
-        if (value.next_cursor) cursors.current[value.offset + value.limit] = value.next_cursor;
+        if (value.next_cursor) anchors[value.offset + value.limit] = value.next_cursor;
         if (value.overdue_next_cursor) overdueCursors.current[value.overdue_offset + 25] = value.overdue_next_cursor;
         setPage(value); setLoadedScope(scope); setError('');
       }
@@ -52,14 +65,14 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [filter, offset, overdueOffset, revision]);
+  }, [filter, offset, overdueOffset, revision, view, limit, search, query]);
   useEffect(() => {
     // Deadlines and form input use minute precision. No whole-workspace rerender every second.
     let timer: ReturnType<typeof setTimeout>, onlineTimer: ReturnType<typeof setTimeout>;
     const tick = () => { setNow(new Date()); timer = setTimeout(tick, 60000 - Date.now() % 60000 + 20); };
     timer = setTimeout(tick, 60000 - Date.now() % 60000 + 20);
-    const changed = (event: Event) => { if ((event as CustomEvent<string[]>).detail.includes('tasks')) refresh(); };
-    const focus = () => { setNow(new Date()); refresh(); };
+    const changed = (event: Event) => { if ((event as CustomEvent<string[]>).detail.includes('tasks')) { cursors.current = {}; overdueCursors.current = {}; refresh(); } };
+    const focus = () => { setNow(new Date()); cursors.current = {}; overdueCursors.current = {}; refresh(); };
     const online = () => { clearTimeout(onlineTimer); onlineTimer = setTimeout(focus, Math.random() * 2000); };
     const storage = (event: StorageEvent) => { if (event.key === 'dtl_tasks_changed') refresh(); };
     window.addEventListener(WORKSPACE_CHANGED, changed); window.addEventListener('focus', focus); window.addEventListener('online', online); window.addEventListener('storage', storage);
@@ -71,7 +84,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     const timer = setTimeout(() => { setNow(new Date()); refresh(); }, Math.min(2147483647, Math.max(50, delay + 20)));
     return () => clearTimeout(timer);
   }, [page?.next_refresh_at, page?.server_now, refresh]);
-  const changed = () => { mutation.current++; localStorage.setItem('dtl_tasks_changed', `${Date.now()}:${mutation.current}`); refresh(); };
+  const changed = () => { mutation.current++; cursors.current = {}; overdueCursors.current = {}; localStorage.setItem('dtl_tasks_changed', `${Date.now()}:${mutation.current}`); refresh(); };
   const mutate = async (task: Task, payload: Partial<TaskInput> & { is_completed?: boolean; expected_deadline_version?: number }) => {
     if (busy.current.has(task.id)) throw new Error('Công việc đang được cập nhật. Vui lòng thử lại.');
     busy.current.add(task.id); setBusyIds([...busy.current]); mutation.current++;
@@ -94,14 +107,13 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     try { await tasksApi.remove(id, version ?? task!.version); setPage(value => value && ({ ...value, items: value.items.filter(t => t.id !== id), overdue: value.overdue.filter(t => t.id !== id) })); }
     finally { changed(); }
   };
-  const currentPage = loadedScope === scope ? page : undefined;
+  const currentPage = loadedScope === scope && (!fullPage || query === debounced) ? page : undefined;
   const tasks = useMemo(() => sortTasks(currentPage?.items ?? []), [currentPage?.items]);
-  return <Context.Provider value={{ tasks, overdue: page?.overdue ?? [], now, page: currentPage, counts: page?.counts ?? emptyCounts, filter, setFilter, setOffset, setOverdueOffset,
-    revision, loading: (!page || loadedScope !== scope) && (loading || !error), error, busyIds, refresh, create, update, remove,
+  return <Context.Provider value={{ tasks, overdue: page?.overdue ?? [], now, page: currentPage, counts: page?.counts ?? emptyCounts, filter, setFilter, query, setQuery, setOffset, setOverdueOffset,
+    revision, loading: fullPage && query !== debounced || (!page || loadedScope !== scope) && (loading || !error), error, busyIds, refresh, create, update, remove,
     openTask: async id => { setEditing(await tasksApi.get(id)); },
     edit: task => { tasksApi.get(task.id).then(setEditing).catch(reason => setError(reason.message)); },
     toggle: async task => { await mutate(task, { is_completed: !task.is_completed }); },
-    setDeadline: (task, date, time) => mutate(task, { due_date: date, due_time: time, expected_deadline_version: task.deadline_version }),
     overdueRequest, showOverdue: () => setOverdueRequest(v => v + 1), acknowledgeOverdue: () => setOverdueRequest(0) }}>
     {children}<MutationStatus />{editing && <TaskModal key={editing.id} task={editing} onClose={() => setEditing(undefined)} onSave={update} onDelete={remove} />}
   </Context.Provider>;

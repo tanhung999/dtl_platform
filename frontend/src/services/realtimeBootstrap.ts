@@ -92,9 +92,7 @@ export function readScopes(endpoint: string): string[] {
   if (path === '/api/tasks/collection' || path === '/api/tasks/calendar/page') return ['tasks'];
   if (path === '/api/calendar/days') return ['calendar', 'tasks'];
   if (path === '/api/calendar/events/collection') return ['calendar'];
-  if (path === '/api/notes/collection/page') return ['notes', 'layout'];
-  if (path === '/api/workspace/layout') return ['layout'];
-  if (path === '/api/workspace/widgets') return ['widget-layout'];
+  if (path === '/api/notes/collection/page') return ['notes'];
   if (path === '/api/bookmarks') return ['bookmarks'];
   if (path === '/api/notifications/summary') return ['notifications'];
   if (path === '/api/access/me' || path === '/api/calendar-sharing/received') return ['calendar-sharing'];

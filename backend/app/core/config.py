@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 from typing import List
 
 
@@ -21,6 +22,11 @@ class Settings(BaseSettings):
     DB_STATEMENT_TIMEOUT_MS: int = 8000
     DB_LOCK_TIMEOUT_MS: int = 3000
     NOTIFICATIONS_WORKER_ENABLED: bool = True
+    MAINTENANCE_ENABLED: bool = True
+    MAINTENANCE_INTERVAL_SECONDS: int = Field(default=600, ge=60)
+    MAINTENANCE_BATCH_SIZE: int = Field(default=500, ge=1, le=5000)
+    SCHEDULE_HISTORY_RETENTION_DAYS: int = Field(default=365, ge=0)
+    PROCESSED_JOB_RETENTION_DAYS: int = Field(default=30, ge=0)
     NOTIFICATIONS_BOOKINGREPORTS_SECRET: str = ''
     NOTIFICATIONS_WORKFLOWS_SECRET: str = ''
     NOTIFICATIONS_ITAM_SECRET: str = ''

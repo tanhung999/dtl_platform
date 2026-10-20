@@ -1,5 +1,4 @@
 """Phiên bản nhỏ gọn để đối soát SSE; không lưu nội dung tài nguyên."""
-from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from app.db.workspace_versions import TOPICS, WorkspaceVersion as Version
@@ -8,8 +7,7 @@ def read_scopes(path):
     scopes = {
         '/api/tasks/collection': ('tasks',), '/api/tasks/calendar/page': ('tasks',),
         '/api/calendar/events/collection': ('calendar',), '/api/calendar/days': ('calendar', 'tasks'),
-        '/api/notes/collection/page': ('notes', 'layout'),
-        '/api/workspace/layout': ('layout',), '/api/workspace/widgets': ('widget-layout',),
+        '/api/notes/collection/page': ('notes',),
         '/api/bookmarks': ('bookmarks',), '/api/notifications/summary': ('notifications',),
         '/api/access/me': ('calendar-sharing',), '/api/calendar-sharing/received': ('calendar-sharing',),
     }

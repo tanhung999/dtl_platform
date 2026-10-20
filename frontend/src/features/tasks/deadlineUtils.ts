@@ -36,7 +36,7 @@ export function sortTasks(tasks: Task[]): Task[] {
     if (a.is_completed !== b.is_completed) return Number(a.is_completed) - Number(b.is_completed);
     const ad = deadlineMillis(a), bd = deadlineMillis(b);
     if (ad !== bd) return ad < bd ? -1 : 1;
-    return RANK[a.priority] - RANK[b.priority] || a.display_order - b.display_order || a.id.localeCompare(b.id);
+    return RANK[a.priority] - RANK[b.priority] || a.id.localeCompare(b.id);
   });
 }
 

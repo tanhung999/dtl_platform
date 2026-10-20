@@ -1,11 +1,12 @@
-import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import React, { useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Gem, Leaf, Moon, Palette, Sparkles, Sun, Sunset, X } from 'lucide-react';
-import { THEMES, useTheme } from '../context/ThemeContext';
+import { Check, ChevronDown, Gem, Heart, Leaf, Moon, Palette, Sparkles, Sun, Sunset, X } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { THEMES, themePreview } from '../theme/catalog';
 import './theme-picker.css';
 
 interface ThemeToggleProps { className?: string; showLabel?: boolean; }
-const icons = { light: Sun, dark: Moon, aurora: Sparkles, ivory: Leaf, sunset: Sunset, obsidian: Gem, emerald: Leaf };
+const icons: Record<string, typeof Sun> = { sun: Sun, moon: Moon, sparkles: Sparkles, leaf: Leaf, sunset: Sunset, gem: Gem, heart: Heart };
 
 export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLabel = false }) => {
   const { theme, setTheme } = useTheme();
@@ -15,7 +16,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLa
   const panel = useRef<HTMLDivElement>(null);
   const id = useId();
   const selected = THEMES.find(item => item.id === theme)!;
-  const Icon = icons[theme];
+  const Icon = icons[selected.icon] ?? Sun;
   const close = (restoreFocus = false) => {
     setOpen(false);
     if (restoreFocus) trigger.current?.focus();
@@ -38,23 +39,9 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLa
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const outside = (event: PointerEvent) => {
-      if (!panel.current?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) close();
-    };
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); close(true); } };
-    const focusOutside = (event: FocusEvent) => {
-      if (!panel.current?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) close();
-    };
-    document.addEventListener('pointerdown', outside);
-    document.addEventListener('keydown', escape);
-    document.addEventListener('focusin', focusOutside);
-    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); document.removeEventListener('focusin', focusOutside); };
-  }, [open]);
 
   return <>
-    <button ref={trigger} type="button" onClick={() => setOpen(value => !value)}
+    <button ref={trigger} type="button" onClick={() => setOpen(true)}
       className={`theme-toggle-btn theme-picker-trigger ${className}`} title={`Giao diện: ${selected.name}`}
       aria-label="Chọn giao diện" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined}>
       <Icon size={17} /><span className={showLabel ? '' : 'theme-trigger-label'}>Giao diện</span><ChevronDown size={12} />
@@ -76,11 +63,11 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLa
           panel.current?.querySelector<HTMLButtonElement>(`[data-choice="${THEMES[next].id}"]`)?.focus();
         }}>
         {THEMES.map(item => {
-          const ChoiceIcon = icons[item.id];
+          const ChoiceIcon = icons[item.icon] ?? Sun;
           return <button key={item.id} type="button" role="radio" aria-checked={theme === item.id}
             tabIndex={theme === item.id ? 0 : -1} data-choice={item.id} className={`theme-choice ${theme === item.id ? 'is-selected' : ''}`}
             onClick={() => setTheme(item.id)}>
-            <span className={`theme-preview theme-preview-${item.id}`} aria-hidden="true">
+            <span className="theme-preview" style={themePreview(item.id)} aria-hidden="true">
               <span className="theme-preview-nav"><i /><i /><i /></span>
               <span className="theme-preview-columns"><span><i /><i /></span><span><i /><i /><i /></span><span><i /><i /></span></span>
               <span className="theme-choice-check">{theme === item.id && <Check size={12} strokeWidth={3} />}</span>

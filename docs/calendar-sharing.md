@@ -16,6 +16,8 @@
 - Quyền chia sẻ chỉ áp dụng cho lịch của chính người cấp, không có chuyển tiếp quyền.
 - Quản trị quyền không mặc nhiên được đọc dữ liệu lịch. Vai trò dạng chữ trên hồ sơ không quyết định quyền truy cập.
 
+Cả ba loại có công tắc **Riêng tư**, mặc định tắt và chỉ hiện khi tài khoản được cấp quyền chia sẻ lịch. Task/Notes riêng tư cũng bị loại khỏi danh sách, số đếm và chi tiết được chia sẻ. Notes đồng bộ trạng thái với lịch hẹn. Xem [quy tắc riêng tư và hộp thoại](item-privacy-and-dialogs.md).
+
 ## Cấu trúc
 
 - `backend/app/db/access.py`: vai trò, quyền, ánh xạ và quyền xem lịch.

@@ -1,10 +1,10 @@
 const { chromium } = require('../.browser-tools/node_modules/playwright');
-const { createDragUsers } = require('../support/test-users.cjs');
+const { createTestUsers } = require('../support/test-users.cjs');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 (async () => {
- const fixture = createDragUsers(3); let browser;
+ const fixture = createTestUsers(3); let browser;
  try {
   const script = `import asyncio,sys
 from app.core.database import async_session_maker
@@ -39,7 +39,7 @@ asyncio.run(main())`;
   await admin.setViewportSize({width:390,height:844}); assert.ok(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)); await admin.setViewportSize({width:1500,height:1100});
 
   await owner.getByRole('button',{name:'Chia sẻ lịch',exact:true}).waitFor();
-  await owner.getByRole('button',{name:'Tạo sự kiện',exact:true}).click(); let eventDialog=owner.getByRole('dialog',{name:'Tạo sự kiện mới'}); await eventDialog.waitFor(); assert.equal(await eventDialog.getByRole('switch',{name:'Sự kiện riêng tư'}).isChecked(),false); await eventDialog.getByRole('button',{name:'Hủy',exact:true}).click();
+  await owner.getByRole('button',{name:'Tạo sự kiện',exact:true}).click(); let eventDialog=owner.getByRole('dialog',{name:'Tạo sự kiện mới'}); await eventDialog.waitFor(); assert.equal(await eventDialog.getByRole('switch',{name:'Sự kiện riêng tư'}).isChecked(),false); await eventDialog.getByRole('button',{name:'Đóng',exact:true}).click();
   const event=await api(owner,'POST','calendar/events',{title:'Shared public event',starts_at:'2026-10-18T09:00:00+07:00',ends_at:'2026-10-18T10:00:00+07:00'});
   await api(owner,'POST','calendar/events',{title:'Never expose private',is_private:true,starts_at:'2026-10-18T11:00:00+07:00',ends_at:'2026-10-18T12:00:00+07:00'});
   await api(owner,'POST','tasks',{title:'Shared dated task',due_date:'2026-10-18'});
@@ -51,7 +51,7 @@ asyncio.run(main())`;
   await dialog.getByPlaceholder('Nhập ít nhất 2 ký tự tên hoặc tài khoản').fill(fixture.accounts[2].username); await dialog.locator('.sharing-account-results button').click();
   assert.equal(await dialog.getByRole('checkbox',{name:/Sự kiện/}).isChecked(),true); assert.equal(await dialog.getByRole('checkbox',{name:/Việc cần làm/}).isChecked(),false); await dialog.getByRole('checkbox',{name:/Việc cần làm/}).check(); await dialog.getByRole('checkbox',{name:/Ghi chú/}).check(); await dialog.getByRole('button',{name:'Chia sẻ',exact:true}).click(); await dialog.locator('.sharing-person').waitFor(); await dialog.getByRole('button',{name:'Đóng',exact:true}).click();
   await owner.unroute(shareRoute,loseShare);assert.equal(lostShareReply,1);
-  await viewer.locator('.calendar-sharing-navigation .sharing-calendar-choice').filter({hasText:'Drag QA'}).click(); const shared=viewer.locator('.shared-calendar-page'); await shared.locator('.shared-calendar-item').filter({hasText:'Shared public event'}).waitFor();
+  await viewer.locator('.calendar-sharing-navigation .sharing-calendar-choice').filter({hasText:'Test QA'}).click(); const shared=viewer.locator('.shared-calendar-page'); await shared.locator('.shared-calendar-item').filter({hasText:'Shared public event'}).waitFor();
   assert.equal(await shared.getByText('Never expose private',{exact:true}).count(),0); assert.equal(await shared.getByText('Never expose undated',{exact:true}).count(),0); assert.equal(await shared.locator('.shared-calendar-item').count(),3);
   const outside = {x:10,y:100};
   for (const [title,label] of [['Shared public event','Sự kiện · Chỉ xem'],['Shared dated task','Việc cần làm · Chỉ xem'],['Shared scheduled note','Ghi chú · Chỉ xem']]) {
@@ -60,7 +60,7 @@ asyncio.run(main())`;
     await detail.getByRole('heading',{name:title,exact:true}).click(); assert.equal(await detail.isVisible(),true);
     const bounds=await detail.boundingBox();
     await viewer.mouse.move(bounds.x+bounds.width/2,bounds.y+bounds.height/2); await viewer.mouse.down(); await viewer.mouse.move(outside.x,outside.y); await viewer.mouse.up(); assert.equal(await detail.isVisible(),true);
-    await viewer.mouse.click(outside.x,outside.y); await detail.waitFor({state:'hidden'});
+    await viewer.mouse.click(outside.x,outside.y); assert.equal(await detail.isVisible(),true); await viewer.keyboard.press('Escape'); assert.equal(await detail.isVisible(),true); await detail.getByRole('button',{name:'Đóng',exact:true}).click(); await detail.waitFor({state:'hidden'});
   }
   const updated=()=>{const pending=viewer.waitForResponse(response=>response.url().includes('/api/calendar-sharing/view/'+fixture.accounts[1].id+'?')&&response.status()===200,{timeout:60000});pending.catch(()=>{});return pending;};
   let reload=updated(); await api(owner,'POST','calendar/events',{title:'Early event 05:00',starts_at:'2026-10-18T05:00:00+07:00',ends_at:'2026-10-18T05:30:00+07:00'}); await reload;
@@ -73,7 +73,7 @@ asyncio.run(main())`;
   const bar=shared.locator('.calendar-all-day-span').filter({hasText:'Continuous all-day bar'});await bar.waitFor();assert.equal(await bar.count(),1);assert.equal(await bar.locator('[aria-label="Tiếp tục từ tuần trước"]').count(),1);assert.equal(await bar.locator('[aria-label="Tiếp tục sang tuần sau"]').count(),1);
   reload=updated();await api(owner,'POST','tasks',{title:'Timed deadline marker',due_date:'2026-10-18',due_time:'23:56',priority:'HIGH'});await reload;
   const deadline=shared.locator('.shared-calendar-item').filter({hasText:'Timed deadline marker'});await deadline.waitFor();assert.match(await deadline.innerText(),/Hạn 23:56/);assert.ok((await deadline.boundingBox()).height<=26);
-  reload=updated();await api(owner,'POST','tasks',{title:'Overdue only once',due_date:'2026-10-17',due_time:'06:00',priority:'LOW'});await reload;const overdue=shared.getByRole('region',{name:'Việc quá hạn được chia sẻ'});await overdue.getByText('Overdue only once',{exact:true}).waitFor();assert.equal(await shared.locator('.shared-calendar-item').filter({hasText:'Overdue only once'}).count(),1);
+  reload=updated();await api(owner,'POST','tasks',{title:'Overdue only once',due_date:'2026-10-17',due_time:'06:00',priority:'LOW'});await reload;const overdue=shared.getByRole('region',{name:'Việc quá hạn được chia sẻ'});await overdue.getByText('Overdue only once',{exact:true}).waitFor();assert.equal(await shared.locator('.calendar-week-scroll .shared-calendar-item').filter({hasText:'Overdue only once'}).count(),1);
   await shared.locator('.shared-calendar-item').filter({hasText:'Shared public event'}).click();const retained=viewer.getByRole('dialog',{name:'Sự kiện · Chỉ xem'});await retained.getByRole('heading',{name:'Shared public event',exact:true}).waitFor();
   reload=updated();await api(owner,'POST','notes',{title:'Unrelated unscheduled note'});await reload;assert.equal(await retained.isVisible(),true);await retained.getByRole('button',{name:'Đóng',exact:true}).click();
   const scroll=shared.locator('.calendar-week-scroll');await scroll.evaluate(node=>node.scrollTop=480);
@@ -81,6 +81,12 @@ asyncio.run(main())`;
   await shared.locator('.shared-calendar-item').filter({hasText:'Shared scheduled note'}).click(); const noteDialog=viewer.getByRole('dialog',{name:'Ghi chú · Chỉ xem'}); await noteDialog.getByText('Note body only in details').waitFor(); assert.equal(await noteDialog.locator('textarea,input,button[type=submit]').count(),0); await noteDialog.getByRole('button',{name:'Đóng',exact:true}).click();
   await viewer.screenshot({path:path.resolve(__dirname,'../.browser-tools/calendar-sharing-readonly.png'),fullPage:true});
   await viewer.getByRole('button',{name:'Tháng',exact:true}).click(); await shared.locator('.shared-month-grid').waitFor(); await viewer.getByRole('button',{name:'Danh sách',exact:true}).click(); await shared.locator('.shared-agenda').waitFor();
+  for (const [resource,title,label] of [['tasks','Shared dated task','Việc cần làm · Chỉ xem'],['notes','Shared scheduled note','Ghi chú · Chỉ xem']]) {
+    const record=(await api(owner,'GET',resource)).find(row=>row.title===title);assert.ok(record);
+    await shared.locator('.shared-calendar-item').filter({hasText:title}).click();const detail=viewer.getByRole('dialog',{name:label});await detail.getByRole('heading',{name:title,exact:true}).waitFor();
+    await api(owner,'PATCH',resource+'/'+record.id,{expected_version:record.version,is_private:true});await detail.waitFor({state:'hidden'});await shared.locator('.shared-calendar-item').filter({hasText:title}).waitFor({state:'hidden'});
+    const latest=await api(owner,'GET',resource+'/'+record.id);await api(owner,'PATCH',resource+'/'+record.id,{expected_version:latest.version,is_private:false});await shared.locator('.shared-calendar-item').filter({hasText:title}).waitFor();
+  }
   await shared.locator('.shared-calendar-item').filter({hasText:'Shared public event'}).click();await viewer.getByRole('dialog',{name:'Sự kiện · Chỉ xem'}).getByRole('heading',{name:'Shared public event',exact:true}).waitFor();
   const current=await api(owner,'GET','calendar/events/'+event.id); const {id,user_id,created_at,updated_at,scheduled_note_id,...body}=current; await api(owner,'PUT','calendar/events/'+event.id,{...body,is_private:true,expected_updated_at:updated_at});
   await viewer.getByRole('dialog',{name:'Sự kiện · Chỉ xem'}).waitFor({state:'hidden'});
@@ -92,10 +98,10 @@ asyncio.run(main())`;
   await owner.unroute(revokeRoute,loseRevoke);assert.equal(lostRevokeReply,1);
   await dialog.getByRole('button',{name:'Đóng',exact:true}).click();
   await owner.getByRole('button',{name:'Chia sẻ lịch',exact:true}).click();dialog=owner.getByRole('dialog',{name:'Chia sẻ lịch',exact:true});await dialog.getByPlaceholder('Nhập ít nhất 2 ký tự tên hoặc tài khoản').fill(fixture.accounts[2].username);await dialog.locator('.sharing-account-results button').click();assert.equal(await dialog.getByRole('checkbox',{name:/Việc cần làm/}).isChecked(),false);await dialog.getByRole('button',{name:'Chia sẻ',exact:true}).click();await dialog.locator('.sharing-person').waitFor();await dialog.getByRole('button',{name:'Đóng',exact:true}).click();
-  await viewer.locator('.calendar-sharing-navigation .sharing-calendar-choice').filter({hasText:'Drag QA'}).click();await viewer.locator('.shared-calendar-page').waitFor();
+  await viewer.locator('.calendar-sharing-navigation .sharing-calendar-choice').filter({hasText:'Test QA'}).click();await viewer.locator('.shared-calendar-page').waitFor();
   const adminPage=admin.locator('.admin-page');await adminPage.getByRole('button',{name:'Thu hồi quyền chia sẻ',exact:true}).click();await adminPage.getByRole('button',{name:'Xác nhận thu hồi',exact:true}).click();await adminPage.getByRole('button',{name:'Cho phép chia sẻ lịch',exact:true}).waitFor();await owner.getByRole('button',{name:'Chia sẻ lịch',exact:true}).waitFor({state:'hidden'});await viewer.locator('.shared-calendar-page').waitFor({state:'hidden'});
   await adminPage.getByRole('button',{name:'Cho phép chia sẻ lịch',exact:true}).click();await owner.getByRole('button',{name:'Chia sẻ lịch',exact:true}).waitFor();
   assert.equal((await api(viewer,'GET','calendar-sharing/received')).length,0);
-  assert.deepEqual(errors,[]); console.log('PASS: lost-response reconciliation, night hours, multi-day details and bars, deadline markers, stable realtime dialog/scroll, fresh regrant and audit, outside-click dismissal and safe text selection, admin navigation, fixed clock layout, responsive permissions page, explicit assignment, share scopes/defaults, private filtering, read-only notes, three views, realtime privacy/scope/revoke');
+  assert.deepEqual(errors,[]); console.log('PASS: lost-response reconciliation, night hours, multi-day details and bars, deadline markers, stable realtime dialog/scroll, fresh regrant and audit, X-only dismissal and safe text selection, admin navigation, fixed clock layout, responsive permissions page, explicit assignment, share scopes/defaults, private filtering, read-only notes, three views, realtime privacy/scope/revoke');
  } catch(error) { if(browser){for(const [index,context]of browser.contexts().entries()){for(const page of context.pages()){console.log('DEBUG_DIALOGS',index,await page.evaluate(()=>({dialogs:[...document.querySelectorAll('dialog')].map(node=>({open:node.open,title:node.getAttribute('aria-label')}))})));await page.screenshot({path:path.resolve(__dirname,'../.browser-tools/sharing-failure-'+index+'.png'),fullPage:true});}}}throw error; } finally { if(browser) await browser.close(); for(let attempt=0;attempt<3;attempt++){try{fixture.cleanup();break;}catch(error){if(attempt===2)throw error;await new Promise(resolve=>setTimeout(resolve,1500));}} }
 })().catch(e=>{console.error(e);process.exitCode=1;});

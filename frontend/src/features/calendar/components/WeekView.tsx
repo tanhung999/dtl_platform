@@ -1,5 +1,3 @@
-import { useEventDragState } from '../../calendar-dnd/CalendarEventDndProvider';
-import { isTimedEventResize } from '../../calendar-dnd/eventSchedule';
 import { useEffect, useRef } from 'react';
 import { CalendarViewProps } from '../types';
 import { addDays, dateKey, eventTime, formatDate, MIN_EVENT_HEIGHT, startOfWeek, today, WEEKDAYS } from '../dateUtils';
@@ -8,17 +6,12 @@ import { AllDayWeek } from './AllDayWeek';
 import { EventButton } from './EventButton';
 import { useTasks } from '../../tasks/context/TasksContext';
 import { DeadlineRow } from './DeadlineRow';
-import { CalendarDeadlineDropZone } from '../../task-calendar/CalendarDeadlineDropZone';
-import { useDragEdges } from '../../drag-feedback/useDragEdges';
-import { CalendarDragGhost } from '../../drag-feedback/CalendarDragGhost';
 
-interface Props extends CalendarViewProps { onShowDay: (date: Date) => void; showEarlyHours: boolean; onChangeWeek: (date: Date) => void; }
+interface Props extends CalendarViewProps { onShowDay: (date: Date) => void; showEarlyHours: boolean; }
 
-export function WeekView({ anchor, events, tasks, onCreate, onSelect, onShowDay, showEarlyHours, onChangeWeek }: Props) {
+export function WeekView({ anchor, events, tasks, onCreate, onSelect, onShowDay, showEarlyHours }: Props) {
   const { now } = useTasks();
-  const { active } = useEventDragState();
   const scroll = useRef<HTMLDivElement>(null);
-  const edge = useDragEdges(scroll, anchor, onChangeWeek, 56);
   const startMinute = showEarlyHours ? 0 : 360;
   const weekStart = startOfWeek(anchor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -32,7 +25,7 @@ export function WeekView({ anchor, events, tasks, onCreate, onSelect, onShowDay,
   }, [weekKey, startMinute]);
 
   return (
-    <div className={`calendar-drag-wrapper ${isTimedEventResize(active) ? 'is-resizing-event' : ''}`}><div className="calendar-week-scroll" ref={scroll}>
+    <div className="calendar-week-scroll" ref={scroll}>
       <div className="calendar-week">
         <div className="calendar-week-header">
           <span className="calendar-zone">GMT+7</span>
@@ -44,7 +37,7 @@ export function WeekView({ anchor, events, tasks, onCreate, onSelect, onShowDay,
         <div className="calendar-week-timeline" style={{ height: 1440 - startMinute + MIN_EVENT_HEIGHT }}>
           <div className="calendar-hours">{Array.from({ length: 24 - startMinute / 60 }, (_, i) => i + startMinute / 60).map(hour => <div key={hour}>{String(hour).padStart(2, '0')}:00</div>)}</div>
           {days.map(day => <div className={`calendar-time-column ${dateKey(day) === todayKey ? 'is-today' : ''}`} key={dateKey(day)} data-date={dateKey(day)} style={{ height: 1440 - startMinute + MIN_EVENT_HEIGHT }}>
-            {Array.from({ length: 24 - startMinute / 60 }, (_, i) => i + startMinute / 60).map(hour => <CalendarDeadlineDropZone key={hour} target={{ type: 'calendar-slot', date: dateKey(day), time: `${String(hour).padStart(2, '0')}:00` }} className="calendar-time-slot" label={`Tạo lịch ${formatDate(day)} lúc ${hour}:00`} onClick={() => onCreate({ date: day, hour })} />)}
+            {Array.from({ length: 24 - startMinute / 60 }, (_, i) => i + startMinute / 60).map(hour => <button type="button" key={hour} className="calendar-time-slot" aria-label={`Tạo lịch ${formatDate(day)} lúc ${hour}:00`} onClick={() => onCreate({ date: day, hour })} />)}
             {weekTimedPlacements(events, tasks, day, startMinute).map(item => {
               const height = item.kind === 'deadline' ? DEADLINE_MARKER_HEIGHT : Math.max(MIN_EVENT_HEIGHT, item.end - item.start);
               const style = { position: 'absolute' as const, top: `${item.start - startMinute}px`, height: `${height}px`, left: `calc(${item.lane / item.lanes * 100}% + 2px)`, width: `calc(${100 / item.lanes}% - 4px)` };
@@ -53,10 +46,9 @@ export function WeekView({ anchor, events, tasks, onCreate, onSelect, onShowDay,
                 : <div key={`deadline-${item.task.id}`} className="calendar-timed-deadline" style={style}><DeadlineRow task={item.task} /></div>;
             })}
             {dateKey(day) === todayKey && currentMinute >= startMinute && <div className="calendar-now-line" style={{ top: currentMinute - startMinute }}><span /></div>}
-            <CalendarDragGhost day={dateKey(day)} startMinute={startMinute} />
           </div>)}
         </div>
       </div>
-    </div>{edge && <div className={`drag-edge-indicator is-${edge}`} data-drag-edge={edge} aria-hidden="true" style={edge === 'top' && scroll.current ? { top: (scroll.current.querySelector('.calendar-week-all-day')?.getBoundingClientRect().bottom ?? scroll.current.getBoundingClientRect().top) - scroll.current.getBoundingClientRect().top } : undefined} />}</div>
+    </div>
   );
 }

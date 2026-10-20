@@ -1,6 +1,7 @@
 """Private persistent inbox, delivery queue and versioned recipient preferences."""
 import uuid
-from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, text
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, UniqueConstraint, text
+from app.db.types import UTCDateTime
 from app.core.database import Base
 from app.db.models import utcnow
 
@@ -26,18 +27,19 @@ class Notification(Base):
     action_path = Column(String(500), nullable=False, default='')
     task_id = Column(String(36), ForeignKey('tasks.id', ondelete='SET NULL'), nullable=True, index=True)
     deadline_version = Column(Integer, nullable=True)
-    due_at = Column(DateTime(timezone=True), nullable=True)
-    occurred_at = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
-    read_at = Column(DateTime(timezone=True), nullable=True)
-    dismissed_at = Column(DateTime(timezone=True), nullable=True)
-    snoozed_until = Column(DateTime(timezone=True), nullable=True)
+    due_at = Column(UTCDateTime(), nullable=True)
+    occurred_at = Column(UTCDateTime(), nullable=False)
+    created_at = Column(UTCDateTime(), nullable=False, default=utcnow)
+    read_at = Column(UTCDateTime(), nullable=True)
+    dismissed_at = Column(UTCDateTime(), nullable=True)
+    snoozed_until = Column(UTCDateTime(), nullable=True)
 
 
 class NotificationJob(Base):
     __tablename__ = 'notification_jobs'
     __table_args__ = (
         Index('ix_notification_jobs_due', 'available_at', 'id', postgresql_where=text('processed_at IS NULL'), sqlite_where=text('processed_at IS NULL')),
+        Index('ix_notification_jobs_retention', 'processed_at', 'id', postgresql_where=text('processed_at IS NOT NULL'), sqlite_where=text('processed_at IS NOT NULL')),
     )
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     task_id = Column(String(36), ForeignKey('tasks.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -45,9 +47,9 @@ class NotificationJob(Base):
     deadline_version = Column(Integer, nullable=False)
     kind = Column(String(20), nullable=False)
     event_key = Column(String(200), nullable=False, unique=True)
-    scheduled_at = Column(DateTime(timezone=True), nullable=False)
-    available_at = Column(DateTime(timezone=True), nullable=False)
-    processed_at = Column(DateTime(timezone=True), nullable=True)
+    scheduled_at = Column(UTCDateTime(), nullable=False)
+    available_at = Column(UTCDateTime(), nullable=False)
+    processed_at = Column(UTCDateTime(), nullable=True)
 
 
 class NotificationPreference(Base):

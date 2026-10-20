@@ -1,6 +1,7 @@
 import { TaskPriority } from '../../types';
 
 export interface TaskInput {
+  is_private?: boolean;
   expected_version?: number;
   title: string;
   description?: string | null;

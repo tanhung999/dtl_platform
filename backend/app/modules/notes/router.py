@@ -8,12 +8,10 @@ from app.core.realtime import mark_changed
 from app.db.models import Note, User, utcnow
 from app.db.note_scheduling import NoteCalendarSchedule
 from app.db.calendar import CalendarEvent
-from app.modules.note_scheduling.service import save_schedule, with_schedule
-from app.db.workspace_layout import WorkspaceLayout
+from app.modules.note_scheduling.service import with_schedule
 from app.db.note_create_requests import NoteCreateRequest
 from app.modules.notes.creation import create_note_once
 from app.modules.auth.dependencies import get_current_user
-from app.modules.workspace.order import remove_order_ids
 from app.modules.notes.schemas import NoteCreate, NoteResponse, NoteUpdate, NoteDeleteInfo
 
 router = APIRouter(prefix="/api/notes", tags=["Notes (Start.me Style)"])
@@ -29,7 +27,7 @@ async def list_notes(
     stmt = (
         select(Note)
         .where(Note.user_id == user.id, Note.is_archived.is_(archived))
-        .order_by(desc(Note.is_pinned), Note.sort_order, Note.id).offset(offset).limit(limit)
+        .order_by(desc(Note.is_pinned), desc(Note.created_at).nullslast(), Note.id).offset(offset).limit(limit)
     )
     result = await db.execute(stmt)
     return result.scalars().all()
@@ -51,53 +49,8 @@ async def update_note(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
-    await db.execute(select(User.id).where(User.id == user.id).with_for_update())
-    stmt = select(Note).where(Note.id == note_id, Note.user_id == user.id)
-    result = await db.execute(stmt)
-    note = result.scalar_one_or_none()
-    if not note:
-        raise HTTPException(status_code=404, detail="Không tìm thấy ghi chú")
-
-    if payload.expected_version != note.version:
-        raise HTTPException(409, "Ghi chú đã được cập nhật ở nơi khác. Bản nháp của bạn vẫn được giữ.")
-    was_archived = note.is_archived
-    update_data = payload.model_dump(exclude_unset=True, exclude={"expected_version", "calendar_schedule"})
-    if any(value is None for value in update_data.values()):
-        raise HTTPException(422, "Thông tin ghi chú không được để null.")
-    if note.is_archived and update_data.get("is_archived") is False:
-        last = await db.scalar(select(func.max(Note.sort_order)).where(Note.user_id == user.id))
-        note.sort_order = (last or 0) + 1
-    target_archived = update_data.pop("is_archived", note.is_archived)
-    note.version += 1
-    pin_changed = 'is_pinned' in update_data and update_data['is_pinned'] != note.is_pinned
-    for key, value in update_data.items():
-        setattr(note, key, value)
-    note.updated_at = utcnow()
-    if pin_changed:
-        layout = (await db.execute(select(WorkspaceLayout).where(WorkspaceLayout.user_id == user.id, WorkspaceLayout.kind == 'notes').with_for_update())).scalar_one_or_none()
-        if layout is None:
-            layout = WorkspaceLayout(user_id=user.id, kind='notes', ordered_ids=[], version=0)
-            db.add(layout)
-        layout.version += 1
-        mark_changed(db, user.id, 'layout')
-    # Khôi phục trước khi đặt lịch; chỉ lưu trạng thái lưu trữ sau khi lịch hợp lệ.
-    if was_archived and not target_archived:
-        note.is_archived = False
-    if payload.calendar_schedule is not None:
-        await save_schedule(db, note, payload.calendar_schedule)
-    if 'title' in update_data and payload.calendar_schedule is None:
-        event_id = select(NoteCalendarSchedule.event_id).where(NoteCalendarSchedule.note_id == note.id)
-        await db.execute(update(CalendarEvent).where(CalendarEvent.id.in_(event_id), CalendarEvent.user_id == user.id)
-            .values(title=note.title or 'Ghi chú không có tiêu đề', updated_at=utcnow()))
-    note.is_archived = target_archived
-    if note.is_archived and not was_archived:
-        await remove_order_ids(db, "notes", {note.id}, user.id)
-    elif was_archived and not note.is_archived:
-        await remove_order_ids(db, "notes", set(), user.id)
-    await db.flush()
-    mark_changed(db, user.id, "notes")
-    mark_changed(db, user.id, "calendar")
-    return await with_schedule(db, note)
+    from .service import update_note_service
+    return await update_note_service(note_id, payload, user, db)
 
 
 @router.get("/{note_id}/delete-info", response_model=NoteDeleteInfo)
@@ -137,7 +90,6 @@ async def delete_note(
         raise HTTPException(status_code=404, detail="Không tìm thấy ghi chú")
     if note.version != expected_version:
         raise HTTPException(409, "Ghi chú vừa được cập nhật. Hãy xem thông tin mới và xác nhận xóa lại.")
-    await remove_order_ids(db, "notes", {note.id}, user.id)
     event_id = await db.scalar(select(NoteCalendarSchedule.event_id).where(NoteCalendarSchedule.note_id == note.id))
     if event_id:
         # The retained appointment must not silently move from Notes scope into shared Events.

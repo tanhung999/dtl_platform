@@ -1,8 +1,8 @@
 const { chromium } = require('../.browser-tools/node_modules/playwright');
-const { createDragUsers } = require('../support/test-users.cjs');
+const { createTestUsers } = require('../support/test-users.cjs');
 const assert = require('node:assert/strict');
 async function main() {
-  const fixture = createDragUsers(1); let browser;
+  const fixture = createTestUsers(1); let browser;
   try {
     browser = await chromium.launch({ channel: 'msedge', headless: true });
     const context = await browser.newContext({ viewport: { width: 1600, height: 1400 } }), page = await context.newPage(), errors = [];
@@ -35,7 +35,7 @@ async function main() {
     await page.unroute('**/api/notes', lostCreate);
     console.log('PASS: lost create response, stable request ID, retry with edited content creates exactly one note.');
     // Delete commits, but response is stalled. Timeout verifies 404 and closes confirmation.
-    const card = id => page.locator(`[data-sort-id="${id}"]`), confirmation = () => page.getByRole('dialog', { name: 'Xóa ghi chú?', exact: true });
+    const card = id => page.locator(`[data-note-id="${id}"]`), confirmation = () => page.getByRole('dialog', { name: 'Xóa ghi chú?', exact: true });
     await card(createdId).getByTitle('Xóa ghi chú', { exact: true }).click();
     await confirmation().getByRole('button', { name: 'Xóa ghi chú', exact: true }).waitFor();
     await page.waitForFunction(() => !document.querySelector('.note-delete-confirm').disabled);

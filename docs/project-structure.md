@@ -15,8 +15,6 @@ Mỗi chức năng có thư mục `frontend/src/features/<feature>/`, với `api
 - `features/apps/api.ts`: mở ứng dụng doanh nghiệp qua SSO; Thông báo dùng chung API này.
 - Các chức năng `bookmarks`, `notes`, `tasks`, `calendar`, `notifications` có API riêng.
 - `note-scheduling/`: biểu mẫu và kiểu dữ liệu lịch hẹn của ghi chú; không tự khai báo API.
-- `dashboard-layout/api.ts`: bố cục các tiện ích trên Workspace.
-- `workspace-layout/api.ts`: thứ tự các mục bên trong tiện ích.
 - `realtime/useWorkspaceRealtime.ts`: kết nối SSE dùng chung; đây là luồng dữ liệu liên tục, không phải yêu cầu dữ liệu thông thường trong thành phần giao diện.
 
 Giữ cơ chế thời gian chờ, chống tạo trùng khi gửi lại, phiên bản và đối soát ở đúng luồng hiện có. Di chuyển tệp không phải lý do tự thay đổi hợp đồng API hoặc quy tắc xử lý lỗi. Không thêm đường dẫn API vào thành phần giao diện/hàm quản lý trạng thái mới và không tạo lại một API đã có ở chức năng khác.

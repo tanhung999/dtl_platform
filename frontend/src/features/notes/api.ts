@@ -15,7 +15,6 @@ export const notesApi = {
     const params = new URLSearchParams({ archived: String(options.archived), filter: options.filter, q: options.query, widget: String(!options.fullPage), offset: String(options.offset), limit: '24' });
     return request<NoteCollection>(`/api/notes/collection/page?${params}`, { signal });
   },
-  move: (id: string, payload: { expected_version: number; placement: string; anchor_id?: string; pinned?: boolean }) => request<{ version: number }>(`/api/notes/${id}/move`, { method: 'POST', body: JSON.stringify(payload) }),
   async updateNote(id: string, payload: Partial<Note> & { expected_version: number }): Promise<Note> {
     return recoverMutation(() => requestWithTimeout<Note>(`/api/notes/${id}`, {
       method: 'PATCH', body: JSON.stringify(payload),

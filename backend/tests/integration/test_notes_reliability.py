@@ -36,14 +36,12 @@ class NoteReliabilityTests(unittest.IsolatedAsyncioTestCase):
         for i in range(29):
             _, note = await self.request("POST", "/api/notes", payload={"title": str(i), "content": "x" * 1000, "is_pinned": i < 2})
             notes.append(note)
-        order = [row["id"] for row in notes]
-        await self.request("PUT", "/api/workspace/layout/notes", payload={"ids": order, "expected_version": 0})
+        order = [row["id"] for row in list(reversed(notes[:2])) + list(reversed(notes[2:]))]
         endpoint = "/api/notes/collection/page"
         status, page = await self.request("GET", endpoint)
         self.assertEqual(status, 200)
         self.assertEqual(page["total"], 29)
         self.assertEqual([row["id"] for row in page["items"]], order[:24])
-        self.assertEqual(page["order_ids"], order[:24])
         self.assertTrue(page["has_more"])
         self.assertTrue(all("content" not in row and len(row["preview"]) == 240 for row in page["items"]))
         _, second = await self.request("GET", endpoint, query={"offset": 24})

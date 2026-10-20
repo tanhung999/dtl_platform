@@ -1,5 +1,6 @@
 import { CSSProperties, FormEvent, useEffect, useRef, useState } from 'react';
-import { CalendarDays, Clock, Lock, MapPin, Trash2, X } from 'lucide-react';
+import { CalendarDays, Clock, MapPin, Trash2, X } from 'lucide-react';
+import { PrivacyToggle } from '../../access/PrivacyToggle';
 import { addDays, dateKey, eventDate, eventTime, parseDate, toTimestamp } from '../dateUtils';
 import { CalendarEvent, CalendarEventInput, EventDraft } from '../types';
 import { EventStatusBadge, EventStatusLegend } from './EventStatusBadge';
@@ -10,6 +11,7 @@ import { ApiError } from '../../../services/api';
 import { useMutationChecking } from '../../mutations/useMutationChecking';
 import { DatePicker } from '../../../components/date-time/DatePicker';
 import { TimePicker } from '../../../components/date-time/TimePicker';
+import { RescheduleControl } from '../../rescheduling/RescheduleControl';
 
 interface Props {
   event?: CalendarEvent;
@@ -40,6 +42,8 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const attempt = useRef<CreateAttempt<CalendarEventInput>>();
   const [deleteVersion, setDeleteVersion] = useState(event?.updated_at);
+  const [updatedAt, setUpdatedAt] = useState(event?.updated_at);
+  const [savedSchedule, setSavedSchedule] = useState({ starts_at: event?.starts_at, ends_at: event?.ends_at, is_all_day: event?.is_all_day });
   const checking = useMutationChecking();
   const mounted = useRef(true);
 
@@ -69,7 +73,7 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
     if (ends <= starts) { setError('Thời gian kết thúc phải sau thời gian bắt đầu.'); return; }
     setBusy(true);
     try {
-      const payload: CalendarEventInput = { title: title.trim(), description, location, starts_at: starts, ends_at: ends, is_all_day: allDay, is_private: isPrivate, color: event?.color ?? '#2563eb', ...(event ? { expected_updated_at: event.updated_at } : {}) };
+      const payload: CalendarEventInput = { title: title.trim(), description, location, starts_at: starts, ends_at: ends, is_all_day: allDay, is_private: isPrivate, color: event?.color ?? '#2563eb', ...(event ? { expected_updated_at: updatedAt } : {}) };
       if (!event) attempt.current ??= { requestId: crypto.randomUUID(), original: payload };
       await onSave(payload, event?.id, attempt.current);
       if (mounted.current) onClose();
@@ -95,7 +99,7 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
 
   return (
     <dialog ref={dialog} className="calendar-event-dialog" aria-labelledby="calendar-dialog-title"
-      onCancel={e => { e.preventDefault(); onClose(); }}>
+      onCancel={e => { e.preventDefault(); e.stopPropagation(); }}>
       <form onSubmit={submit}>
         <header className="calendar-dialog-header">
           <div><span className="calendar-eyebrow">LỊCH CÁ NHÂN</span><h2 id="calendar-dialog-title">{event ? 'Chi tiết sự kiện' : 'Tạo sự kiện mới'}</h2></div>
@@ -121,8 +125,13 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
           <p className="calendar-muted">{allDay ? 'Bao gồm cả ngày bắt đầu và ngày kết thúc.' : 'Giờ Việt Nam (UTC+7)'}</p>
           <label className="calendar-field"><span><MapPin size={15} /> Địa điểm</span><input className="form-input" value={location} onChange={e => setLocation(e.target.value)} placeholder="Thêm địa điểm" maxLength={255} /></label>
           <label className="calendar-field">Mô tả<textarea className="form-input" value={description} onChange={e => setDescription(e.target.value)} placeholder="Ghi chú cho sự kiện…" rows={3} maxLength={10000} /></label>
-          <label className="calendar-checkbox"><input type="checkbox" role="switch" aria-label="Sự kiện riêng tư" checked={isPrivate} onChange={e => setIsPrivate(e.target.checked)} /><Lock size={15} /> Riêng tư</label>
-          <p className="calendar-muted">{isPrivate ? 'Chỉ bạn nhìn thấy sự kiện này. Người được chia sẻ lịch không nhìn thấy.' : 'Người được cấp quyền xem sự kiện trong lịch có thể nhìn thấy mục này.'}</p>
+          <PrivacyToggle label="Sự kiện riêng tư" value={isPrivate} onChange={setIsPrivate} />
+          {event && <RescheduleControl kind="event" id={event.id} title={event.title} current={savedSchedule} updatedAt={updatedAt} disabled={busy} onMoved={change => {
+            setSavedSchedule({ starts_at: change.after.starts_at!, ends_at: change.after.ends_at!, is_all_day: change.after.is_all_day! });
+            setStartDate(dateKey(eventDate(change.after.starts_at!))); setStartTime(eventTime(change.after.starts_at!));
+            setEndDate(dateKey(eventDate(change.after.is_all_day ? new Date(Date.parse(change.after.ends_at!) - 1).toISOString() : change.after.ends_at!)));
+            setEndTime(eventTime(change.after.ends_at!)); setAllDay(!!change.after.is_all_day); setUpdatedAt(change.guard.expected_updated_at); setDeleteVersion(change.guard.expected_updated_at);
+          }}/>}
           <div className="calendar-field"><span>Màu tự đổi theo thời gian</span><EventStatusLegend /></div>
         </fieldset>
         {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
@@ -133,7 +142,7 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
         </div>}
         <footer className="calendar-dialog-footer">
           {event && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Xóa</button>}
-          <div className="calendar-inline-actions"><button type="button" className="btn btn-outline" onClick={onClose}>Hủy</button><button type="submit" className="btn btn-primary" disabled={busy || confirmDelete}>{busy ? 'Đang lưu…' : 'Lưu sự kiện'}</button></div>
+          <div className="calendar-inline-actions"><button type="submit" className="btn btn-primary" disabled={busy || confirmDelete}>{busy ? 'Đang lưu…' : 'Lưu sự kiện'}</button></div>
         </footer>
       </form>
     </dialog>

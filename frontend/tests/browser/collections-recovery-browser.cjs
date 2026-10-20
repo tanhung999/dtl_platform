@@ -1,9 +1,9 @@
 const { chromium } = require('../.browser-tools/node_modules/playwright');
-const { createDragUsers } = require('../support/test-users.cjs');
+const { createTestUsers } = require('../support/test-users.cjs');
 const assert = require('node:assert/strict');
 
 (async () => {
-  const fixture = createDragUsers(1);
+  const fixture = createTestUsers(1);
   let browser;
   try {
     browser = await chromium.launch({ channel: 'msedge', headless: true });
@@ -94,7 +94,7 @@ const assert = require('node:assert/strict');
     await dialog.getByRole('button', { name: 'Xác nhận xóa', exact: true }).click();
     await dialog.waitFor({ state: 'hidden' });
     const note = await api('POST', '/notes', { title: 'Guarded note' });
-    await page.locator(`[data-sort-id="${note.id}"]`).getByRole('button', { name: 'Xóa Guarded note', exact: true }).click();
+    await page.locator(`[data-note-id="${note.id}"]`).getByRole('button', { name: 'Xóa Guarded note', exact: true }).click();
     const confirmation = page.getByRole('dialog', { name: 'Xóa ghi chú?', exact: true });
     let staleNote = true;
     await page.route(`**/api/notes/${note.id}`, async route => {

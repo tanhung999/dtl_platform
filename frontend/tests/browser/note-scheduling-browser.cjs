@@ -1,8 +1,8 @@
 const { chromium } = require('../.browser-tools/node_modules/playwright');
-const { createDragUsers } = require('../support/test-users.cjs');
+const { createTestUsers } = require('../support/test-users.cjs');
 const assert = require('node:assert/strict');
 (async () => {
-  const fixture = createDragUsers(1); let browser;
+  const fixture = createTestUsers(1); let browser;
   try {
     browser = await chromium.launch({ channel: 'msedge', headless: true });
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, locale: 'en-US', timezoneId: 'America/New_York' });
@@ -25,7 +25,7 @@ const assert = require('node:assert/strict');
     const eventEditor = page.getByRole('dialog', { name: 'Tạo sự kiện mới', exact: true });
     assert.equal(await eventEditor.getByRole('button', { name: 'Chọn ghi chú có sẵn', exact: true }).count(), 0);
     assert.equal(await eventEditor.getByRole('button', { name: 'Tạo ghi chú mới', exact: true }).count(), 0);
-    await eventEditor.getByRole('button', { name: 'Hủy', exact: true }).click();
+    await eventEditor.getByRole('button', { name: 'Đóng', exact: true }).click();
     const notes = () => api('notes');
     await page.getByTitle('Tạo ghi chú mới', { exact: true }).click();
     await noteEditor.getByPlaceholder('Tiêu đề ghi chú...').fill('Note lịch hẹn QA');
@@ -44,7 +44,7 @@ const assert = require('node:assert/strict');
     assert.equal(appointment.note_count, undefined);
     assert.equal(await noteEditor.getByRole('button', { name: 'Gắn vào sự kiện', exact: true }).count(), 0);
     await calendar.locator(`[data-event-id="${appointment.id}"]`).waitFor();
-    assert.equal(await calendar.locator(`[data-event-id="${appointment.id}"] .calendar-note-label`).count(), 1);
+    assert.equal(await calendar.locator(`[data-event-id="${appointment.id}"] .calendar-note-label`).count(), 0);
     await calendar.locator(`[data-event-id="${appointment.id}"]`).click(); await noteEditor.waitFor();
     await page.waitForFunction(() => document.querySelector('.note-editor-dialog textarea')?.value === 'Nội dung của ghi chú trên lịch');
     assert.equal(await page.getByRole('dialog', { name: 'Chi tiết sự kiện', exact: true }).count(), 0);
@@ -69,7 +69,7 @@ const assert = require('node:assert/strict');
       await item.click(); await noteEditor.waitFor();
       await page.waitForFunction(() => document.querySelector('.note-editor-dialog input[placeholder="Tiêu đề ghi chú..."]')?.value === 'Ghi chú lịch đã sửa');
       assert.equal(await page.getByRole('dialog', { name: 'Chi tiết sự kiện', exact: true }).count(), 0);
-      await noteEditor.getByRole('button', { name: 'Hủy', exact: true }).click();
+      await noteEditor.getByRole('button', { name: 'Đóng ghi chú', exact: true }).click();
     }
     await calendarPage.getByRole('button', { name: 'Tạo sự kiện', exact: true }).click();
     await eventEditor.getByLabel('Tên sự kiện').fill('Sự kiện thường QA');
@@ -86,13 +86,13 @@ const assert = require('node:assert/strict');
     const sameNote = { title: 'Concurrent scheduled note QA', request_id: key, calendar_schedule: schedule };
     const noteRace = await Promise.all([api('notes', 'POST', sameNote), api('notes', 'POST', sameNote)]);
     assert.equal(noteRace[0].id, noteRace[1].id); assert.equal(noteRace[0].calendar_schedule.event_id, noteRace[1].calendar_schedule.event_id);
-    await page.getByRole('button', { name: 'Toggle dark/light theme', exact: true }).click();
+    await page.getByRole('button', { name: 'Chọn giao diện', exact: true }).click(); await page.getByRole('radio', { name: /Midnight Dark/ }).click(); await page.getByRole('button', { name: 'Đóng chọn giao diện', exact: true }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByTitle('Tạo ghi chú mới', { exact: true }).click(); await noteEditor.getByRole('button', { name: 'Gắn vào lịch', exact: true }).click();
     await noteEditor.getByLabel('Ngày lịch hẹn', { exact: true }).click();
     const box = await noteEditor.locator('.app-date-popover').boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= 391, JSON.stringify(box));
     await page.keyboard.press('Escape'); assert.ok(await noteEditor.isVisible());
-    await noteEditor.getByRole('button', { name: 'Hủy', exact: true }).click();
+    await noteEditor.getByRole('button', { name: 'Đóng ghi chú', exact: true }).click();
     assert.deepEqual(errors, []);
     console.log('PASS: removed event-link UI, retained scheduling/realtime, all-day conversion, concurrent replay, native note editor in widget/week/month/agenda, ordinary events unchanged, mobile dark mode');
   } finally { if (browser) await browser.close(); fixture.cleanup(); }

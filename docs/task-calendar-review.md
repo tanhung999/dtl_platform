@@ -29,15 +29,9 @@ Gói duy trì kết nối chỉ tải lại nhắc hạn; công việc thay đ�
 Hàng đợi đầy gộp chủ đề cũ với chủ đề mới, tránh mất cập nhật lịch và công việc.
 Kéo thả, Hoàn tác và API kiểm tra phiên bản hạn/sự kiện tiếp tục được giữ.
 
-## Cần cân nhắc khi dữ liệu lớn
+## Các thay đổi mới hơn
 
-Danh sách To-Do vẫn tải toàn bộ công việc để giữ đúng số đếm, bộ lọc và lịch hiện có.
-Nếu tăng tới hàng nghìn công việc mỗi người, cần thiết kế API phân trang cùng đường dẫn API
-đếm và hạn công việc theo khoảng ngày; không cắt danh sách âm thầm vì sẽ sai số đếm.
-Bản ghi nhắc hạn của phiên bản hạn cũ có thể cần chính sách dọn định kỳ khi dữ liệu tăng.
-Lưu biểu mẫu sửa sự kiện thông thường vẫn theo cơ chế hiện có; kéo/co giãn có kiểm
-tra updated_at. Có thể mở rộng kiểm tra phiên bản cho biểu mẫu nếu cần xử lý nhiều
-phiên sửa cùng một sự kiện.
+To-Do hiện đã phân trang, có số đếm riêng và API hạn theo khoảng ngày. Biểu mẫu Task/Event có kiểm tra phiên bản; kéo thả đã được gỡ. Xem [Mở rộng dữ liệu](calendar-tasks-notes-scaling.md) và [Gỡ kéo thả](remove-drag-and-drop.md) cho hành vi hiện hành. Bản ghi nhắc hạn/thông báo cũ vẫn cần chính sách lưu giữ khi dữ liệu tăng.
 
 Báo cáo này không xác nhận toàn bộ hệ thống sẵn sàng môi trường vận hành; các phần ngoài
 To-Do/Calendar đã được trả lại theo phạm vi yêu cầu.

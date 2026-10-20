@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, case, func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
+from app.core.datetime_utils import utc_mapping
 from app.db.calendar import CalendarEvent as Event
 from app.db.note_scheduling import NoteCalendarSchedule as Schedule
 from app.db.models import Task, User, utcnow
@@ -21,6 +22,7 @@ DbArg = Annotated[AsyncSession, Depends(get_db, scope="function")]
 async def events_page(user: UserArg, db: DbArg, start: datetime, end: datetime, limit: int = Query(500, ge=1, le=500), include_events: bool = True, include_notes: bool = True):
     if start.tzinfo is None or end.tzinfo is None or end <= start or end - start > timedelta(days=93):
         raise HTTPException(422, "Khoảng xem phải kèm múi giờ và tối đa 93 ngày.")
+    start, end = start.astimezone(timezone.utc), end.astimezone(timezone.utc)
     owned = (Event.user_id == user.id, Event.starts_at < end, Event.ends_at > start)
     is_note = Schedule.note_id.is_not(None)
     event_total, note_total = (await db.execute(select(func.count().filter(~is_note), func.count().filter(is_note))
@@ -30,7 +32,7 @@ async def events_page(user: UserArg, db: DbArg, start: datetime, end: datetime, 
     fields = [Event.id, Event.user_id, Event.title, Event.location, Event.starts_at, Event.ends_at,
               Event.is_all_day, Event.is_private, Event.color, Event.created_at, Event.updated_at, Schedule.note_id.label("scheduled_note_id")]
     rows = (await db.execute(select(*fields).outerjoin(Schedule, Schedule.event_id == Event.id).where(*owned, visible).order_by(Event.starts_at, Event.ends_at, Event.id).limit(limit))).mappings().all()
-    return {"items": [{**dict(row), "description": ""} for row in rows], "total": total, "event_total": event_total, "note_total": note_total, "truncated": total > len(rows)}
+    return {"items": [{**utc_mapping(row), "description": ""} for row in rows], "total": total, "event_total": event_total, "note_total": note_total, "truncated": total > len(rows)}
 
 
 @router.get("/days")

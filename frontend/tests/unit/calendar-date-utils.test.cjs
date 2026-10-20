@@ -105,3 +105,19 @@ test('bottom continuation arrows appear only when a timed interval extends beyon
   assert.equal(dates.eventContinuesNextDay({ ...item, ends_at: '2026-10-17T00:00:00+07:00' }, '2026-10-16'), false);
   assert.equal(dates.eventContinuesNextDay({ ...item, is_all_day: true }, '2026-10-16'), false);
 });
+
+test('scheduled note from 22 through 25 keeps its Vietnam days on other computers', () => {
+  const previous = process.env.TZ;
+  try {
+    for (const zone of ['Asia/Ho_Chi_Minh', 'UTC', 'America/Los_Angeles', 'Asia/Tokyo', 'Pacific/Kiritimati']) {
+      process.env.TZ = zone;
+      const appointment = event('note-22-25', '2026-10-21T17:00:00Z', '2026-10-25T17:00:00Z', true);
+      assert.equal(dates.toTimestamp(dates.parseDate('2026-10-22')), appointment.starts_at.replace('Z', '.000Z'));
+      assert.equal(dates.dateKey(dates.eventDate(appointment.starts_at)), '2026-10-22');
+      assert.equal(dates.dateKey(dates.eventDate(new Date(Date.parse(appointment.ends_at) - 1).toISOString())), '2026-10-25');
+      for (const [day, count] of [['21', 0], ['22', 1], ['23', 1], ['24', 1], ['25', 1], ['26', 0]]) {
+        assert.equal(dates.eventsOnDay([appointment], dates.parseDate('2026-10-' + day)).length, count, zone + ' day ' + day);
+      }
+    }
+  } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous; }
+});

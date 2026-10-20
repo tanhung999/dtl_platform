@@ -53,22 +53,28 @@ class CalendarInvalidationTests(ApiTestCase):
     async def versions(self):
         async with self.sessions() as db:return await read_versions(db,'alice')
 
-    async def test_ordinary_event_create_edit_resize_delete_never_changes_notes_version(self):
+    async def test_ordinary_event_create_edit_time_delete_never_changes_notes_version(self):
         before=await self.versions()
         status,row=await self.request('POST',payload=self.event_payload());self.assertEqual(status,201)
         self.assertEqual((await self.versions())['notes'],before['notes'])
         status,row=await self.request('PUT',f'/api/calendar/events/{row["id"]}',payload=self.event_payload(title='Renamed'));self.assertEqual(status,200)
-        status,row=await self.request('PATCH',f'/api/calendar/events/{row["id"]}/schedule',payload={'starts_at':'2026-10-12T09:00:00+07:00','ends_at':'2026-10-12T10:30:00+07:00','is_all_day':False,'expected_updated_at':row['updated_at']});self.assertEqual(status,200)
+        status,row=await self.request('PUT',f'/api/calendar/events/{row["id"]}',payload=self.event_payload(ends_at='2026-10-12T10:30:00+07:00',expected_updated_at=row['updated_at']));self.assertEqual(status,200)
         self.assertEqual((await self.versions())['notes'],before['notes'])
         status,_=await self.request('DELETE',f'/api/calendar/events/{row["id"]}');self.assertEqual(status,204)
         after=await self.versions();self.assertEqual(after['notes'],before['notes']);self.assertEqual(after['calendar'],before['calendar']+4)
 
-    async def test_linked_event_edit_resize_privacy_and_delete_notify_notes(self):
+    async def test_linked_event_edit_time_privacy_and_delete_notify_notes(self):
+        from app.modules.access.service import seed_catalog
+        from app.db.access import UserRole
+        async with self.sessions() as db:
+            await seed_catalog(db)
+            db.add(UserRole(user_id='alice', role_id='calendar_sharer'))
+            await db.commit()
         status,note=await self.request('POST','/api/notes',payload={'title':'Meeting note','content':'Keep this content','calendar_schedule':{'starts_at':'2026-10-12T09:00:00+07:00','ends_at':'2026-10-12T10:00:00+07:00','is_all_day':False}});self.assertEqual(status,201)
         event_id=note['calendar_schedule']['event_id'];version=(await self.versions())['notes']
         status,row=await self.request('PUT',f'/api/calendar/events/{event_id}',payload=self.event_payload(title='Changed appointment'));self.assertEqual(status,200)
         self.assertEqual((await self.versions())['notes'],version+1)
-        status,row=await self.request('PATCH',f'/api/calendar/events/{event_id}/schedule',payload={'starts_at':'2026-10-12T09:00:00+07:00','ends_at':'2026-10-12T10:30:00+07:00','is_all_day':False,'expected_updated_at':row['updated_at']});self.assertEqual(status,200)
+        status,row=await self.request('PUT',f'/api/calendar/events/{event_id}',payload=self.event_payload(ends_at='2026-10-12T10:30:00+07:00',expected_updated_at=row['updated_at']));self.assertEqual(status,200)
         self.assertEqual((await self.versions())['notes'],version+2)
         status,row=await self.request('PUT',f'/api/calendar/events/{event_id}',payload=self.event_payload(is_private=True));self.assertEqual(status,200)
         self.assertEqual((await self.versions())['notes'],version+3)

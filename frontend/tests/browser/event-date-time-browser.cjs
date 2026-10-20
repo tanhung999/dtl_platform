@@ -1,9 +1,9 @@
 const { chromium } = require('../.browser-tools/node_modules/playwright');
-const { createDragUsers } = require('../support/test-users.cjs');
+const { createTestUsers } = require('../support/test-users.cjs');
 const assert = require('node:assert/strict');
 
 (async () => {
-  const fixture = createDragUsers(1);
+  const fixture = createTestUsers(1);
   let browser;
   try {
     browser = await chromium.launch({ channel: 'msedge', headless: true });
@@ -70,7 +70,7 @@ const assert = require('node:assert/strict');
     await field('Ngày bắt đầu').fill('01/11/2026'); await field('Ngày kết thúc').fill('03/11/2026');
     const allDay = await save('PUT');
     assert.equal(allDay.is_all_day, true); assert.equal(allDay.starts_at, '2026-10-31T17:00:00Z'); assert.equal(allDay.ends_at, '2026-11-03T17:00:00Z');
-    await page.getByRole('button', { name: 'Toggle dark/light theme', exact: true }).click();
+    await page.getByRole('button', { name: 'Chọn giao diện', exact: true }).click(); await page.getByRole('radio', { name: /Midnight Dark/ }).click(); await page.getByRole('button', { name: 'Đóng chọn giao diện', exact: true }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     await widget.getByRole('button', { name: 'Tạo sự kiện', exact: true }).click();
     await field('Ngày kết thúc').click();
@@ -81,7 +81,7 @@ const assert = require('node:assert/strict');
     const timeBox = await page.getByRole('dialog').locator('.app-time-popover').boundingBox();
     assert.ok(timeBox.x >= 0 && timeBox.x + timeBox.width <= 391, JSON.stringify(timeBox));
     await page.screenshot({ path: 'tests/artifacts/event-date-time-mobile-dark.png', fullPage: true });
-    await page.getByRole('dialog').getByRole('button', { name: 'Hủy', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Đóng', exact: true }).click();
     assert.deepEqual(errors, []);
     console.log('PASS: shared date/time pickers, dd/mm/yyyy, required/invalid fields, end-date minimum, outside/Escape, 24-hour/PM, timed save/edit, all-day exclusive boundary, mobile and dark mode.');
   } finally { if (browser) await browser.close(); fixture.cleanup(); }

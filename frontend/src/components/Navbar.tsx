@@ -2,7 +2,7 @@ import { NotificationBell } from '../features/notifications/NotificationBell';
 import React from 'react';
 import { LogOut, User as UserIcon, UserCheck, ShieldCheck, CalendarDays } from 'lucide-react';
 import { FeatureIcon } from './FeatureIcon';
-import brandLogo from '../assets/logo.jpg';
+import brandLogo from '../assets/logo.png';
 import { User } from '../types';
 import { NavbarClock } from './NavbarClock';
 import { ThemeToggle } from './ThemeToggle';
@@ -23,7 +23,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, activeTab, onTabChange, on
         <img src={brandLogo} alt="Đông Tây One" className="nav-brand-logo" />
         <div className="nav-brand-text">
           <h1>ĐÔNG TÂY ONE</h1>
-          <span>Everything. In One Place</span>
+          <span>Everything In One Place</span>
         </div>
       </div>
 

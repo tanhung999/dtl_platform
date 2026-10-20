@@ -1,19 +1,18 @@
 """Versioned schema upgrades and workspace order data cleanup."""
 from sqlalchemy import inspect, text
 from app.core.database import Base, engine
-from app.db import models, calendar, task_reminders, workspace_layout
+from app.db import models, calendar, task_reminders
 from app.db import note_scheduling
 from app.db import create_requests
 from app.db import access
 from app.db import workspace_versions
+from app.db import schedule_changes
 from .sharing_reliability import migrate_sharing_reliability
 from .calendar_sharing import migrate_calendar_privacy, migrate_access_catalog
 from app.db import notifications
 from .notifications import migrate_notifications
 from .task_deadlines import migrate_task_deadlines
 from .task_reminder_snooze import migrate_task_reminder_snooze
-from .workspace_order_cleanup import migrate_workspace_order_cleanup
-from .widget_layout import migrate_widget_layout
 from .note_versions import migrate_note_versions
 from .remove_note_event_links import migrate_remove_note_event_links
 from .note_scheduling import migrate_note_scheduling
@@ -59,18 +58,6 @@ async def upgrade(conn):
     applied = await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version})
     if not applied:
         await task_calendar_schema(conn)
-        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
-
-    version = 'workspace_001_prune_order_ids'
-    applied = await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version})
-    if not applied:
-        await migrate_workspace_order_cleanup(conn)
-        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
-
-    version = 'workspace_002_widget_layout'
-    applied = await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version})
-    if not applied:
-        await migrate_widget_layout(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
     version = 'calendar_notes_001_links_and_version'
@@ -128,6 +115,35 @@ async def upgrade(conn):
     version = 'realtime_001_scope_versions'
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
         await conn.run_sync(lambda sync: workspace_versions.WorkspaceVersion.__table__.create(sync, checkfirst=True))
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'workspace_003_remove_drag_and_drop'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .remove_drag_and_drop import migrate_remove_drag_and_drop
+        await migrate_remove_drag_and_drop(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'tasks_001_server_search'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .task_search import migrate_task_search
+        await migrate_task_search(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'sharing_003_task_note_privacy'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .item_privacy import migrate_item_privacy
+        await migrate_item_privacy(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'scheduling_001_change_history'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        await conn.run_sync(lambda sync: schedule_changes.ScheduleChange.__table__.create(sync, checkfirst=True))
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'maintenance_001_retention_receipts'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .retention import migrate_retention
+        await migrate_retention(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
 async def run():

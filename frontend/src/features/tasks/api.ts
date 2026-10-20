@@ -14,8 +14,8 @@ const matchesTask = (task: Task, payload: Partial<TaskInput> & { is_completed?: 
 
 export const tasksApi = {
   get(id: string) { return requestWithTimeout<Task>(`/api/tasks/${encodeURIComponent(id)}`, { cache: 'no-store' }, 5000); },
-  collection(filter: TaskFilter, offset: number, overdueOffset: number, signal?: AbortSignal, after?: string, overdueAfter?: string) {
-    const params = new URLSearchParams({ filter, offset: String(offset), overdue_offset: String(overdueOffset) });
+  collection(filter: TaskFilter, offset: number, overdueOffset: number, signal?: AbortSignal, after?: string, overdueAfter?: string, limit = 8, query = '') {
+    const params = new URLSearchParams({ filter, offset: String(offset), overdue_offset: String(overdueOffset), limit: String(limit), q: query });
     if (after) params.set('after', after); if (overdueAfter) params.set('overdue_after', overdueAfter);
     return requestWithTimeout<TaskCollection>(`/api/tasks/collection?${params}`, { signal });
   },

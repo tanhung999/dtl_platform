@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Clock3 } from 'lucide-react';
 import './TimePicker.css';
+import { usePickerPopover } from './usePickerPopover';
 
 interface Props { value: string; onChange: (value: string) => void; label: string; disabled?: boolean; required?: boolean; }
 
@@ -11,6 +12,8 @@ export function TimePicker({ value, onChange, label, disabled = false, required 
   const input = useRef<HTMLInputElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const panelId = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  usePickerPopover(open, root, panel, 'end');
   const [hour, minute] = (value || '09:00').split(':');
   useEffect(() => { setText(value); input.current?.setCustomValidity(''); }, [value]);
   useEffect(() => {
@@ -36,7 +39,7 @@ export function TimePicker({ value, onChange, label, disabled = false, required 
       {value && <span className="app-time-period">{Number(value.slice(0, 2)) < 12 ? 'AM' : 'PM'}</span>}
       <button ref={trigger} type="button" aria-label={`Chọn ${label.toLowerCase()}`} aria-expanded={open} aria-controls={panelId} disabled={disabled} onClick={event => { event.stopPropagation(); setOpen(value => !value); }}><Clock3 size={16} /></button>
     </div>
-    {open && <div id={panelId} className="app-time-popover" role="group" aria-label={`Chọn ${label.toLowerCase()}`}>
+    {open && <div ref={panel} id={panelId} className="app-time-popover" role="group" aria-label={`Chọn ${label.toLowerCase()}`}>
       <div className="app-time-columns">
         <label>Giờ<select aria-label="Chọn giờ" size={6} value={hour} onChange={event => choose(`${event.target.value}:${minute}`)}>{Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(hour => <option key={hour} value={hour}>{hour}</option>)}</select></label>
         <label>Phút<select aria-label="Chọn phút" size={6} value={minute} onChange={event => choose(`${hour}:${event.target.value}`)}>{Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(minute => <option key={minute} value={minute}>{minute}</option>)}</select></label>

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { displayDateInput, parseDateInput, vietnamDate } from './dateInputUtils';
 import './DatePicker.css';
+import { usePickerPopover } from './usePickerPopover';
 
 interface Props { value: string; onChange: (value: string) => void; label: string; disabled?: boolean; required?: boolean; min?: string; align?: 'start' | 'end'; clearLabel?: string; }
 
@@ -13,6 +14,8 @@ export function DatePicker({ value, onChange, label, disabled = false, required 
   const input = useRef<HTMLInputElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const panelId = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  usePickerPopover(open, root, panel, align);
   const allowed = (date: string) => !min || date >= min;
   const validate = (raw: string) => {
     const parsed = parseDateInput(raw);
@@ -44,7 +47,7 @@ export function DatePicker({ value, onChange, label, disabled = false, required 
       event.target.setCustomValidity(validate(raw));
       if (parsed !== null && (!parsed || allowed(parsed))) onChange(parsed);
     }} /><button ref={trigger} type="button" disabled={disabled} aria-label={`Chọn ${label.toLowerCase()}`} aria-expanded={open} aria-controls={panelId} onClick={event => { event.stopPropagation(); setMonth((value || vietnamDate()).slice(0, 7)); setOpen(!open); }}><CalendarDays size={16} /></button></div>
-    {open && <div id={panelId} className={`app-date-popover ${align === 'end' ? 'is-end-aligned' : ''}`} role="group" aria-label={`Chọn ${label.toLowerCase()}`}>
+    {open && <div ref={panel} id={panelId} className="app-date-popover" role="group" aria-label={`Chọn ${label.toLowerCase()}`}>
       <div className="app-date-heading"><button type="button" aria-label="Tháng trước" onClick={() => move(-1)}><ChevronLeft size={16} /></button><strong>Tháng {first.getUTCMonth() + 1}, {first.getUTCFullYear()}</strong><button type="button" aria-label="Tháng sau" onClick={() => move(1)}><ChevronRight size={16} /></button></div>
       <div className="app-date-grid">{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(day => <span key={day}>{day}</span>)}{days.map(day => <button key={day} type="button" aria-label={`Chọn ngày ${displayDateInput(day)}`} aria-pressed={day === value} disabled={!allowed(day)} className={`${day.slice(0, 7) !== month ? 'outside-month' : ''} ${day === vietnamDate() ? 'is-today' : ''}`} onClick={() => choose(day)}>{Number(day.slice(8))}</button>)}</div>
       <div className="app-date-footer"><button type="button" disabled={!allowed(vietnamDate())} onClick={() => choose(vietnamDate())}>Hôm nay</button>{!required && <button type="button" onClick={() => choose('')}>{clearLabel}</button>}</div>

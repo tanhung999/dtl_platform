@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
+from app.core.datetime_utils import utc_mapping
 from app.core.realtime import mark_changed
 from app.db.access import CalendarShare
 from app.db.models import User, Task, Note, utcnow
@@ -123,10 +124,12 @@ async def collection(owner_id: str, user: UserArg, db: DbArg, start: datetime, e
     grant = await grant_for(db, owner_id, user.id)
     if start.tzinfo is None or end.tzinfo is None or end <= start or end-start > timedelta(days=93):
         raise HTTPException(422, 'Khoảng xem phải kèm múi giờ và tối đa 93 ngày.')
+    start, end = start.astimezone(timezone.utc), end.astimezone(timezone.utc)
     from app.modules.tasks.deadlines import VN
     first, last = start.astimezone(VN).date(), end.astimezone(VN).date()
     scope = or_(Schedule.note_id.is_(None) if grant.share_events else False, Schedule.note_id.is_not(None) if grant.share_notes else False)
-    conditions = (Event.user_id == owner_id, Event.is_private.is_(False), Event.starts_at < end, Event.ends_at > start, scope)
+    conditions = (Event.user_id == owner_id, Event.is_private.is_(False), Event.starts_at < end, Event.ends_at > start, scope,
+                  or_(Schedule.note_id.is_(None), Note.is_private.is_(False)))
     fields = [Event.id, Event.title, Event.starts_at, Event.ends_at, Event.is_all_day, Schedule.note_id,
               Note.color.label('note_color'), func.count().over().label('_total')]
     rows = []
@@ -137,7 +140,7 @@ async def collection(owner_id: str, user: UserArg, db: DbArg, start: datetime, e
     items = [{**{key: value for key, value in row.items() if key != '_total'}, 'kind': 'note' if row['note_id'] else 'event'} for row in rows]
     total_tasks = 0
     if grant.share_tasks:
-        where = (Task.user_id == owner_id, Task.due_date >= first, Task.due_date < last)
+        where = (Task.user_id == owner_id, Task.is_private.is_(False), Task.due_date >= first, Task.due_date < last)
         tasks = (await db.execute(select(Task.id, Task.title, Task.due_date, Task.due_time, Task.priority, Task.is_completed, func.count().over().label('_total'))
             .where(*where).order_by(Task.due_date, Task.due_time.asc().nulls_first(), Task.id).limit(500))).mappings().all()
         total_tasks = tasks[0]['_total'] if tasks else 0
@@ -152,13 +155,13 @@ async def collection(owner_id: str, user: UserArg, db: DbArg, start: datetime, e
             stamp = stamp.replace(tzinfo=timezone.utc)
         return (stamp.timestamp(), row['id'], row['kind'])
     items.sort(key=sort_key)
-    return {'items': items[:500], 'total': total, 'truncated': total > min(len(items), 500), **flags(grant)}
+    return {'items': [utc_mapping(item) for item in items[:500]], 'total': total, 'truncated': total > min(len(items), 500), **flags(grant)}
 
 @router.get('/view/{owner_id}/{kind}/{item_id}')
 async def detail(owner_id: str, kind: str, item_id: str, user: UserArg, db: DbArg):
     grant = await grant_for(db, owner_id, user.id)
     if kind == 'task' and grant.share_tasks:
-        row = await db.scalar(select(Task).where(Task.id == item_id, Task.user_id == owner_id, Task.due_date.is_not(None)))
+        row = await db.scalar(select(Task).where(Task.id == item_id, Task.user_id == owner_id, Task.is_private.is_(False), Task.due_date.is_not(None)))
         if row: return {'kind': kind, 'id': row.id, 'title': row.title, 'content': row.description or '', 'due_date': row.due_date,
                         'due_time': row.due_time, 'is_completed': row.is_completed, 'priority': row.priority}
     if kind in ('event', 'note') and (grant.share_events if kind == 'event' else grant.share_notes):
@@ -167,9 +170,9 @@ async def detail(owner_id: str, kind: str, item_id: str, user: UserArg, db: DbAr
         result = (await db.execute(query)).first()
         if result:
             event, note_id = result
-            note = await db.scalar(select(Note).where(Note.id == note_id, Note.user_id == owner_id)) if note_id else None
+            note = await db.scalar(select(Note).where(Note.id == note_id, Note.user_id == owner_id, Note.is_private.is_(False))) if note_id else None
             if note_id and not note: raise HTTPException(404, 'Không tìm thấy ghi chú.')
-            return {'kind': kind, 'id': event.id, 'title': note.title if note else event.title,
+            return utc_mapping({'kind': kind, 'id': event.id, 'title': note.title if note else event.title,
                     'content': note.content if note else event.description, 'location': event.location if not note else '',
-                    'color': note.color if note else None, 'starts_at': event.starts_at, 'ends_at': event.ends_at, 'is_all_day': event.is_all_day}
+                    'color': note.color if note else None, 'starts_at': event.starts_at, 'ends_at': event.ends_at, 'is_all_day': event.is_all_day})
     raise HTTPException(404, 'Mục không tồn tại hoặc không được chia sẻ.')

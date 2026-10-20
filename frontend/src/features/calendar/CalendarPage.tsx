@@ -1,4 +1,4 @@
-import { AnimatedCount } from '../drag-feedback/AnimatedCount';
+import { AnimatedCount } from '../../components/AnimatedCount';
 import { ReactNode, useEffect, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react';
 import { addDays, addMonths, dateKey, formatDate, monthDays, parseDate, startOfWeek, today, toTimestamp, viewRange } from './dateUtils';
@@ -12,7 +12,7 @@ import { CalendarItemModal } from './components/CalendarItemModal';
 import { OverdueGroup } from './components/OverdueGroup';
 import { useTaskRange } from '../tasks/useTaskRange';
 import { useTasks } from '../tasks/context/TasksContext';
-import { isOverdue, vietnamDay } from '../tasks/deadlineUtils';
+import { vietnamDay } from '../tasks/deadlineUtils';
 import './calendar.css';
 import { EventStatusLegend } from './components/EventStatusBadge';
 import { calendarApi } from './api';
@@ -50,7 +50,7 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
   const [openError, setOpenError] = useState('');
   const todayKey = vietnamDay(tasksData.now);
   const deadlineCount = deadlineData.total;
-  const visibleTasks = showTasks ? deadlineData.tasks.filter(task => !isOverdue(task, tasksData.now)) : [];
+  const visibleTasks = showTasks ? deadlineData.tasks : [];
   const inCurrentPeriod = view === 'week' ? dateKey(startOfWeek(anchor)) === dateKey(startOfWeek(today()))
     : view === 'month' ? dateKey(anchor).slice(0, 7) === todayKey.slice(0, 7) : dateKey(anchor) === todayKey;
 
@@ -74,12 +74,12 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
   const viewProps = { anchor, events: data.events.filter(event => event.scheduled_note_id ? showNotes : showEvents), tasks: visibleTasks, onCreate, onSelect };
 
   return <div className={`calendar-page ${sharingControls ? 'has-sharing' : ''}`}>
-    <div className="calendar-page-heading"><div className="calendar-page-heading-icon"><FeatureIcon name="calendar" size={34} /></div><div><h1>Lịch làm việc</h1><p>Sắp xếp thời gian, dành chỗ cho điều quan trọng.</p></div></div>
+    <div className="calendar-page-heading"><div className="calendar-page-heading-icon"><FeatureIcon name="calendar" size={34} /></div><div><h1>Lịch làm việc</h1></div></div>
     <div className="calendar-shell">
       <aside className="calendar-sidebar">
         <button type="button" className="calendar-create-button" onClick={() => onCreate({ date: anchor })}><Plus size={25} /><span>Tạo sự kiện</span></button>
         <MiniCalendar month={miniMonth} selected={anchor} onMonthChange={setMiniMonth} onSelect={selectDate} events={[]} tasks={[]} counts={miniData.days} showEvents={showEvents} showNotes={showNotes} showTasks={showTasks} highlightWeek={view === 'week'} />
-        <div className="calendar-sidebar-section"><span className="calendar-eyebrow">LỊCH CỦA TÔI</span><h3 className="calendar-owner-name">{ownerName}</h3><label className="calendar-task-toggle calendar-event-toggle"><input type="checkbox" aria-label="Hiện sự kiện" checked={showEvents} onChange={event => setShowEvents(event.target.checked)} /><span>Sự kiện</span><span className="calendar-toggle-count" title="Số sự kiện trong khoảng đang xem"><AnimatedCount value={data.eventTotal} /></span></label><label className="calendar-task-toggle calendar-deadline-toggle"><input type="checkbox" aria-label="Hiện việc cần làm" checked={showTasks} onChange={event => setShowTasks(event.target.checked)} /><span>Việc cần làm</span><span className="calendar-toggle-count" title="Số hạn công việc trong khoảng đang xem"><AnimatedCount value={deadlineCount} /></span></label><label className="calendar-task-toggle calendar-note-toggle"><input type="checkbox" aria-label="Hiện ghi chú" checked={showNotes} onChange={event => setShowNotes(event.target.checked)} /><span>Ghi chú</span><span className="calendar-toggle-count" title="Số ghi chú đã đặt lịch trong khoảng đang xem"><AnimatedCount value={data.noteTotal} /></span></label><div className="calendar-event-legend-section"><h4>Trạng thái sự kiện</h4><EventStatusLegend /></div></div>
+        <div className="calendar-sidebar-section"><span className="calendar-eyebrow">LỊCH CỦA TÔI</span><h3 className="calendar-owner-name">{ownerName}</h3><label className="calendar-task-toggle calendar-event-toggle"><input type="checkbox" aria-label="Hiện sự kiện" checked={showEvents} onChange={event => setShowEvents(event.target.checked)} /><span>Sự kiện</span><span className="calendar-toggle-count" title="Số sự kiện trong khoảng đang xem"><AnimatedCount value={data.eventTotal} /></span></label><label className="calendar-task-toggle calendar-deadline-toggle"><input type="checkbox" aria-label="Hiện việc cần làm" checked={showTasks} onChange={event => setShowTasks(event.target.checked)} /><span>Việc cần làm</span><span className="calendar-toggle-count" title="Số hạn công việc trong khoảng đang xem"><AnimatedCount value={deadlineCount} /></span></label><label className="calendar-task-toggle calendar-note-toggle"><input type="checkbox" aria-label="Hiện ghi chú" checked={showNotes} onChange={event => setShowNotes(event.target.checked)} /><span>Ghi chú</span><span className="calendar-toggle-count" title="Số ghi chú đã đặt lịch trong khoảng đang xem"><AnimatedCount value={data.noteTotal} /></span></label><div className="calendar-event-legend-section"><h4>Trạng thái sự kiện và ghi chú</h4><EventStatusLegend /></div></div>
         {sharingControls}
         <div className="calendar-sidebar-note"><CalendarDays size={18} /><p>Lịch riêng của bạn.<br />Hiển thị theo giờ Việt Nam (UTC+7).</p></div>
       </aside>
@@ -104,7 +104,7 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
         {showTasks && <OverdueGroup compact />}
         {data.error ? <div className="calendar-error-state" role="alert"><p>{data.error}</p><button type="button" className="btn btn-outline btn-sm" onClick={data.refresh}>Thử lại</button></div>
           : <div className="calendar-view-content" aria-busy={data.loading}>
-            {view === 'week' && <WeekView {...viewProps} showEarlyHours={showEarlyHours} onChangeWeek={selectDate} onShowDay={date => { selectDate(date); setView('agenda'); }} />}
+            {view === 'week' && <WeekView {...viewProps} showEarlyHours={showEarlyHours} onShowDay={date => { selectDate(date); setView('agenda'); }} />}
             {view === 'month' && <MonthView {...viewProps} onShowDay={date => { selectDate(date); setView('agenda'); }} />}
             {view === 'agenda' && !data.loading && <AgendaView {...viewProps} />}
           </div>}

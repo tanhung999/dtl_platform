@@ -1,9 +1,9 @@
 import { CalendarEvent } from './types';
 
 export const EVENT_STATUSES = {
-  upcoming: { label: 'Sắp tới', color: '#2563EB' },
-  ongoing: { label: 'Đang diễn ra', color: '#16A34A' },
-  ended: { label: 'Đã kết thúc', color: '#64748B' },
+  upcoming: { label: 'Sắp tới', color: '#EAB308' },
+  ongoing: { label: 'Đang diễn ra', color: '#2563EB' },
+  ended: { label: 'Đã kết thúc', color: '#16A34A' },
 } as const;
 
 export function eventStatus(event: Pick<CalendarEvent, 'starts_at' | 'ends_at'>, now: Date, displayDay: string) {

@@ -2,8 +2,6 @@
 
 Mô-đun lịch nội bộ của DTL Platform, không phụ thuộc Google Lịch hay dịch vụ bên ngoài.
 
-Kéo công việc từ To-Do vào ngày trên tiện ích Lịch: xem [Kéo công việc sang lịch](task-calendar-drag.md).
-Kéo/co giãn sự kiện, sắp xếp thẻ và ghim Ghi chú: xem [Kéo sự kiện và sắp xếp Workspace](workspace-drag-and-events.md).
 
 ## Giao diện
 
@@ -18,18 +16,17 @@ Kéo/co giãn sự kiện, sắp xếp thẻ và ghim Ghi chú: xem [Kéo sự k
   thời điểm kết thúc phải sau bắt đầu. Sự kiện cả ngày không hiện ô giờ và vẫn
   tính ngày kết thúc trên biểu mẫu là ngày bao gồm.
 - Hỗ trợ sự kiện có giờ, cả ngày, nhiều ngày, địa điểm và mô tả.
-- Màu tự đổi theo thời gian: Sắp tới xanh dương `#2563EB`, Đang diễn ra xanh lá
-  `#16A34A`, Đã kết thúc xám `#64748B`. Nền nhạt, viền hoặc chấm đậm, có nhãn trạng thái.
-  Mỗi phần hiển thị xét theo ngày của ô lịch: ngày đã qua xám, ngày chưa tới xanh
-  dương; hôm nay xét giờ bắt đầu/kết thúc. Cùng một sự kiện nhiều ngày có thể có
-  màu khác nhau ở các ngày. Cập nhật mỗi giây ở mọi chế độ xem và tiện ích, không
+- Màu tự đổi theo thời gian: Sắp tới vàng `#EAB308`, Đang diễn ra xanh dương
+  `#2563EB`, Đã kết thúc xanh lá `#16A34A`. Quy tắc áp dụng cho cả sự kiện và ghi chú có lịch hẹn. Nền nhạt, viền hoặc chấm đậm, có nhãn trạng thái.
+  Mỗi phần hiển thị xét theo ngày của ô lịch: ngày đã qua xanh lá, ngày chưa tới
+  vàng; hôm nay xét giờ bắt đầu/kết thúc. Cùng một sự kiện nhiều ngày có thể có
+  màu khác nhau ở các ngày. Cập nhật mỗi phút ở mọi chế độ xem và tiện ích, không
   cần tải lại. Sự kiện cả ngày
   dùng biên 00:00 Việt Nam, kết thúc không bao gồm. Sự kiện đã kết thúc giảm độ
   nổi bật nhưng không gạch ngang. Hạn công việc To-Do giữ màu theo ưu tiên.
 - Tuần bắt đầu thứ Hai. Tất cả giao diện hiển thị giờ Việt Nam (UTC+7), kể cả
   khi trình duyệt dùng múi giờ khác. Điện thoại mặc định xem Danh sách.
-- Lịch trùng giờ hiển thị cạnh nhau. Không có nhắc sự kiện, lịch lặp hay lịch chia sẻ
-  trong phạm vi phiên bản đầu tiên.
+- Lịch trùng giờ hiển thị cạnh nhau. Quyền xem lịch của người khác được mô tả trong [Chia sẻ lịch](calendar-sharing.md). Chưa có lịch lặp.
 - Lịch Tuần mở ở 08:00; 00:00–06:00 mặc định ẩn, công tắc “Hiện khung giờ đêm”
   nằm cạnh nút tải lại. Cột hôm nay có nền nhẹ, vạch giờ hiện tại trải hết cột.
 - Cả ngày tự giãn tối đa bốn dòng, không cuộn riêng; `+n mục` mở Danh sách
@@ -42,8 +39,7 @@ Kéo/co giãn sự kiện, sắp xếp thẻ và ghim Ghi chú: xem [Kéo sự k
 - Sự kiện trùng giờ trong cột hẹp chỉ hiện tên và giờ; chú thích khi rê chuột và hộp chi tiết
   giữ trạng thái. Lịch tháng nhỏ tô tuần đang xem, chấm đánh dấu ngày có dữ liệu.
 - Công tắc Việc cần làm ở thanh bên và nhãn số hạn dùng chung trạng thái, áp dụng
-  cho Tuần/Tháng/Danh sách, ghi nhớ ở trình duyệt. Việc quá hạn chỉ hiện trong
-  khung thông báo dạng dòng ngắn; không vẽ lại trong lưới hoặc danh sách ngày.
+  cho Tuần/Tháng/Danh sách, ghi nhớ ở trình duyệt. Việc quá hạn vẫn hiện đúng ngày/giờ hạn trong Tuần/Tháng/Danh sách và widget, đồng thời có trong khung tổng hợp quá hạn. Lịch được chia sẻ dùng cùng quy tắc.
 - Ô chọn Sự kiện và nhãn số sự kiện bật/tắt sự kiện độc lập với việc cần làm,
   áp dụng cho Tuần/Tháng/Danh sách và chấm lịch nhỏ. Lựa chọn được ghi nhớ
   riêng theo ID người dùng trong localStorage, trên trình duyệt đang sử dụng.
@@ -147,3 +143,5 @@ Kịch bản trình duyệt dùng tài khoản phát triển `admin/admin123`, t
 QA và dọn đúng các sự kiện đó sau khi chạy. Có thể đặt `CALENDAR_TEST_URL`,
 `CALENDAR_TEST_USERNAME`, `CALENDAR_TEST_PASSWORD`, `CALENDAR_BROWSER_CHANNEL`.
 Ảnh kiểm tra lưu ở `frontend/tests/artifacts/` (không đưa vào Git).
+
+Nền màu trạng thái sự kiện và ghi chú dùng hệ số `--calendar-status-strength: 1.3`: tăng 30% độ phủ màu so với trước, giữ nguyên màu cơ sở của chấm/viền và màu ưu tiên Tasks. Thanh Notes cả ngày dùng viền trên nét đứt trên từng đoạn ngày, tương ứng với viền bên nét đứt của Notes có giờ; sự kiện giữ viền liền.

@@ -1,5 +1,6 @@
 import uuid
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
+from app.db.types import UTCDateTime
 from app.core.database import Base
 from app.db.models import utcnow
 
@@ -11,5 +12,5 @@ class TaskReminderReceipt(Base):
     task_id = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     deadline_version = Column(Integer, nullable=False)
     kind = Column(String(10), nullable=False)
-    dismissed_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
-    snoozed_until = Column(DateTime(timezone=True), nullable=True)
+    dismissed_at = Column(UTCDateTime(), nullable=False, default=utcnow)
+    snoozed_until = Column(UTCDateTime(), nullable=True)

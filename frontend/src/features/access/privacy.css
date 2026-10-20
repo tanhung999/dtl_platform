@@ -1,0 +1,9 @@
+.privacy-setting { display:grid; gap:6px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-surface); color:var(--text-main); text-align:left; min-width:0; }
+.privacy-setting .privacy-setting-toggle { display:flex; flex-direction:row; justify-content:flex-start; align-items:center; gap:8px; margin:0; font-size:13px; font-weight:600; cursor:pointer; }
+.privacy-setting .privacy-setting-toggle input { width:16px; height:16px; flex:0 0 16px; margin:0; accent-color:var(--accent); }
+.privacy-setting-toggle svg { flex-shrink:0; }
+.privacy-setting p { margin:0; font-size:12px; line-height:1.5; color:var(--text-muted); }
+.note-editor-dialog .privacy-setting { margin-top:12px; background:#ffffff55; border-color:#0002; color:#334155; }
+.note-editor-dialog .privacy-setting p { color:#475569; }
+.note-title-with-lock { display:flex; align-items:center; gap:4px; }
+.note-title-with-lock svg { flex-shrink:0; }

@@ -23,6 +23,7 @@ export interface AuthSession {
 }
 
 export interface Note {
+  is_private: boolean;
   calendar_schedule?: import("../features/note-scheduling/types").NoteSchedule | null;
   version: number;
   id: string;
@@ -39,6 +40,7 @@ export interface Note {
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 export interface Task {
+  is_private: boolean;
   version: number;
   id: string;
   user_id: string;
@@ -50,7 +52,6 @@ export interface Task {
   legacy_due_date?: string | null;
   deadline_version: number;
   is_completed: boolean;
-  display_order: number;
   created_at: string;
   updated_at: string;
 }

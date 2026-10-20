@@ -1,11 +1,10 @@
+import { AllDayEventBar } from './AllDayEventBar';
 import { CalendarViewProps } from '../types';
 import { addDays, dateKey, formatDate, startOfWeek } from '../dateUtils';
 import { allDayPlacements } from '../allDayPlacements';
 import { useTasks } from '../../tasks/context/TasksContext';
 import { DeadlineRow } from './DeadlineRow';
 import { vietnamDay } from '../../tasks/deadlineUtils';
-import { CalendarDeadlineDropZone } from '../../task-calendar/CalendarDeadlineDropZone';
-import { AllDayEventBar } from '../../calendar-dnd/AllDayEventBar';
 
 interface Props extends CalendarViewProps { onShowDay: (date: Date) => void; }
 
@@ -16,7 +15,7 @@ export function AllDayWeek({ anchor, events, tasks, onCreate, onSelect, onShowDa
   const rows = Math.max(1, Math.min(4, items.reduce((max, item) => Math.max(max, item.lane + 1), 0)));
   return <div className="calendar-week-all-day" style={{ gridTemplateRows: `repeat(${rows}, 32px) 26px`, rowGap: 4 }}>
     <span className="calendar-zone" style={{ gridColumn: 1, gridRow: `1 / span ${rows + 1}` }}>Cả ngày</span>
-    {days.map((day, index) => <CalendarDeadlineDropZone key={dateKey(day)} target={{ type: 'calendar-all-day', date: dateKey(day) }} className={`calendar-all-day-background ${dateKey(day) === vietnamDay(now) ? 'is-today' : ''}`} style={{ gridColumn: index + 2, gridRow: `1 / span ${rows + 1}` }} />)}
+    {days.map((day, index) => <div key={dateKey(day)} data-date={dateKey(day)} className={`calendar-all-day-background ${dateKey(day) === vietnamDay(now) ? 'is-today' : ''}`} style={{ gridColumn: index + 2, gridRow: `1 / span ${rows + 1}` }} />)}
     {items.filter(item => item.lane < 4).map(item => {
       const style = { gridColumn: `${item.start + 2} / span ${item.end - item.start + 1}`, gridRow: item.lane + 1 };
       if (item.kind === 'deadline') return <div key={`task-${item.task.id}`} className="calendar-all-day-cell calendar-all-day-placement" style={style}><DeadlineRow task={item.task} /></div>;

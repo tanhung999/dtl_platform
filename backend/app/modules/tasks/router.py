@@ -15,19 +15,13 @@ from app.modules.creation import create_once
 from app.modules.notifications.scheduling import sync_task_jobs
 from app.db.notifications import Notification, NotificationJob
 
+from .ownership import owned_task
+
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
 Database = Annotated[AsyncSession, Depends(get_db, scope="function")]
 
 
-async def owned_task(task_id: str, user: User, db: AsyncSession, *, lock=False):
-    stmt = select(Task).where(Task.id == task_id, Task.user_id == user.id)
-    if lock:
-        stmt = stmt.with_for_update()
-    task = (await db.execute(stmt)).scalar_one_or_none()
-    if task is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy công việc.")
-    return task
 
 
 @router.get("", response_model=list[TaskResponse])
@@ -98,6 +92,8 @@ async def snooze_reminder(task_id: str, kind: Literal["before", "day"], payload:
 async def create_task(payload: TaskCreate, user: CurrentUser, db: Database):
     data = payload.model_dump(exclude={"client_request_id"})
     async def create():
+        from app.modules.access.privacy import require_privacy_change
+        await require_privacy_change(db, user.id, payload.is_private)
         created_at = utcnow()
         due_date = payload.due_date or (created_at.astimezone(VN).date() if payload.due_time else None)
         task = Task(user_id=user.id, created_at=created_at, updated_at=created_at,
@@ -107,39 +103,13 @@ async def create_task(payload: TaskCreate, user: CurrentUser, db: Database):
         await sync_task_jobs(db, task, created_at)
         mark_changed(db, user.id, "tasks")
         return task
-    return await create_once(db, user, "task", payload.client_request_id, data, Task, create)
+    return await create_once(db, user, "task", payload.client_request_id, {k: v for k, v in data.items() if k != 'is_private' or v}, Task, create)
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
 async def update_task(task_id: str, payload: TaskUpdate, user: CurrentUser, db: Database):
-    task = await owned_task(task_id, user, db, lock=True)
-    data = payload.model_dump(exclude_unset=True)
-    if data.pop("expected_version") != task.version:
-        raise HTTPException(409, "Công việc đã thay đổi. Bản sửa của bạn được giữ; hãy mở lại bản mới trước khi lưu.")
-    expected_version = data.pop("expected_deadline_version", None)
-    if expected_version is not None and task.deadline_version != expected_version:
-        raise HTTPException(status_code=409, detail="Hạn công việc đã thay đổi. Vui lòng thử lại với hạn mới nhất.")
-    if "due_date" in data:
-        data["due_date"] = payload.due_date.isoformat() if payload.due_date else None
-        if data["due_date"] is None and "due_time" not in data:
-            data["due_time"] = None
-    date_value, time_value = data.get("due_date", task.due_date), data.get("due_time", task.due_time)
-    if time_value and not date_value:
-        created_at = task.created_at
-        if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
-        date_value = data["due_date"] = created_at.astimezone(VN).date().isoformat()
-    if (date_value, time_value) != (task.due_date, task.due_time):
-        task.deadline_version += 1
-    for key, value in data.items():
-        setattr(task, key, value)
-    task.version += 1
-    task.updated_at = utcnow()
-    await db.flush()
-    await sync_task_jobs(db, task)
-    mark_changed(db, user.id, "notifications")
-    mark_changed(db, user.id, "tasks")
-    return task
+    from .service import update_task_service
+    return await update_task_service(task_id, payload, user, db)
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

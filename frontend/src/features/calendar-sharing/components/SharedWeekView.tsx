@@ -28,13 +28,13 @@ export function SharedWeekView({ anchor, items, now, showEarlyHours, onSelect, o
       {days.map((day, index) => <div key={dateKey(day)} className={`calendar-all-day-background ${dateKey(day) === todayKey ? 'is-today' : ''}`} style={{ gridColumn:index+2, gridRow:`1 / span ${rows+1}` }} />)}
       {allDay.filter(item => item.lane<4).map(placement => {
         const style = { gridColumn:`${placement.start+2} / span ${placement.end-placement.start+1}`, gridRow:placement.lane+1 };
-        if (placement.kind === 'deadline') return <div key={placement.task.id} className="calendar-all-day-cell calendar-all-day-placement" style={style}><SharedItemCard item={lookup.get(placement.task.id)!} day={dateKey(days[placement.start])} now={now} onSelect={onSelect} compact /></div>;
+        if (placement.kind === 'deadline') return <div key={placement.task.id} className="calendar-all-day-cell calendar-all-day-placement" style={style}><SharedItemCard item={lookup.get(placement.task.id)!} day={dateKey(days[placement.start])} now={now} onSelect={onSelect} /></div>;
         const event=placement.event, item=lookup.get(event.id)!, covered=days.slice(placement.start, placement.end+1);
         const before=Date.parse(event.starts_at)<Date.parse(toTimestamp(weekStart)), after=Date.parse(event.ends_at)>Date.parse(toTimestamp(addDays(weekStart,7)));
         return <div key={event.id} className="calendar-all-day-event-frame shared-all-day-frame" style={style}><button type="button" data-shared-id={item.id} data-shared-kind={item.kind}
           className={`calendar-event is-compact calendar-all-day-span shared-calendar-item ${item.kind === 'note' ? 'is-note' : ''}`} title={sharedRangeLabel(item)} onClick={() => onSelect(item)} style={{ '--event-color':eventStatus(event,now,dateKey(covered[0])).color } as CSSProperties}>
           <span className="calendar-all-day-segments" aria-hidden="true">{covered.map(day => <span key={dateKey(day)} style={{ '--event-color':eventStatus(event,now,dateKey(day)).color } as CSSProperties} />)}</span>
-          {before && <span className="calendar-all-day-continuation" aria-label="Tiếp tục từ tuần trước">◂</span>}<span className="calendar-event-title"><CalendarItemTitle event={event} compact /></span><span className="calendar-event-time">Cả ngày</span>{after && <span className="calendar-all-day-continuation" aria-label="Tiếp tục sang tuần sau">▸</span>}
+          {before && <span className="calendar-all-day-continuation" aria-label="Tiếp tục từ tuần trước">◂</span>}<span className="calendar-event-title"><CalendarItemTitle event={event} /></span><span className="calendar-event-time">Cả ngày</span>{after && <span className="calendar-all-day-continuation" aria-label="Tiếp tục sang tuần sau">▸</span>}
         </button></div>;
       })}
       {days.map((day,index) => { const extra=allDay.filter(item=>item.lane>=4 && item.start<=index && item.end>=index).length;

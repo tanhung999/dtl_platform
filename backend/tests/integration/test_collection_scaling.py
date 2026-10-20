@@ -1,4 +1,4 @@
-"""Revision conflicts, SQL pages, relative ordering, reconnect and reminder scheduling."""
+"""Revision conflicts, SQL pages, reconnect and reminder scheduling."""
 import asyncio
 import json
 import unittest
@@ -111,68 +111,8 @@ class CollectionScalingTests(unittest.IsolatedAsyncioTestCase):
         _, page = await self.request('GET', '/api/tasks/collection', query={'limit': 1, 'offset': 1})
         self.assertEqual(page['items'][0]['id'], all_day['id'])
 
-    async def test_relative_note_moves_preserve_hidden_ids_and_reject_stale_order(self):
-        ids = []
-        for i in range(30):
-            _, note = await self.request('POST', '/api/notes', payload={'title': f'Note {i}'})
-            ids.append(note['id'])
-        await self.request('PUT', '/api/workspace/layout/notes', payload={'ids': ids, 'expected_version': 0})
-        status, saved = await self.request('POST', '/api/notes/' + ids[2] + '/move', payload={'expected_version': 1, 'placement': 'after', 'anchor_id': ids[25]})
-        self.assertEqual(status, 200)
-        expected = ids[:2] + ids[3:26] + [ids[2]] + ids[26:]
-        _, layout = await self.request('GET', '/api/workspace/layout')
-        self.assertEqual(layout['notes']['ids'], expected)
-        _, page = await self.request('GET', '/api/notes/collection/page')
-        self.assertEqual(page['order_ids'], expected[:24])
-        self.assertEqual(page['order_version'], saved['version'])
-        self.assertEqual((await self.request('POST', '/api/notes/' + ids[3] + '/move', payload={'expected_version': 1, 'placement': 'start'}))[0], 409)
-        self.assertEqual((await self.request('POST', '/api/notes/' + ids[3] + '/move', user='bob', payload={'expected_version': 0, 'placement': 'start'}))[0], 404)
-        # Repeated insertion uses integer shifts; no floating-point midpoint exhaustion.
-        for i in range(24):
-            _, version = await self.request('GET', '/api/notes/collection/page')
-            status, _ = await self.request('POST', '/api/notes/' + ids[27 + i % 3] + '/move', payload={'expected_version': version['order_version'], 'placement': 'before', 'anchor_id': ids[0]})
-            self.assertEqual(status, 200)
-        async with self.sessions() as db:
-            positions = (await db.scalars(select(Note.sort_order))).all()
-            self.assertEqual(len(set(positions)), len(ids))
-        _, lite = await self.request('GET', '/api/workspace/layout', query={'include_note_ids': 'false'})
-        self.assertEqual(lite['notes']['ids'], [])
 
-    async def test_archive_restore_delete_invalidate_order_without_legacy_json_ids(self):
-        notes = []
-        for i in range(3):
-            _, note = await self.request('POST', '/api/notes', payload={'title': str(i)})
-            notes.append(note)
-        _, moved = await self.request('POST', '/api/notes/' + notes[0]['id'] + '/move', payload={'expected_version': 0, 'placement': 'start'})
-        path = '/api/notes/' + notes[1]['id']
-        await self.request('PATCH', path, payload={'is_archived': True, 'expected_version': 0})
-        _, page = await self.request('GET', '/api/notes/collection/page')
-        self.assertGreater(page['order_version'], moved['version'])
-        stale = {'expected_version': moved['version'], 'placement': 'end'}
-        self.assertEqual((await self.request('POST', '/api/notes/' + notes[0]['id'] + '/move', payload=stale))[0], 409)
-        archived_version = page['order_version']
-        await self.request('PATCH', path, payload={'is_archived': False, 'expected_version': 1})
-        _, page = await self.request('GET', '/api/notes/collection/page')
-        self.assertGreater(page['order_version'], archived_version)
-        restored_version = page['order_version']
-        await self.request('DELETE', path)
-        _, page = await self.request('GET', '/api/notes/collection/page')
-        self.assertGreater(page['order_version'], restored_version)
 
-    async def test_pin_boundary_and_revision_on_relative_move(self):
-        ids = []
-        for i in range(4):
-            _, note = await self.request('POST', '/api/notes', payload={'title': str(i), 'is_pinned': i < 2})
-            ids.append(note['id'])
-        await self.request('PUT', '/api/workspace/layout/notes', payload={'ids': ids, 'expected_version': 0})
-        _, saved = await self.request('POST', '/api/notes/' + ids[0] + '/move', payload={'expected_version': 1, 'placement': 'end'})
-        _, page = await self.request('GET', '/api/notes/collection/page')
-        self.assertEqual([n['id'] for n in page['items']], [ids[1], ids[0], ids[2], ids[3]])
-        _, saved = await self.request('POST', '/api/notes/' + ids[3] + '/move', payload={'expected_version': saved['version'], 'placement': 'start', 'pinned': True})
-        _, page = await self.request('GET', '/api/notes/collection/page')
-        self.assertEqual(page['items'][0]['id'], ids[3])
-        self.assertTrue(page['items'][0]['is_pinned'])
-        self.assertEqual((await self.request('GET', '/api/notes/' + ids[3]))[1]['version'], 1)
 
     async def test_reminder_next_check_snooze_and_early_deadline(self):
         _, task = await self.request('POST', '/api/tasks', payload={'title': 'Early', 'due_date': '2026-10-13', 'due_time': '00:10'})
@@ -214,7 +154,7 @@ class CollectionScalingTests(unittest.IsolatedAsyncioTestCase):
             first = await anext(messages)
             topics = json.loads(first.removeprefix('data: ').strip())['topics']
             self.assertEqual(set(topics), set(ALL_TOPICS))
-            self.assertTrue({'notes', 'layout'}.issubset(topics))
+            self.assertTrue({'notes'}.issubset(topics))
             async def timed_out(awaitable, timeout):
                 awaitable.close()
                 raise asyncio.TimeoutError()

@@ -4,15 +4,6 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script>
-      // Apply the saved palette before rendering to avoid a light flash on reload.
-      try {
-        var dtlTheme = localStorage.getItem('dtl_theme');
-        if (!['light', 'dark', 'aurora', 'ivory', 'sunset', 'obsidian', 'emerald'].includes(dtlTheme)) dtlTheme = 'light';
-        document.documentElement.dataset.theme = dtlTheme;
-        document.documentElement.style.colorScheme = dtlTheme === 'dark' || dtlTheme === 'obsidian' ? 'dark' : 'light';
-      } catch (_) { document.documentElement.dataset.theme = 'light'; }
-    </script>
     <title>DTL Platform - Cổng làm việc & Quản trị tập trung</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
