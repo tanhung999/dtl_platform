@@ -1,7 +1,7 @@
 .calendar-sharing-navigation { display:flex; flex-direction:column; gap:10px; padding-top:16px; border-top:1px solid var(--border); margin-top:18px; }
 .calendar-sharing-navigation .calendar-eyebrow { margin:14px 0 2px; font-size:11px; }
 .sharing-calendar-choice { border:0; border-radius:9px; padding:10px; display:flex; gap:9px; align-items:center; background:transparent; color:var(--text-main); text-align:left; cursor:pointer; font:inherit; font-size:13px; }
-.sharing-calendar-choice.is-active { background:var(--primary-light); color:var(--accent); font-weight:600; }
+.sharing-calendar-choice.is-active { background:var(--primary-light); color:var(--accent-text); font-weight:600; }
 .sharing-calendar-choice small { display:block; color:var(--text-muted); font-size:11px; margin-top:3px; }
 .sharing-dialog-body { padding:22px 24px; overflow:auto; max-height:75vh; }
 .calendar-sharing-dialog h2 { font-size:20px; margin:0; }
@@ -26,7 +26,7 @@
 .shared-calendar-page .calendar-time-slot { cursor:default; pointer-events:none; }
 
 /* Read-only views reuse the calendar's spacing and priority/status palette. */
-.shared-calendar-item { border-left-color:var(--event-color,#2563eb); background:color-mix(in srgb,var(--event-color,#2563eb) 10%,var(--bg-card-solid)); color:var(--text-main); }
+.shared-calendar-item { border-left-color:var(--event-color,#2563eb); background:color-mix(in srgb,var(--event-color,#2563eb) calc(10% * var(--calendar-status-strength)),var(--bg-card-solid)); color:var(--text-main); }
 .shared-calendar-item.is-deadline { display:flex; align-items:center; padding:2px 6px; border-left-color:var(--priority-accent); background:color-mix(in srgb,var(--priority-accent) 10%,var(--bg-card-solid)); color:var(--priority-fg); }
 .shared-deadline-line { display:flex; align-items:center; gap:5px; width:100%; min-width:0; white-space:nowrap; font-size:12px; line-height:18px; }
 .shared-deadline-line > svg,.shared-deadline-line > b { flex-shrink:0; } .shared-deadline-line > span { overflow:hidden; text-overflow:ellipsis; }
@@ -45,7 +45,7 @@
 
 .shared-calendar-item.is-compact:not(.is-deadline) { display:flex; align-items:center; gap:6px; }
 .shared-calendar-item.is-compact strong { flex:1; min-width:0; } .shared-calendar-item.is-compact small { margin:0; flex-shrink:0; font-size:10px; }
-.shared-calendar-item.is-deadline[data-task-priority="URGENT"] { color:#991b1b; } :is([data-theme="dark"], [data-theme="obsidian"]) .shared-calendar-item.is-deadline[data-task-priority="URGENT"] { color:#fecaca; }
+.shared-calendar-item.is-deadline[data-task-priority="URGENT"] { color:#991b1b; } [data-color-mode="dark"] .shared-calendar-item.is-deadline[data-task-priority="URGENT"] { color:#fecaca; }
 .shared-month-grid section.is-outside { background:var(--bg-subtle); } .shared-month-grid section.is-today { background:var(--primary-light); }
 @media(max-width:768px) {
   .calendar-page.has-sharing .calendar-sidebar,.shared-calendar-page .calendar-sidebar { display:block; padding:12px; border-right:0; border-bottom:1px solid var(--border); }
@@ -59,7 +59,7 @@
 
 .shared-overdue-line { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
 .shared-overdue-line .shared-calendar-item { flex:1; margin:0; min-width:0; } .shared-overdue-line > span { color:#b91c1c; font-size:11px; white-space:nowrap; }
-.shared-overdue-expanded { max-height:210px; overflow:auto; } :is([data-theme="dark"], [data-theme="obsidian"]) .shared-overdue-line > span { color:#fca5a5; }
+.shared-overdue-expanded { max-height:210px; overflow:auto; } [data-color-mode="dark"] .shared-overdue-line > span { color:#fca5a5; }
 @media(max-width:600px) { .shared-overdue-line { flex-wrap:wrap; gap:3px; } .shared-overdue-line .shared-calendar-item { flex-basis:100%; } }
 
 .shared-calendar-item:not(.is-deadline) { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; }

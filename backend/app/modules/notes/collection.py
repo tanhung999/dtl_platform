@@ -1,13 +1,12 @@
-"""Paged note previews. Only lightweight ordering IDs span the full collection."""
+"""Paged note previews, pinned first and newest creation first."""
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, select, and_, true, false
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.text_search import fold_text
 from app.db.models import Note, User
-from app.db.workspace_layout import WorkspaceLayout
 from app.db.calendar import CalendarEvent
 from app.db.note_scheduling import NoteCalendarSchedule as Schedule
 from app.modules.auth.dependencies import get_current_user
@@ -34,44 +33,43 @@ async def note_page(
 ):
     owned = (Note.user_id == user.id, Note.is_archived.is_(archived))
     scheduled = exists(select(Schedule.note_id).where(Schedule.note_id == Note.id))
-    stmt = select(Note.id).where(*owned)
-    if fold_text(q) and len(fold_text(q)) < 2:
-        stmt = stmt.where(False)
-    elif fold_text(q):
-        stmt = stmt.where(Note.search_text.contains(fold_text(q), autoescape=True))
+    keyword = fold_text(q)
+    matches = false() if keyword and len(keyword) < 2 else Note.search_text.contains(keyword, autoescape=True) if keyword else true()
     if filter == "scheduled":
-        stmt = stmt.where(scheduled)
+        matches = and_(matches, scheduled)
     elif filter == "pinned":
-        stmt = stmt.where(Note.is_pinned.is_(True))
-    total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
-    counts = (await db.execute(select(func.count(), func.count().filter(scheduled), func.count().filter(Note.is_pinned.is_(True))).where(*owned))).one()
-    ordered = stmt.order_by(Note.is_pinned.desc(), Note.sort_order, Note.id)
+        matches = and_(matches, Note.is_pinned.is_(True))
+    counts = (await db.execute(select(func.count(), func.count().filter(scheduled),
+        func.count().filter(Note.is_pinned.is_(True)), func.count().filter(matches)).where(*owned))).one()
+    total = counts[3]
+    fields = [Note.id, Note.title, func.substr(Note.content, 1, 240).label("preview"), Note.color,
+              Note.is_pinned, Note.is_archived, Note.is_private, Note.version, Note.created_at, Note.updated_at]
+    # Limit narrow ID rows first; do not compute previews for every row being sorted.
+    base = select(Note.id, Note.is_pinned, Note.created_at).where(*owned, matches)
+    order = (Note.is_pinned.desc(), Note.created_at.desc().nullslast(), Note.id)
     if widget:
-        pinned = (await db.scalars(ordered.where(Note.is_pinned.is_(True)).limit(6))).all()
-        unpinned = (await db.scalars(ordered.where(Note.is_pinned.is_(False)).limit(6))).all()
-        selected = pinned + unpinned
+        pinned = base.where(Note.is_pinned.is_(True)).order_by(*order).limit(6).subquery()
+        unpinned = base.where(Note.is_pinned.is_(False)).order_by(*order).limit(6).subquery()
+        combined = select(*pinned.c).union_all(select(*unpinned.c)).subquery()
+        picked = combined
         offset = 0
     else:
         offset = min(offset, ((total - 1) // limit) * limit) if total else 0
-        selected = (await db.scalars(ordered.offset(offset).limit(limit))).all()
-    order_version = await db.scalar(select(WorkspaceLayout.version).where(WorkspaceLayout.user_id == user.id, WorkspaceLayout.kind == "notes")) or 0
+        picked = base.order_by(*order).offset(offset).limit(limit).subquery()
+    query = select(*fields).join(picked, Note.id == picked.c.id).order_by(picked.c.is_pinned.desc(), picked.c.created_at.desc().nullslast(), picked.c.id)
+    previews = (await db.execute(query)).mappings().all() if total else []
+    selected = [row['id'] for row in previews]
+    summaries = await schedule_summaries(db, user.id, selected)
     items = []
-    if selected:
-        previews = (await db.execute(select(Note.id, Note.title, func.substr(Note.content, 1, 240).label("preview"), Note.color,
-                     Note.is_pinned, Note.is_archived, Note.version, Note.created_at, Note.updated_at).where(Note.id.in_(selected), *owned))).mappings().all()
-        by_id = {row["id"]: dict(row) for row in previews}
-        summaries = await schedule_summaries(db, user.id, selected)
-        for id in selected:
-            item = by_id.get(id)
-            if item is not None:
-                for key in ("created_at", "updated_at"):
-                    item[key] = utc(item[key])
-                item["scheduled_event"] = summaries.get(id)
-                items.append(item)
+    for row in previews:
+        item = dict(row)
+        for key in ("created_at", "updated_at"):
+            item[key] = utc(item[key])
+        item["scheduled_event"] = summaries.get(item['id'])
+        items.append(item)
     now = datetime.now(timezone.utc)
     next_refresh = min((item["scheduled_event"]["ends_at"] for item in items if item["scheduled_event"] and item["scheduled_event"]["ends_at"] > now), default=None)
     return {"server_now": now, "next_refresh_at": next_refresh, "items": items, "total": total, "total_active": counts[0], "offset": offset, "limit": limit,
             "has_more": len(selected) < total if widget else offset + limit < total,
             "hidden": max(0, total - len(selected)) if widget else 0,
-            "has_scheduled": bool(counts[1]), "pinned_total": counts[2], "order_version": order_version,
-            "order_ids": [row["id"] for row in items], "pinned_ids": [row["id"] for row in items if row["is_pinned"]]}
+            "has_scheduled": bool(counts[1]), "pinned_total": counts[2]}

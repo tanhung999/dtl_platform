@@ -10,7 +10,7 @@ export function useNotesCollection({ archived, filter, query, fullPage, offset }
   const [debounced, setDebounced] = useState(query);
   useEffect(() => { const timer = setTimeout(() => setDebounced(query), 300); return () => clearTimeout(timer); }, [query]);
   useEffect(() => {
-    const change = (event: Event) => { if ((event as CustomEvent<string[]>).detail.some(topic => ['notes', 'layout'].includes(topic))) refresh(); };
+    const change = (event: Event) => { if ((event as CustomEvent<string[]>).detail.includes('notes')) refresh(); };
     window.addEventListener(WORKSPACE_CHANGED, change);
     return () => window.removeEventListener(WORKSPACE_CHANGED, change);
   }, [refresh]);

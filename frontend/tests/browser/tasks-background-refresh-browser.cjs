@@ -1,9 +1,9 @@
 const { chromium } = require('../.browser-tools/node_modules/playwright');
-const { createDragUsers } = require('../support/test-users.cjs');
+const { createTestUsers } = require('../support/test-users.cjs');
 const assert = require('node:assert/strict');
 
 (async () => {
-  const fixture = createDragUsers(1);
+  const fixture = createTestUsers(1);
   let browser, release;
   try {
     browser = await chromium.launch({ channel: 'msedge', headless: true });

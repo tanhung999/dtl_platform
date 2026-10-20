@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
-const { createDragUsers } = require('../support/test-users.cjs');
+const { createTestUsers } = require('../support/test-users.cjs');
 (async () => {
-  const fixture = createDragUsers(1);
+  const fixture = createTestUsers(1);
   try {
     const base = 'http://127.0.0.1:8000/api';
     const login = await fetch(base + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fixture.accounts[0]) });

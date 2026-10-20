@@ -2,8 +2,9 @@
 
 import uuid
 
-from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, String, Text, select
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, String, Text, select
 
+from app.db.types import UTCDateTime
 from app.core.database import Base
 from app.db.models import utcnow
 from app.db.note_scheduling import NoteCalendarSchedule
@@ -27,10 +28,10 @@ class CalendarEvent(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=False, default="")
     location = Column(String(255), nullable=False, default="")
-    starts_at = Column(DateTime(timezone=True), nullable=False)
-    ends_at = Column(DateTime(timezone=True), nullable=False)
+    starts_at = Column(UTCDateTime(), nullable=False)
+    ends_at = Column(UTCDateTime(), nullable=False)
     is_all_day = Column(Boolean, nullable=False, default=False)
     is_private = Column(Boolean, nullable=False, default=False, server_default="false")
     color = Column(String(7), nullable=False, default="#2563eb")
-    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+    created_at = Column(UTCDateTime(), nullable=False, default=utcnow)
+    updated_at = Column(UTCDateTime(), nullable=False, default=utcnow, onupdate=utcnow)

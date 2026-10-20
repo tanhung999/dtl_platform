@@ -1,3 +1,5 @@
+import { PrivacyToggle } from '../access/PrivacyToggle';
+import { RescheduleControl } from '../rescheduling/RescheduleControl';
 import { NoteScheduleFields, initialNoteSchedule } from '../note-scheduling/NoteScheduleFields';
 import { NoteSchedule } from '../note-scheduling/types';
 import React, { useState, useEffect, useRef } from 'react';
@@ -48,24 +50,28 @@ export const NoteModal: React.FC<NoteModalProps> = ({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [color, setColor] = useState('#fef08a');
+  const [isPrivate, setIsPrivate] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [schedule, setSchedule] = useState<NoteSchedule>();
+  const [savedSchedule, setSavedSchedule] = useState<NoteSchedule>();
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
   useEffect(() => {
     creationAttempt.current = undefined;
     setSchedule(note?.calendar_schedule ?? undefined); setScheduleOpen(!!note?.calendar_schedule);
+    setSavedSchedule(note?.calendar_schedule ?? undefined);
     version.current = note?.version ?? 0; setError(''); setRemote(false); setConfirmDelete(false);
     if (note) {
       setTitle(note.title || '');
       setContent(note.content || '');
       setColor(note.color || '#fef08a');
       setIsPinned(Boolean(note.is_pinned));
+      setIsPrivate(Boolean(note.is_private));
     } else {
       setTitle('');
       setContent('');
       setColor('#fef08a');
-      setIsPinned(false);
+      setIsPinned(false); setIsPrivate(false);
     }
   }, [note, isOpen]);
 
@@ -98,7 +104,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
   const buildPayload = (): NoteWrite => {
     if (dialog.current?.querySelector('form')?.reportValidity() === false) throw new Error('Vui lòng kiểm tra lại ngày giờ đang nhập.');
     if (scheduleOpen && schedule && Date.parse(schedule.ends_at) <= Date.parse(schedule.starts_at)) throw new Error('Giờ kết thúc phải sau giờ bắt đầu.');
-    return { ...(scheduleOpen && schedule ? { calendar_schedule: schedule } : {}), title: title.trim() || 'Ghi chú', content: content.trim(), color, is_pinned: isPinned, ...(note?.id ? { expected_version: version.current } : {}) };
+    return { ...(scheduleOpen && schedule ? { calendar_schedule: schedule } : {}), title: title.trim() || 'Ghi chú', content: content.trim(), color, is_pinned: isPinned, is_private: isPrivate, ...(note?.id ? { expected_version: version.current } : {}) };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,11 +125,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
   };
 
   return createPortal(
-    <><dialog ref={dialog} className="note-editor-dialog" aria-label="Ghi chú" onCancel={e => { e.preventDefault(); e.stopPropagation(); if (!busy) onClose(); }} onClick={e => {
-      if (e.target !== e.currentTarget || busy) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) onClose();
-    }}>
+    <><dialog ref={dialog} className="note-editor-dialog" aria-label="Ghi chú" onCancel={e => { e.preventDefault(); e.stopPropagation(); }}>
       <div
         className="modal-content"
         style={{ backgroundColor: color }}
@@ -159,7 +161,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
         </div>
 
         {remote && <div className="note-editor-message" role="status">Ghi chú đã được cập nhật ở nơi khác. Bản nháp của bạn được giữ nguyên. <button type="button" disabled={busy} onClick={async () => {
-          setBusy(true); try { const value = await notesApi.get(note!.id!); setTitle(value.title); setContent(value.content); setColor(value.color); setIsPinned(value.is_pinned); setSchedule(value.calendar_schedule ?? undefined); setScheduleOpen(!!value.calendar_schedule); version.current = value.version; setRemote(false); setError(''); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Không tải được bản mới.'); } finally { setBusy(false); }
+          setBusy(true); try { const value = await notesApi.get(note!.id!); setTitle(value.title); setContent(value.content); setColor(value.color); setIsPinned(value.is_pinned); setIsPrivate(value.is_private ?? false); setSchedule(value.calendar_schedule ?? undefined); setSavedSchedule(value.calendar_schedule ?? undefined); setScheduleOpen(!!value.calendar_schedule); version.current = value.version; setRemote(false); setError(''); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Không tải được bản mới.'); } finally { setBusy(false); }
         }}>Bỏ bản nháp, tải bản mới</button></div>}
         {error && <p className="note-editor-message" role="alert">{error}</p>}
         <form onSubmit={handleSubmit}>
@@ -223,6 +225,11 @@ export const NoteModal: React.FC<NoteModalProps> = ({
                 ))}
               </div>
             </div>
+          <PrivacyToggle label="Ghi chú riêng tư" value={isPrivate} onChange={setIsPrivate} />
+          {note?.id && savedSchedule && !note.is_archived && <RescheduleControl kind="note" id={note.id} title={note.title || 'Ghi chú không có tiêu đề'} current={savedSchedule} version={version.current} updatedAt={savedSchedule.expected_updated_at} disabled={busy} onMoved={change => {
+            const value: NoteSchedule = { starts_at: change.after.starts_at!, ends_at: change.after.ends_at!, is_all_day: !!change.after.is_all_day, event_id: change.guard.event_id!, expected_updated_at: change.guard.expected_updated_at! };
+            version.current = change.guard.expected_version!; setSchedule(value); setSavedSchedule(value); setScheduleOpen(true); setRemote(false);
+          }}/>}
             {!note?.is_archived && <>
               <div className="note-schedule-actions"><button type="button" className="btn btn-outline btn-sm" disabled={!!creationAttempt.current} aria-expanded={scheduleOpen} onClick={() => { setSchedule(value => value ?? initialNoteSchedule()); setScheduleOpen(true); }}>Gắn vào lịch</button></div>
               {scheduleOpen && schedule && <><fieldset disabled={!!creationAttempt.current} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><NoteScheduleFields value={schedule} onChange={setSchedule} /></fieldset>{!schedule.event_id && <button type="button" className="btn btn-outline btn-sm" disabled={!!creationAttempt.current} onClick={() => { setScheduleOpen(false); setSchedule(undefined); }}>Bỏ chọn lịch</button>}</>}
@@ -255,9 +262,6 @@ export const NoteModal: React.FC<NoteModalProps> = ({
               )}
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>
-                Hủy
-              </button>
               <button type="submit" className="btn btn-primary btn-sm">
                 Lưu ghi chú
               </button>

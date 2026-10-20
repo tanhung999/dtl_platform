@@ -3,12 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { Bookmark as BookmarkIcon, Plus, Trash2, Globe } from 'lucide-react';
 
 import { Bookmark } from '../../types';
-import { orderedItems, useWorkspaceLayout } from '../workspace-layout/WorkspaceLayoutProvider';
-import { SortableWidgetCard, SortableWidgetGroup } from '../workspace-layout/SortableWidgets';
 import { WORKSPACE_CHANGED } from '../realtime/useWorkspaceRealtime';
 
 export const BookmarksWidget: React.FC = () => {
-  const layout = useWorkspaceLayout();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState('');
@@ -64,7 +61,7 @@ export const BookmarksWidget: React.FC = () => {
   };
 
   return (
-    <div className="glass-panel widget-box" style={{ marginTop: '1.25rem' }}>
+    <div className="glass-panel widget-box">
       <div className="widget-header">
         <div className="widget-title">
           <BookmarkIcon size={18} className="widget-title-icon" />
@@ -126,9 +123,9 @@ export const BookmarksWidget: React.FC = () => {
         </form>
       )}
 
-      <SortableWidgetGroup revision={layout.layout.bookmarks.version} ids={orderedItems(bookmarks, layout.layout.bookmarks.ids).map(item => item.id)} disabled={layout.busy || layout.loading} onSort={ids => layout.save('bookmarks', ids)}><div data-sort-group="bookmarks" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px' }}>
-        {orderedItems(bookmarks, layout.layout.bookmarks.ids).map((b) => (
-          <SortableWidgetCard id={b.id} label={b.title} disabled={layout.busy || layout.loading} className="bookmark-sort-card"
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px' }}>
+        {bookmarks.map((b) => (
+          <div className="bookmark-card"
             key={b.id}
             style={{
               padding: '8px 10px',
@@ -179,9 +176,9 @@ export const BookmarksWidget: React.FC = () => {
                 <Trash2 size={12} />
               </button>
             )}
-          </SortableWidgetCard>
+          </div>
         ))}
-      </div></SortableWidgetGroup>
+      </div>
     </div>
   );
 };

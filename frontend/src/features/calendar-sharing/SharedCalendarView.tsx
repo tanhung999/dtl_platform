@@ -31,7 +31,7 @@ export function SharedCalendarView({ share, revision, accessEpoch, accessPending
   const verifying=accessPending || !data.visible;
   const taskLookup=new Map(data.items.filter(item=>item.kind==='task').map(item=>[item.id,item]));
   const overdue=sortTasks([...taskLookup.values()].map(sharedTask).filter(task=>isOverdue(task,now))).map(task=>taskLookup.get(task.id)!);
-  const overdueIds=new Set(overdue.map(item=>item.id)), gridItems=data.items.filter(item=>item.kind!=='task'||!overdueIds.has(item.id));
+  const gridItems=data.items;
   const days=Array.from({length:view==='week'?7:30},(_,i)=>addDays(range.start,i));
   const earlyCount=gridItems.filter(item=>item.kind==='task'?!!item.due_time && item.due_time<'06:00':!item.is_all_day && days.some(day=>Date.parse(item.starts_at!)<Date.parse(toTimestamp(day,'06:00'))&&Date.parse(item.ends_at!)>Date.parse(toTimestamp(day)))).length;
   const move=(step:number)=>setAnchor(view==='month'?addMonths(anchor,step):addDays(anchor,step*(view==='week'?7:30)));
@@ -40,7 +40,7 @@ export function SharedCalendarView({ share, revision, accessEpoch, accessPending
   return <div className="calendar-page shared-calendar-page">
     <div className="calendar-page-heading"><div className="calendar-page-heading-icon"><Eye size={25}/></div><div><h1>Lịch của {share.name}</h1><p>Chỉ xem · Giờ Việt Nam (UTC+7)</p></div></div>
     <div className="calendar-shell"><aside className="calendar-sidebar">{navigation}
-      <div className="sharing-readonly-info"><Eye size={18}/><p>Bạn chỉ xem các mục được chia sẻ. Sự kiện riêng tư được ẩn hoàn toàn.</p></div>
+      <div className="sharing-readonly-info"><Eye size={18}/><p>Bạn chỉ xem các mục được chia sẻ. Sự kiện, công việc và ghi chú riêng tư được ẩn hoàn toàn.</p></div>
       <div className="sharing-scope-chips">{share.share_events&&<span>Sự kiện</span>}{share.share_tasks&&<span>Việc cần làm</span>}{share.share_notes&&<span>Ghi chú</span>}</div>
       {(share.share_events||share.share_notes)&&<div className="calendar-event-legend-section"><h4>Trạng thái sự kiện và ghi chú</h4><EventStatusLegend/></div>}
     </aside><section className="calendar-main" aria-label={`Lịch được chia sẻ của ${share.name}`}>

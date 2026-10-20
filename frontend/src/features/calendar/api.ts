@@ -27,11 +27,6 @@ export const calendarApi = {
       method: 'PUT', body: JSON.stringify(payload),
     }), () => calendarApi.get(id), event => event.updated_at !== payload.expected_updated_at && matches(event, payload));
   },
-  schedule(event: CalendarEvent, payload: Pick<CalendarEventInput, 'starts_at' | 'ends_at' | 'is_all_day'>) {
-    return recoverMutation(() => requestWithTimeout<CalendarEvent>(`${base}/${encodeURIComponent(event.id)}/schedule`, {
-      method: 'PATCH', body: JSON.stringify({ ...payload, expected_updated_at: event.updated_at }),
-    }), () => calendarApi.get(event.id), latest => latest.updated_at !== event.updated_at && matches(latest, payload));
-  },
   remove(id: string, updatedAt: string) {
     return deleteWithRecovery(`${base}/${encodeURIComponent(id)}`, new URLSearchParams({ expected_updated_at: updatedAt }));
   },

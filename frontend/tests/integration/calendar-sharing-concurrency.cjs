@@ -1,10 +1,10 @@
 // Kiểm tra tranh chấp cấp/thu hồi trên PostgreSQL qua API thật.
-const { createDragUsers }=require('../support/test-users.cjs');
+const { createTestUsers }=require('../support/test-users.cjs');
 const { spawnSync }=require('node:child_process');
 const path=require('node:path');
 const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'../../..');
-(async()=>{const fixture=createDragUsers(3);try{
+(async()=>{const fixture=createTestUsers(3);try{
  const [owner,viewer,admin]=fixture.accounts;
  const script=`import asyncio,sys
 from app.core.database import async_session_maker

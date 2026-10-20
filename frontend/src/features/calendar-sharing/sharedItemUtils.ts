@@ -15,7 +15,7 @@ export function sharedEvent(item: SharedItem): CalendarEvent {
 export function sharedTask(item: SharedItem): Task {
   return { id: item.id, title: item.title, user_id: '', due_date: item.due_date ?? null, due_time: item.due_time ?? null,
     priority: (item.priority ?? 'MEDIUM') as TaskPriority, is_completed: !!item.is_completed,
-    version: 0, deadline_version: 0, display_order: 0, created_at: '', updated_at: '' };
+    version: 0, deadline_version: 0, is_private: false, created_at: '', updated_at: '' };
 }
 export function sharedRangeLabel(item: SharedItem): string {
   if (item.kind === 'task') {

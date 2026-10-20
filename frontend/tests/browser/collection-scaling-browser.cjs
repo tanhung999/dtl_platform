@@ -1,8 +1,8 @@
 const { chromium } = require('../.browser-tools/node_modules/playwright');
-const { createDragUsers } = require('../support/test-users.cjs');
+const { createTestUsers } = require('../support/test-users.cjs');
 const assert = require('node:assert/strict');
 async function main() {
-  const fixture = createDragUsers(1); let browser;
+  const fixture = createTestUsers(1); let browser;
   try {
     browser = await chromium.launch({ channel: 'msedge', headless: true });
     const context = await browser.newContext({ viewport: { width: 1600, height: 1400 } }), page = await context.newPage();
@@ -17,12 +17,11 @@ async function main() {
     for (let i = 0; i < 31; i++) tasks.push(await api('POST', 'tasks', { title: `Task ${i}`, due_date: i === 30 ? later : today, priority: i === 0 ? 'URGENT' : 'MEDIUM' }));
     const notes = [];
     for (let i = 0; i < 30; i++) notes.push(await api('POST', 'notes', { title: i === 2 ? 'Biên bản ĐIỀU HÀNH' : `Note ${i}`, content: 'Long content '.repeat(100) }));
-    await api('PUT', 'workspace/layout/notes', { ids: notes.map(n => n.id), expected_version: 0 });
     const event = await api('POST', 'calendar/events', { title: 'Versioned event', starts_at: today + 'T09:00:00+07:00', ends_at: today + 'T10:00:00+07:00' });
-    await page.reload(); await page.locator('.tasks-widget .task-item').nth(24).waitFor();
-    assert.equal(await page.locator('.tasks-widget .task-item').count(), 25);
+    await page.reload(); await page.locator('.tasks-widget .task-item').nth(7).waitFor();
+    assert.equal(await page.locator('.tasks-widget .task-item').count(), 8);
     await page.locator('.tasks-widget').getByRole('button', { name: 'Trang sau', exact: true }).click();
-    await page.locator(`[data-task-id="${tasks[30].id}"]`).waitFor(); assert.equal(await page.locator('.tasks-widget .task-item').count(), 6);
+    await page.locator('.tasks-widget').getByText('9–16 / 31', { exact: true }).waitFor(); assert.equal(await page.locator('.tasks-widget .task-item').count(), 8);
     await page.locator(`.calendar-widget-week [data-date="${later}"]`).click(); await page.locator(`.calendar-widget [data-deadline-id="${tasks[30].id}"]`).waitFor();
     await page.locator('.tasks-widget').getByRole('button', { name: 'Trang trước', exact: true }).click();
     const taskCard = page.locator(`[data-task-id="${tasks[0].id}"]`); await taskCard.getByRole('button', { name: tasks[0].title, exact: true }).click();
@@ -46,23 +45,20 @@ async function main() {
     let reminderReads = 0; page.on('request', r => { if (r.url().includes('/api/tasks/reminders')) reminderReads++; });
     await page.waitForTimeout(800); const beforeIdle = reminderReads; await page.waitForTimeout(16500); assert.equal(reminderReads, beforeIdle);
     console.log('PASS: idle SSE heartbeat causes no reminder API request.');
-    const card = id => page.locator(`[data-sort-id="${id}"]`), noteEditor = () => page.getByRole('dialog', { name: 'Ghi chú', exact: true });
-    await card(notes[0].id).click(); await noteEditor().getByPlaceholder('Nhập nội dung ghi chú ở đây...').fill('Offline draft remains');
+    const card = id => page.locator(`[data-note-id="${id}"]`), noteEditor = () => page.getByRole('dialog', { name: 'Ghi chú', exact: true });
+    await card(notes[29].id).click(); await noteEditor().getByPlaceholder('Nhập nội dung ghi chú ở đây...').fill('Offline draft remains');
     await context.setOffline(true);
-    await api('PATCH', 'notes/' + notes[0].id, { title: 'Changed during disconnection', expected_version: notes[0].version });
-    const savedOrder = (await api('GET', 'notes/collection/page')).order_version;
-    await api('POST', `notes/${notes[1].id}/move`, { expected_version: savedOrder, placement: 'before', anchor_id: notes[0].id });
+    await api('PATCH', 'notes/' + notes[29].id, { title: 'Changed during disconnection', expected_version: notes[29].version });
     await context.setOffline(false);
     await noteEditor().getByText('Ghi chú đã được cập nhật ở nơi khác.', { exact: false }).waitFor();
     assert.equal(await noteEditor().getByPlaceholder('Nhập nội dung ghi chú ở đây...').inputValue(), 'Offline draft remains');
     await noteEditor().getByRole('button', { name: 'Đóng ghi chú', exact: true }).click();
-    await page.waitForFunction(id => document.querySelector('.notes-widget [data-sort-id]')?.getAttribute('data-sort-id') === id, notes[1].id);
-    console.log('PASS: reconnect restores Notes content/order and warns the open editor without replacing its draft.');
+    console.log('PASS: reconnect restores Notes content and warns the open editor without replacing its draft.');
     await page.locator('.notes-view-all').click(); await page.locator('.notes-full-collection .note-card').nth(23).waitFor();
-    const limited = await api('GET', 'notes/collection/page'); assert.equal(limited.order_ids.length, 24); assert.ok(limited.items.every(n => !('content' in n)));
+    const limited = await api('GET', 'notes/collection/page'); assert.equal(limited.items.length, 24); assert.ok(limited.items.every(n => !('content' in n)));
     await page.getByRole('searchbox', { name: 'Tìm ghi chú' }).fill('bien ban dieu hanh'); await card(notes[2].id).waitFor(); await page.waitForFunction(() => document.querySelectorAll('.notes-full-collection .note-card').length === 1);
     assert.deepEqual(errors, []);
-    console.log('PASS: SQL Notes pages return only visible ordering IDs and Vietnamese search still matches.');
+    console.log('PASS: SQL Notes pages return only visible previews and Vietnamese search still matches.');
   } finally { if (browser) await browser.close(); fixture.cleanup(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

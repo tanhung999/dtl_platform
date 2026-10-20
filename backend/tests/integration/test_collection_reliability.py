@@ -77,8 +77,8 @@ class CollectionReliabilityTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_notes_widget_caps_pins_without_discarding_them_and_short_search_is_bounded(self):
         async with self.sessions() as db:
-            db.add_all([Note(user_id='alice', title=f'Pinned {i}', is_pinned=True, sort_order=i) for i in range(14)])
-            db.add_all([Note(user_id='alice', title=f'Other {i}', sort_order=14+i) for i in range(8)])
+            db.add_all([Note(user_id='alice', title=f'Pinned {i}', is_pinned=True) for i in range(14)])
+            db.add_all([Note(user_id='alice', title=f'Other {i}') for i in range(8)])
             await db.commit()
         _, widget = await self.request('GET', '/api/notes/collection/page', query={'widget': 'true'})
         self.assertEqual(len(widget['items']), 12)
@@ -110,17 +110,3 @@ class CollectionReliabilityTests(unittest.IsolatedAsyncioTestCase):
         anchor = first['items'][-1]
         await self.request('PATCH', '/api/tasks/' + anchor['id'], payload={'title': 'Anchor changed'})
         self.assertEqual((await self.request('GET', '/api/tasks/collection', query={'offset': 5, 'limit': 5, 'after': first['next_cursor']}))[0], 409)
-
-    async def test_moving_note_to_head_does_not_rewrite_neighbors(self):
-        async with self.sessions() as db:
-            db.add_all([Note(id=f'rank-{i:03d}', user_id='alice', title=str(i), sort_order=i) for i in range(100)])
-            db.add(Note(id='rank-pinned', user_id='alice', title='Pinned', is_pinned=True, sort_order=-1))
-            await db.commit()
-        status, _ = await self.request('POST', '/api/notes/rank-099/move', payload={'expected_version': 0, 'placement': 'start'})
-        self.assertEqual(status, 200)
-        async with self.sessions() as db:
-            rows = (await db.execute(select(Note.id, Note.sort_order).where(Note.user_id == 'alice'))).all()
-            ranks = dict(rows)
-            self.assertLess(ranks['rank-099'], 0)
-            self.assertEqual(ranks['rank-pinned'], -1)
-            self.assertEqual([ranks[f'rank-{i:03d}'] for i in range(99)], list(range(99)))

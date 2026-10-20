@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <linearGradient id="heart" x2="1" y2="1"><stop stop-color="#fff5fc"/><stop offset=".4" stop-color="#ff77c8"/><stop offset="1" stop-color="#ff008c"/></linearGradient>
+    <linearGradient id="petal" x2="1" y2="1"><stop stop-color="#ffe4f3"/><stop offset=".45" stop-color="#ff51b1"/><stop offset="1" stop-color="#b80067"/></linearGradient>
+    <linearGradient id="ribbon" x2="1" y2="1"><stop stop-color="#fff0fa"/><stop offset=".5" stop-color="#ff77c8"/><stop offset="1" stop-color="#d00079"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <path id="heart-shape" d="M0 15C-16 2-36-12-27-29C-20-42-6-40 0-29C6-40 20-42 27-29C36-12 16 2 0 15Z" fill="url(#heart)" stroke="#fff2fa" stroke-width="1.5"/>
+    <path id="star" d="M0-16L3-4 16 0 3 4 0 16-3 4-16 0-3-4Z" fill="#fff7fc"/>
+    <g id="rose">
+      <path d="M-10 25C-62 40-70-8-44-18C-66-42-30-69-8-48C8-77 50-51 43-28C78-15 52 38 30 31C25 65-25 61-28 35Z" fill="url(#petal)"/>
+      <path d="M-28 35C-6 45 28 23 31 4C32-21 6-39-14-24C-34-12-17 14 1 13C22 11 16-13 3-12C-10-10-4 2 4 1M-44-18C-34-7-39 14-10 25M-8-48C-3-38 20-38 29-18M43-28C39-12 51-4 31 16M-28 35C-40 13-28-17-14-24" stroke="#ffe4f3" stroke-opacity=".65" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <g id="bow" fill="url(#ribbon)" stroke="#fff1fa" stroke-width="2">
+      <path d="M-5 0C-27-35-62-43-58-10C-55 22-27 25-5 5M5 0C27-35 62-43 58-10C55 22 27 25 5 5"/>
+      <path d="M-8 5L-28 62-6 50 4 61 12 10M8 5L36 56 43 40 62 44 16 0"/>
+      <rect x="-10" y="-10" width="20" height="24" rx="7"/>
+    </g>
+  </defs>
+  <style>.sparkle{animation:twinkle 4.8s ease-in-out infinite alternate}.delayed{animation-delay:-2.4s}@keyframes twinkle{from{opacity:.25}to{opacity:.95}}@media(prefers-reduced-motion:reduce){.sparkle{animation:none;opacity:.65}}</style>
+  <ellipse cx="80" cy="160" rx="180" ry="240" fill="url(#glow)"/>
+  <ellipse cx="1850" cy="700" rx="230" ry="390" fill="url(#glow)"/>
+  <g opacity=".8">
+    <use href="#heart-shape" transform="translate(83 156) rotate(-16) scale(1.8)"/>
+    <use href="#heart-shape" transform="translate(145 344) rotate(18) scale(.8)"/>
+    <use href="#heart-shape" transform="translate(1783 210) rotate(16) scale(1.3)"/>
+    <use href="#heart-shape" transform="translate(1858 469) rotate(-22) scale(.65)"/>
+    <use href="#heart-shape" transform="translate(424 48) rotate(-12) scale(.45)"/>
+    <use href="#heart-shape" transform="translate(1501 1007) rotate(12) scale(.65)"/>
+    <use href="#bow" transform="translate(1810 75) rotate(14) scale(1.3)"/>
+    <use href="#bow" transform="translate(106 767) rotate(-15) scale(.75)"/>
+    <use href="#rose" transform="translate(30 438) rotate(-18) scale(1.3)"/>
+    <use href="#rose" transform="translate(80 535) rotate(22) scale(1.5)"/>
+    <use href="#rose" transform="translate(8 643) rotate(-22) scale(1.2)"/>
+    <use href="#rose" transform="translate(1863 810) rotate(19) scale(1.5)"/>
+    <use href="#rose" transform="translate(1914 932) rotate(-10) scale(1.8)"/>
+    <use href="#rose" transform="translate(1809 1022) rotate(24) scale(1.3)"/>
+  </g>
+  <g class="sparkle"><use href="#star" transform="translate(128 66)"/><use href="#star" transform="translate(41 305) scale(.7)"/><use href="#star" transform="translate(1772 389) scale(.7)"/><use href="#star" transform="translate(1301 47) scale(.5)"/><use href="#star" transform="translate(1735 980)"/></g>
+  <g class="sparkle delayed"><use href="#star" transform="translate(200 937)"/><use href="#star" transform="translate(1890 300)"/><use href="#star" transform="translate(1740 667) scale(.6)"/><use href="#star" transform="translate(650 1022) scale(.5)"/><use href="#star" transform="translate(36 1029) scale(.6)"/></g>
+  <path d="M0 968C360 1110 580 877 1020 1018S1600 1047 1920 973" stroke="#fff0fa" stroke-opacity=".4" stroke-width="2"/>
+</svg>

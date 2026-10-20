@@ -15,12 +15,12 @@ def task_sort_columns(db):
     else:
         day = func.date(Task.due_date, case((Task.due_time.is_(None), "+1 day"), else_="+0 day"))
         clock = func.coalesce(Task.due_time, literal("00:00:00.000000"))
-    return (Task.is_completed, day, clock, priority, Task.display_order, Task.id)
+    return (Task.is_completed, day, clock, priority, Task.id)
 
 
 def task_order(db):
-    done, day, clock, priority, position, id = task_sort_columns(db)
-    return (done, day.asc().nullslast(), clock, priority, position, id)
+    done, day, clock, priority, id = task_sort_columns(db)
+    return (done, day.asc().nullslast(), clock, priority, id)
 
 
 async def after_task(db, user_id, anchor_id):

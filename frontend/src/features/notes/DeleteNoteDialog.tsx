@@ -42,10 +42,10 @@ export function DeleteNoteDialog({ note, onClose, onDelete }: Props) {
     finally { deleting.current = false; setBusy(false); }
   };
   return createPortal(<dialog ref={dialog} className="note-delete-dialog" aria-labelledby={headingId} aria-describedby={descriptionId}
-    onCancel={event => { event.preventDefault(); event.stopPropagation(); if (!deleting.current) onClose(); }}
+    onCancel={event => { event.preventDefault(); event.stopPropagation();  }}
     onKeyDown={event => { if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) { event.preventDefault(); event.stopPropagation(); } }}
-    onClick={event => { event.stopPropagation(); if (event.target !== event.currentTarget || deleting.current) return; const rect = event.currentTarget.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onClose(); }}>
-    <h2 id={headingId}>Xóa ghi chú?</h2>
+    onClick={event => event.stopPropagation()}>
+    <header className="note-delete-heading"><h2 id={headingId}>Xóa ghi chú?</h2><button type="button" className="task-icon-button" aria-label="Đóng xác nhận xóa" disabled={busy} onClick={onClose}>×</button></header>
     <p className="note-delete-title" title={title}>{title}</p>
     <div id={descriptionId}><p>Ghi chú sẽ bị xóa vĩnh viễn.</p>
       {loading ? <p role="status">Đang kiểm tra ghi chú…</p> : info && info.has_calendar_schedule && <p>Lịch hẹn vẫn được giữ dưới dạng sự kiện riêng tư, chỉ bạn nhìn thấy.</p>}

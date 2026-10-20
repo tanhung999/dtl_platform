@@ -48,4 +48,18 @@ Khởi tạo SSE và gộp GET: `unit/realtime-bootstrap.test.cjs`, `unit/shared
 
 Phạm vi cập nhật Notes: `node tests/browser/calendar-notes-invalidation-browser.cjs` kiểm tra sự kiện thường không tải lại Notes, còn sự kiện có liên kết cập nhật đúng sau sửa/dời/đổi riêng tư/xóa.
 
-Bộ chọn bảy theme: `node tests/browser/theme-picker-browser.cjs`. Kiểm tra bảng màu, giữ màu Notes, không tải lại API khi đổi theme, lưu lựa chọn, bàn phím/Esc/bấm ngoài, Lịch đầy đủ, màn hình nhỏ và trình duyệt chặn lưu trữ. Dùng tài khoản tạm và tự dọn.
+Bộ chọn theme: `node tests/browser/theme-picker-browser.cjs`. Kiểm tra bảng màu, giữ màu Notes, không tải lại API khi đổi theme, lưu lựa chọn, bàn phím, giữ mở khi Esc/bấm ngoài, nút X, Lịch đầy đủ, màn hình nhỏ và trình duyệt chặn lưu trữ. Dùng tài khoản tạm và tự dọn.
+
+Catalog theme: `unit/theme-catalog.test.cjs` kiểm tra mở rộng theme tự động, token/preview và khởi tạo trước body. `browser/theme-picker-browser.cjs` kiểm tra thêm HTML khi chặn JavaScript của ứng dụng. Bật `THEME_PERF=1` để thu số liệu chẩn đoán blur có CPU throttle; xem `docs/themes.md`.
+
+Bố cục cố định sau khi gỡ kéo thả: `browser/static-workspace-browser.cjs`. Đã xóa bài kéo thả riêng, chuyển bài xóa Notes sang `browser/notes-delete-browser.cjs`; vẫn giữ kiểm tra xác nhận xóa, lỗi mạng và đồng bộ. Chi tiết thay đổi database xem `docs/remove-drag-and-drop.md` ở gốc repo.
+
+To-Do 8 mục/trang và trang đầy đủ 25 mục có tìm kiếm: `browser/task-pagination-browser.cjs`. Kiểm tra số đếm toàn bộ, giữ riêng bộ lọc/trang, và Calendar vẫn có đủ hạn ngoài trang widget.
+
+Giữ deadline quá hạn trên lịch và đồng nhất viền Notes cả ngày/có giờ: `browser/calendar-overdue-style-browser.cjs`. Bài kiểm tra vượt mốc hạn bằng đồng hồ giả lập, kiểm tra Tuần/Tháng/Danh sách/widget/lịch chia sẻ, viền nét đứt và nền trạng thái tăng 30% ở theme sáng/tối.
+
+Riêng tư Task/Notes/Sự kiện và đóng hộp bằng X: `browser/item-privacy-browser.cjs`. Lịch chia sẻ kiểm tra thêm chuyển riêng tư khi người nhận đang mở chi tiết; bộ chọn ngày/giờ vẫn đóng khi bấm ngoài hoặc Esc.
+
+Đổi hạn/dời lịch: `browser/rescheduling-browser.cjs` kiểm tra cả ba loại, giữ bản nháp/thời lượng, lý do/lịch sử riêng, Hoàn tác trong hộp đang mở, mất phản hồi sau commit, gửi trùng song song trên PostgreSQL và giao diện điện thoại. Chi tiết API tại `docs/rescheduling.md` ở gốc repo.
+
+Hoàn tác phản hồi chậm: `browser/undo-race-browser.cjs` dùng cổng đồng bộ, kiểm tra cả thành công/lỗi cũ với toast mới. `unit/reschedule-invalidation.test.cjs` kiểm tra Sự kiện thường không tải lại Notes.

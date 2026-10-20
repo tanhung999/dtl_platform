@@ -31,7 +31,7 @@ Giữ PostgreSQL NOTIFY và SSE hiện tại; không chuyển Redis trong thay �
 
 Danh sách/tóm tắt thông báo chỉ lấy bốn cột Task cần xác định trạng thái: ID, hoàn thành, phiên bản deadline và ngày hạn. Tiêu đề/nội dung thông báo lấy từ bản đã lưu của thông báo. Các cột Task còn lại bị chặn truy vấn ngầm để tránh phát sinh N+1 khi sửa serializer sau này.
 
-Sự kiện thông thường không phát tín hiệu Notes. Khi sửa/dời/xóa sự kiện, truy vấn lấy và khóa sự kiện đã có sẵn `scheduled_note_id` qua truy vấn con theo chỉ mục duy nhất `note_calendar_schedules.event_id`. Tận dụng kết quả này, giữ lại trước khi xóa liên kết; không chạy thêm một truy vấn `EXISTS` trùng lặp. Sự kiện có liên kết vẫn làm mới Notes khi đổi tiêu đề, thời gian, riêng tư hoặc bị xóa. Widget Notes và metadata phiên bản chỉ phụ thuộc `notes`/`layout`, không phụ thuộc mọi thay đổi Calendar.
+Sự kiện thông thường không phát tín hiệu Notes. Khi sửa/dời/xóa sự kiện, truy vấn lấy và khóa sự kiện đã có sẵn `scheduled_note_id` qua truy vấn con theo chỉ mục duy nhất `note_calendar_schedules.event_id`. Tận dụng kết quả này, giữ lại trước khi xóa liên kết; không chạy thêm một truy vấn `EXISTS` trùng lặp. Sự kiện có liên kết vẫn làm mới Notes khi đổi tiêu đề, thời gian, riêng tư hoặc bị xóa. Widget Notes và metadata phiên bản chỉ phụ thuộc `notes`, không phụ thuộc mọi thay đổi Calendar.
 
 Không có truy vấn kiểm tra phiên mỗi heartbeat. GET danh sách có thêm một truy vấn lấy phiên bản; đổi lại tránh được lượt tải API thứ hai lúc khởi tạo. Khi thực sự có thay đổi, focus hoặc thao tác người dùng thì vẫn có thể phát sinh GET mới.
 

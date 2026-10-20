@@ -11,7 +11,7 @@ compiled._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText, filename);
 const { vietnamDay, isOverdue, sortTasks, deadlineLabel, overdueLabel } = compiled.exports;
-const task = (id, values = {}) => ({ id, title: id, priority: 'MEDIUM', due_date: null, due_time: null, is_completed: false, display_order: 0, ...values });
+const task = (id, values = {}) => ({ id, title: id, priority: 'MEDIUM', due_date: null, due_time: null, is_completed: false, ...values });
 
 test('date-only deadlines last through the Vietnam day; completed and undated never overdue', () => {
   const due = task('due', { due_date: '2026-10-12' });

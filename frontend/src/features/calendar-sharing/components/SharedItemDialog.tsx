@@ -7,7 +7,7 @@ export function SharedItemDialog({ selected, item, error, pending, verifying, on
   selected: SharedItem; item?: SharedItem; error: string; pending: boolean; verifying: boolean; onClose: () => void; onRetry: () => void;
 }) {
   const value = verifying ? undefined : item;
-  return <SharingDialog closeOnOutside title={`${sharedKindLabel(selected)} · Chỉ xem`} onClose={onClose}>
+  return <SharingDialog title={`${sharedKindLabel(selected)} · Chỉ xem`} onClose={onClose}>
     <div className={`sharing-dialog-body ${value?.kind === 'note' ? 'shared-note-detail' : ''}`} style={value?.kind === 'note' ? { background: value.color, color: '#172033' } : undefined}>
       {error ? <div role="alert"><p>{error}</p><button type="button" className="btn btn-outline btn-sm" onClick={onRetry}>Thử lại</button></div>
         : !value ? <p role="status">Đang kiểm tra quyền và tải chi tiết…</p> : <><h3>{value.title || 'Ghi chú không có tiêu đề'}</h3>

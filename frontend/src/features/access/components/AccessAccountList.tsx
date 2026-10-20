@@ -15,7 +15,7 @@ export function AccessAccountList({ selectedId, onSelect, disabled, revision }: 
     return()=>{clearTimeout(timer);controller.abort();};
   },[key,revision,retry]);
   const data=saved?.key===key?saved.page:undefined;
-  return <section className="admin-card access-account-card" aria-labelledby="access-account-heading"><h2 id="access-account-heading">Tài khoản</h2><p>Chọn người dùng để quản lý quyền.</p>
+  return <section className="admin-card access-account-card" aria-labelledby="access-account-heading"><h2 id="access-account-heading">Tài khoản</h2>
     <label className="calendar-field"><span><Search size={14}/> Tìm tài khoản</span><input className="form-input" disabled={disabled} maxLength={100} value={q} onChange={e=>{setQ(e.target.value);setPage(1);}} placeholder="Nhập ít nhất 2 ký tự tên hoặc tài khoản"/></label>
     <label className="access-filter"><span>Quyền chia sẻ lịch</span><select className="form-input" disabled={disabled} aria-label="Lọc quyền chia sẻ lịch" value={filter} onChange={e=>{setFilter(e.target.value);setPage(1);}}><option value="all">Tất cả tài khoản</option><option value="enabled">Đã được cấp</option><option value="disabled">Chưa được cấp</option></select></label>
     {q.trim().length===1?<p className="access-hint">Nhập ít nhất 2 ký tự để tìm kiếm.</p>:<>

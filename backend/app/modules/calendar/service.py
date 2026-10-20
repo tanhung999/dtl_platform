@@ -1,0 +1,49 @@
+"""Nghiệp vụ cập nhật dùng chung cho API sửa và dời lịch."""
+from datetime import timezone
+
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.realtime import mark_changed
+from app.db.models import User, utcnow
+from app.modules.calendar.schemas import EventUpdate
+
+from .ownership import find_owned_event
+
+
+async def update_event_service(event_id: str, payload: EventUpdate, user: User, db: AsyncSession, *, record_history=True):
+    await db.execute(select(User.id).where(User.id == user.id).with_for_update())
+    event, has_note = await find_owned_event(event_id, user, db)
+    from app.modules.rescheduling.service import event_snapshot
+    before = event_snapshot(event)
+    modified = event.updated_at
+    if modified.tzinfo is None:
+        modified = modified.replace(tzinfo=timezone.utc)
+    if modified != payload.expected_updated_at:
+        raise HTTPException(409, "Sự kiện đã thay đổi. Nội dung đang sửa được giữ; hãy mở lại bản mới trước khi lưu.")
+    if "is_private" in payload.model_fields_set and payload.is_private != event.is_private:
+        from app.modules.access.privacy import require_privacy_change
+        await require_privacy_change(db, user.id, payload.is_private, event.is_private)
+        if has_note:
+            from app.db.models import Note
+            from sqlalchemy import update
+            await db.execute(update(Note).where(Note.id == event.scheduled_note_id, Note.user_id == user.id)
+                .values(is_private=payload.is_private, version=Note.version + 1, updated_at=utcnow()))
+        mark_changed(db, user.id, "calendar-privacy")
+    for key, value in payload.model_dump(exclude={"expected_updated_at"} | ({"is_private"} if "is_private" not in payload.model_fields_set else set())).items():
+        setattr(event, key, value)
+    event.updated_at = utcnow()
+    await db.flush()
+    await db.refresh(event)
+    mark_changed(db, user.id, "calendar")
+    if has_note: mark_changed(db, user.id, "notes")
+    if record_history:
+        from app.modules.rescheduling.service import record_change
+        if has_note:
+            from app.db.models import Note
+            note = await db.get(Note, event.scheduled_note_id)
+            await record_change(db, user, 'note', note, before)
+        else:
+            await record_change(db, user, 'event', event, before)
+    return event

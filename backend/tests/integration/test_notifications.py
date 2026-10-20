@@ -69,7 +69,8 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
         async with self.sessions() as db:
             self.assertEqual(await db.scalar(select(func.count()).select_from(NotificationJob)), 0)
 
-    async def test_preview_does_not_resurrect_old_stages_after_read_or_hide(self):
+    @patch('app.modules.notifications.router.utcnow', return_value=DAY)
+    async def test_preview_does_not_resurrect_old_stages_after_read_or_hide(self, _clock):
         await self.task(); await self.tick(BEFORE); await self.tick(DAY)
         summary = (await self.request('GET', '/api/notifications/summary'))[1]
         self.assertEqual(len(summary['preview']), 1)

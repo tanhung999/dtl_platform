@@ -7,6 +7,7 @@ PriorityType = Literal["LOW", "MEDIUM", "HIGH", "URGENT"]
 
 
 class TaskCreate(BaseModel):
+    is_private: bool = False
     client_request_id: UUID | None = None
     model_config = ConfigDict(extra="forbid")
     title: str = Field(min_length=1, max_length=255)
@@ -21,6 +22,7 @@ class TaskCreate(BaseModel):
         return value.strip() if isinstance(value, str) else value
 
 class TaskUpdate(BaseModel):
+    is_private: bool | None = None
     expected_version: int = Field(ge=0)
     model_config = ConfigDict(extra="forbid")
     title: str | None = Field(default=None, min_length=1, max_length=255)
@@ -29,7 +31,6 @@ class TaskUpdate(BaseModel):
     due_date: date | None = None
     due_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     is_completed: bool | None = None
-    display_order: int | None = None
     expected_deadline_version: int | None = Field(default=None, ge=0)
 
     @field_validator("title", mode="before")
@@ -39,13 +40,14 @@ class TaskUpdate(BaseModel):
 
     @model_validator(mode="after")
     def reject_null_required_fields(self):
-        for name in ("title", "priority", "is_completed", "display_order"):
+        for name in ("title", "priority", "is_completed", "is_private"):
             if name in self.model_fields_set and getattr(self, name) is None:
                 raise ValueError(f"{name} không được để trống.")
         return self
 
 
 class TaskResponse(BaseModel):
+    is_private: bool = False
     version: int
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -58,7 +60,6 @@ class TaskResponse(BaseModel):
     legacy_due_date: str | None
     deadline_version: int
     is_completed: bool
-    display_order: int
     created_at: datetime
     updated_at: datetime
 

@@ -1,6 +1,6 @@
 """Hợp đồng lịch hẹn của ghi chú ."""
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 class NoteScheduleWrite(BaseModel):
     model_config = ConfigDict(extra="forbid")

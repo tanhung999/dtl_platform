@@ -14,9 +14,9 @@ const { eventStatus } = compiled.exports;
 
 test('status switches exactly at start and exclusive end regardless of stored custom color', () => {
   const event = { starts_at: '2026-10-12T09:00:00+07:00', ends_at: '2026-10-12T10:00:00+07:00', color: '#be123c' };
-  assert.deepEqual(eventStatus(event, new Date('2026-10-12T01:59:59Z'), '2026-10-12'), { key: 'upcoming', label: 'Sắp tới', color: '#2563EB' });
-  assert.deepEqual(eventStatus(event, new Date('2026-10-12T02:00:00Z'), '2026-10-12'), { key: 'ongoing', label: 'Đang diễn ra', color: '#16A34A' });
-  assert.deepEqual(eventStatus(event, new Date('2026-10-12T03:00:00Z'), '2026-10-12'), { key: 'ended', label: 'Đã kết thúc', color: '#64748B' });
+  assert.deepEqual(eventStatus(event, new Date('2026-10-12T01:59:59Z'), '2026-10-12'), { key: 'upcoming', label: 'Sắp tới', color: '#EAB308' });
+  assert.deepEqual(eventStatus(event, new Date('2026-10-12T02:00:00Z'), '2026-10-12'), { key: 'ongoing', label: 'Đang diễn ra', color: '#2563EB' });
+  assert.deepEqual(eventStatus(event, new Date('2026-10-12T03:00:00Z'), '2026-10-12'), { key: 'ended', label: 'Đã kết thúc', color: '#16A34A' });
 });
 test('same multi-day event has distinct colors for past, current and future Vietnam days', () => {
   const event = { starts_at: '2026-10-11T17:00:00Z', ends_at: '2026-10-13T17:00:00Z' };

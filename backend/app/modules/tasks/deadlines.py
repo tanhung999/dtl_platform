@@ -17,7 +17,7 @@ def deadline_at(task: Task) -> datetime | None:
 def task_sort_key(task: Task):
     due = deadline_at(task)
     return (task.is_completed, due is None, due.timestamp() if due else float("inf"),
-            PRIORITIES.get(task.priority, 2), task.display_order or 0, task.id)
+            PRIORITIES.get(task.priority, 2), task.id)
 
 
 def active_reminder(task: Task, now: datetime):

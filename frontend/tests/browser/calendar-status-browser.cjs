@@ -1,4 +1,4 @@
-// Real-clock QA: validates automatic transitions without reload or API writes.
+// Controlled clock: validates minute-based automatic transitions without reload or API writes.
 const { chromium } = require('../.browser-tools/node_modules/playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -9,6 +9,9 @@ async function main() {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, timezoneId: 'America/New_York' });
   const page = await context.newPage();
+  const clockStart = new Date(Math.floor(Date.now() / 60000) * 60000);
+  await page.clock.install({ time: clockStart });
+  await page.clock.pauseAt(new Date(clockStart.getTime() + 1000));
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   let token, id, multiId;
@@ -22,16 +25,17 @@ async function main() {
     await page.locator('.calendar-widget-message').filter({ hasText: 'Đang tải lịch' }).waitFor({ state: 'hidden' });
     for (const card of await page.locator('.calendar-widget-event').all()) {
       const status = await card.getAttribute('data-event-status');
-      const expected = { upcoming: ['Sắp tới', '#2563EB'], ongoing: ['Đang diễn ra', '#16A34A'], ended: ['Đã kết thúc', '#64748B'] }[status];
+      const expected = { upcoming: ['Sắp tới', '#EAB308'], ongoing: ['Đang diễn ra', '#2563EB'], ended: ['Đã kết thúc', '#16A34A'] }[status];
       assert.ok(expected);
       assert.ok((await card.innerText()).includes(expected[0]));
       assert.equal(await card.evaluate(el => el.style.getPropertyValue('--event-color')), expected[1]);
     }
-    const now = Date.now();
+    const now = await page.evaluate(() => Date.now());
+    const starts = Math.ceil(now / 60000) * 60000;
     const response = await context.request.post(base + '/api/calendar/events', {
       headers: { Authorization: `Bearer ${token}` }, data: {
-        title: `[Status QA ${now}] Tự chuyển trạng thái`, starts_at: new Date(now + 20000).toISOString(),
-        ends_at: new Date(now + 30000).toISOString(), is_all_day: false, color: '#be123c',
+        title: `[Status QA ${now}] Tự chuyển trạng thái`, starts_at: new Date(starts).toISOString(),
+        ends_at: new Date(starts + 60000).toISOString(), is_all_day: false, color: '#be123c',
       },
     });
     assert.equal(response.status(), 201);
@@ -47,18 +51,24 @@ async function main() {
       }
       await row.waitFor();
       assert.equal(await row.getAttribute('data-event-status'), 'upcoming');
-      assert.ok((await row.innerText()).includes('Sắp tới'));
-      assert.equal(await row.evaluate(el => el.style.getPropertyValue('--event-color')), '#2563EB');
+      // Short and compact cards omit the status label to preserve title/time space.
+      if (await row.locator('.calendar-event-status').count()) assert.ok((await row.innerText()).includes('Sắp tới'));
+      assert.equal(await row.evaluate(el => el.style.getPropertyValue('--event-color')), '#EAB308');
     }
-    console.log('QA: all views have automatic blue status; waiting for real-clock transitions');
+    console.log('QA: all views have automatic yellow upcoming status; checking minute-clock transitions');
     const waitStatus = status => page.waitForFunction(({ selector, status }) => document.querySelector(selector)?.dataset.eventStatus === status,
       { selector, status }, { timeout: 35000 });
+    await page.clock.fastForward(60020);
     await waitStatus('ongoing');
-    assert.ok((await row.innerText()).includes('Đang diễn ra'));
-    assert.equal(await row.evaluate(el => el.style.getPropertyValue('--event-color')), '#16A34A');
+    // Short and compact cards omit the status label to preserve title/time space.
+    if (await row.locator('.calendar-event-status').count()) assert.ok((await row.innerText()).includes('Đang diễn ra'));
+    assert.equal(await row.evaluate(el => el.style.getPropertyValue('--event-color')), '#2563EB');
+    await page.clock.fastForward(60020);
     await waitStatus('ended');
-    assert.ok((await row.innerText()).includes('Đã kết thúc'));
-    assert.equal(await row.evaluate(el => el.style.getPropertyValue('--event-color')), '#64748B');
+    // Short and compact cards omit the status label to preserve title/time space.
+    if (await row.locator('.calendar-event-status').count()) assert.ok((await row.innerText()).includes('Đã kết thúc'));
+    assert.equal(await row.evaluate(el => el.style.getPropertyValue('--event-color')), '#16A34A');
+    await page.clock.resume();
     assert.equal(await row.locator('strong').evaluate(el => getComputedStyle(el).textDecorationLine), 'none');
     await page.getByRole('button', { name: 'Tuần', exact: true }).click();
     await row.waitFor();
@@ -76,6 +86,9 @@ async function main() {
       },
     });
     assert.equal(multi.status(), 201); multiId = (await multi.json()).id;
+    // The fixture is created directly through the API while the browser clock is paused.
+    // Fetch it explicitly; the automatic start/end transitions above need no reload.
+    await page.getByRole('button', { name: 'Làm mới lịch', exact: true }).click();
     const multiRow = status => page.locator(`[data-event-id="${multiId}"][data-event-status="${status}"]`).first();
     for (const view of ['Tuần', 'Tháng', 'Danh sách']) {
       await page.getByRole('button', { name: view, exact: true }).click();

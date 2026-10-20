@@ -1,9 +1,9 @@
 // Bản build production, API thật; trì hoãn SSE bằng cổng Promise.
 const {chromium}=require('../.browser-tools/node_modules/playwright');
-const {createDragUsers}=require('../support/test-users.cjs');
+const {createTestUsers}=require('../support/test-users.cjs');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 function gate(){let release;const promise=new Promise(resolve=>release=resolve);return{promise,release};}
-(async()=>{const fixture=createDragUsers(1);let browser;const gates=[];
+(async()=>{const fixture=createTestUsers(1);let browser;const gates=[];
 try{
  browser=await chromium.launch({channel:'msedge',headless:true});const page=await browser.newPage();page.setDefaultTimeout(20000);
  const dist=path.resolve(__dirname,'../../dist');
@@ -37,7 +37,7 @@ try{
  const created=await page.request.post('http://127.0.0.1:5173/api/tasks',{headers:{Authorization:'Bearer '+token},data:{title:'Committed before SSE connection'}});assert.equal(created.status(),201);
  delayed.release();delayed=undefined;await page.getByText('Committed before SSE connection',{exact:true}).waitFor();await page.waitForTimeout(300);
  assert.equal(counts['/api/tasks/collection'],2);
- for(const endpoint of ['/api/notes/collection/page','/api/notifications/summary','/api/workspace/layout','/api/access/me'])assert.equal(counts[endpoint],before[endpoint],endpoint+' unrelated reload');
+ for(const endpoint of ['/api/notes/collection/page','/api/notifications/summary','/api/access/me'])assert.equal(counts[endpoint],before[endpoint],endpoint+' unrelated reload');
  // Drop the connection, commit while offline, then reconnect against durable versions.
  await page.context().setOffline(true);
  const response=await fetch('http://127.0.0.1:8000/api/tasks',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({title:'Committed while browser offline'})});assert.equal(response.status,201);

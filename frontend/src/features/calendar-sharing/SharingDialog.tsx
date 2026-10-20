@@ -5,23 +5,11 @@ import { Account } from '../access/api';
 import { useMutationChecking } from '../mutations/useMutationChecking';
 import { ApiError } from '../../services/api';
 import { AccountSearch } from '../access/AccountSearch';
-export function SharingDialog({ title, children, onClose, closeOnOutside = false }: { title: string; children: ReactNode; onClose: () => void; closeOnOutside?: boolean }) {
+export function SharingDialog({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const pressedOutside = useRef(false);
-  const isOutside = (element: HTMLDialogElement, x: number, y: number) => {
-    const bounds = element.getBoundingClientRect();
-    return x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom;
-  };
   useEffect(() => { const previous = document.activeElement as HTMLElement | null; const node = ref.current; node?.showModal(); return () => { node?.close(); previous?.focus(); }; }, []);
   return <dialog ref={ref} className="calendar-event-dialog calendar-sharing-dialog" aria-label={title}
-    onPointerDown={e => { pressedOutside.current = closeOnOutside && e.target === e.currentTarget && isOutside(e.currentTarget, e.clientX, e.clientY); }}
-    onPointerCancel={() => { pressedOutside.current = false; }}
-    onClick={e => {
-      const shouldClose = pressedOutside.current && e.target === e.currentTarget && isOutside(e.currentTarget, e.clientX, e.clientY);
-      pressedOutside.current = false;
-      if (shouldClose) onClose();
-    }}
-    onCancel={e => { e.preventDefault(); onClose(); }}>
+    onCancel={e => { e.preventDefault(); e.stopPropagation(); }}>
     <header className="calendar-dialog-header"><h2>{title}</h2><button type="button" className="calendar-icon-button" aria-label="Đóng" onClick={onClose}><X size={20} /></button></header>{children}</dialog>;
 }
 export function ScopeFields({ value, onChange, disabled }: { value: Scope; onChange: (value: Scope) => void; disabled?: boolean }) {

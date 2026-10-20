@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   platform-backend:
     build:
@@ -18,6 +16,11 @@ services:
       - DB_STATEMENT_TIMEOUT_MS=8000
       - DB_LOCK_TIMEOUT_MS=3000
       - NOTIFICATIONS_WORKER_ENABLED=${NOTIFICATIONS_WORKER_ENABLED:-true}
+      - MAINTENANCE_ENABLED=${MAINTENANCE_ENABLED:-true}
+      - MAINTENANCE_INTERVAL_SECONDS=${MAINTENANCE_INTERVAL_SECONDS:-600}
+      - MAINTENANCE_BATCH_SIZE=${MAINTENANCE_BATCH_SIZE:-500}
+      - SCHEDULE_HISTORY_RETENTION_DAYS=${SCHEDULE_HISTORY_RETENTION_DAYS:-365}
+      - PROCESSED_JOB_RETENTION_DAYS=${PROCESSED_JOB_RETENTION_DAYS:-30}
       - NOTIFICATIONS_BOOKINGREPORTS_SECRET=${NOTIFICATIONS_BOOKINGREPORTS_SECRET:-}
       - NOTIFICATIONS_WORKFLOWS_SECRET=${NOTIFICATIONS_WORKFLOWS_SECRET:-}
       - NOTIFICATIONS_ITAM_SECRET=${NOTIFICATIONS_ITAM_SECRET:-}
@@ -29,7 +32,6 @@ services:
       - ASSET_MANAGER_URL=http://localhost:8444
     depends_on:
       - platform-db
-      - platform-redis
 
   platform-frontend:
     image: node:20-alpine
@@ -58,13 +60,6 @@ services:
       - "5434:5432"
     volumes:
       - platform_db_data:/var/lib/postgresql/data
-
-  platform-redis:
-    image: redis:7-alpine
-    container_name: dtl-platform-redis
-    restart: unless-stopped
-    ports:
-      - "6380:6379"
 
 volumes:
   platform_db_data:
