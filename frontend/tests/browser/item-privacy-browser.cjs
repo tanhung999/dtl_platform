@@ -41,7 +41,6 @@ const assert = require('node:assert/strict');
     const script = `import asyncio,sys
 from app.core.database import async_session_maker
 from app.db.access import UserRole
-from app.db.task_reminders import TaskReminderReceipt
 async def run():
  async with async_session_maker() as db:
   db.add(UserRole(user_id=sys.argv[1],role_id='calendar_sharer'))

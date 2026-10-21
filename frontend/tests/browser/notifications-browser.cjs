@@ -10,7 +10,6 @@ const seed = `import asyncio,json,sys
 from datetime import datetime,timezone
 from app.core.database import async_session_maker
 from app.db.models import User
-from app.db.task_reminders import TaskReminderReceipt
 from app.db.notifications import Notification
 from app.db.calendar import CalendarEvent
 from app.core.realtime import prepare_changes,mark_changed

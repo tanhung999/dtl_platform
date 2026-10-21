@@ -46,7 +46,7 @@ Hai chỉ mục cho điều kiện dọn theo thời gian được tạo bằng 
 - Bỏ các file icon trùng trong `public`; plugin `tooling/legacyAssets.ts` phục vụ URL cũ từ `src/assets` ở dev và xuất alias khi build. `/dong-tay-land-logo.png` tiếp tục dùng nguồn `public/logo.png` của trang đăng nhập.
 - Logo trên Navbar dùng PNG 128×128, giữ alpha và cùng kích thước CSS 62,4 px. Dung lượng từ 550.405 còn 13.811 byte. Bản gốc giữ cùng các logo khác tại `frontend/src/assets/logo-source.png`, không được nhập vào bundle ứng dụng.
 
-Không xóa `workspace_versions`, `task_reminder_receipts`, cột hạn cũ hoặc các migration cũ.
+Giữ `workspace_versions` vì realtime vẫn sử dụng và giữ cột hạn cũ để không mất nhãn chưa chuyển đổi được. Cập nhật ngày 21/10/2026: sau khi ngừng nhắc tự động, migration `notifications_003_retire_implicit_receipts` đã bỏ bảng `task_reminder_receipts` và model/migration snooze cũ không còn dùng. Hộp thông báo và receipt chống tạo trùng hiện tại vẫn được giữ.
 
 ## Kiểm tra
 

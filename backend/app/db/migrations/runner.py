@@ -1,7 +1,7 @@
 """Versioned schema upgrades and workspace order data cleanup."""
 from sqlalchemy import inspect, text
 from app.core.database import Base, engine
-from app.db import models, calendar, task_reminders
+from app.db import models, calendar
 from app.db import note_scheduling
 from app.db import create_requests
 from app.db import access
@@ -12,7 +12,6 @@ from .calendar_sharing import migrate_calendar_privacy, migrate_access_catalog
 from app.db import notifications
 from .notifications import migrate_notifications
 from .task_deadlines import migrate_task_deadlines
-from .task_reminder_snooze import migrate_task_reminder_snooze
 from .note_versions import migrate_note_versions
 from .remove_note_event_links import migrate_remove_note_event_links
 from .note_scheduling import migrate_note_scheduling
@@ -20,7 +19,7 @@ from .note_reliability import migrate_note_reliability
 from .collection_scaling import migrate_collection_scaling
 from .collection_reliability import migrate_collection_reliability
 
-TABLES = ('tasks', 'task_reminder_receipts', 'calendar_events')
+TABLES = ('tasks', 'calendar_events')
 
 async def task_calendar_schema(conn):
     if conn.dialect.name == 'postgresql':
@@ -49,7 +48,6 @@ async def upgrade(conn):
     if conn.dialect.name == 'postgresql':
         await conn.execute(text('SELECT pg_advisory_xact_lock(721042026)'))
     await migrate_task_deadlines(conn)
-    await migrate_task_reminder_snooze(conn)
     await migrate_calendar_privacy(conn)
     await conn.run_sync(Base.metadata.create_all)
     # workspace_versions is additive; existing accounts begin at zero until their next write.
@@ -150,6 +148,12 @@ async def upgrade(conn):
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
         from .user_reminders import migrate_user_reminders
         await migrate_user_reminders(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'notifications_003_retire_implicit_receipts'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .retire_reminder_receipts import migrate_retire_reminder_receipts
+        await migrate_retire_reminder_receipts(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
 async def run():

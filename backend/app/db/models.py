@@ -92,7 +92,6 @@ class Task(Base):
     updated_at = Column(UTCDateTime(), default=utcnow, onupdate=utcnow, nullable=False)
 
     user = relationship("User", back_populates="tasks")
-    reminder_receipts = relationship("TaskReminderReceipt", cascade="all, delete-orphan")
 
 
 class Bookmark(Base):

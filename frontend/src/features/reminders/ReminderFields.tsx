@@ -26,10 +26,12 @@ export function ReminderFields({ value, onChange, anchor, allDay, endsAt, disabl
     const cutoff = reminderCutoff(anchor, allDay, endsAt);
     if (cutoff === null || cutoff <= now) return;
     const boundaries = [cutoff, ...(!allDay && anchor ? [0, 15, 30, 60, 1440].map(minutes => Date.parse(anchor) - minutes * 60000) : [])];
+    const selected = value.reminder_at ? Date.parse(value.reminder_at) : anchor && value.reminder_minutes != null ? Date.parse(anchor) - value.reminder_minutes * 60000 : NaN;
+    if (Number.isFinite(selected)) boundaries.push(selected);
     const next = Math.min(...boundaries.filter(stamp => stamp > now));
     const timer = setTimeout(() => setNow(Date.now()), Math.min(2147483647, Math.max(20, next - Date.now() + 1)));
     return () => clearTimeout(timer);
-  }, [anchor, allDay, endsAt, now]);
+  }, [anchor, allDay, endsAt, now, value.reminder_at, value.reminder_minutes]);
   const mode = value.reminder_at ? 'custom' : value.reminder_minutes != null ? String(value.reminder_minutes) : 'none';
   const stamp = value.reminder_at || (anchor && value.reminder_minutes != null ? new Date(Date.parse(anchor) - value.reminder_minutes * 60000).toISOString() : undefined);
   const beyondLimit = reminderBeyondLimit(stamp, anchor, allDay, endsAt);

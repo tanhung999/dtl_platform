@@ -14,7 +14,6 @@ from datetime import datetime,timedelta,timezone,time
 from sqlalchemy import insert
 from app.core.database import async_session_maker
 from app.db.models import User,Task,Note
-from app.db.task_reminders import TaskReminderReceipt
 from app.db.calendar import CalendarEvent
 from app.db.note_scheduling import NoteCalendarSchedule
 from app.db.access import UserRole,CalendarShare
@@ -39,7 +38,6 @@ const cleanup=`import asyncio,json,sys
 from sqlalchemy import delete
 from app.core.database import async_session_maker
 from app.db.models import User
-from app.db.task_reminders import TaskReminderReceipt
 async def main():
  accounts=json.load(sys.stdin)
  async with async_session_maker() as db:

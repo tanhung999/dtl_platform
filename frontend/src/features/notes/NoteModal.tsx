@@ -150,7 +150,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
               className="btn btn-outline btn-sm"
               style={{
                 background: isPinned ? '#2563eb' : 'transparent',
-                color: isPinned ? 'white' : '#64748b',
+                color: isPinned ? 'white' : '#475569',
                 padding: '4px 8px',
               }}
               disabled={busy}

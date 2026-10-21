@@ -61,6 +61,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingPassword) return;
     if (newPassword.length < 6) {
       setPasswordMessage({ type: 'error', text: 'Mật khẩu mới phải có tối thiểu 6 ký tự.' });
       return;
@@ -117,7 +118,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
               <span
                 style={{
                   background: 'var(--primary-light)',
-                  color: 'var(--accent)',
+                  color: 'var(--accent-text)',
                   fontWeight: 700,
                   fontSize: '0.75rem',
                   padding: '3px 8px',
@@ -145,7 +146,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
             </div>
 
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600, marginTop: '4px' }}>
-              {user.job_title || 'Thành viên'} &bull; <span style={{ color: 'var(--accent)' }}>{user.department}</span>
+              {user.job_title || 'Thành viên'} &bull; <span style={{ color: 'var(--accent-text)' }}>{user.department}</span>
             </p>
 
             <div style={{ display: 'flex', gap: '16px', marginTop: '10px', flexWrap: 'wrap', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
@@ -167,9 +168,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1.5rem' }}>
         {/* Cột trái: Chỉnh sửa thông tin hồ sơ */}
         <div className="glass-panel" style={{ gridColumn: 'span 7', padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-            <Briefcase size={20} color="#2563eb" />
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+            <Briefcase size={20} color="var(--accent-text)" />
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
               Thông Tin Cá Nhân & Công Tác
             </h3>
           </div>
@@ -181,9 +182,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                 marginBottom: '1rem',
                 padding: '0.75rem 1rem',
                 borderRadius: '8px',
-                background: profileMessage.type === 'success' ? '#f0fdf4' : '#fef2f2',
-                color: profileMessage.type === 'success' ? '#166534' : '#b91c1c',
-                border: `1px solid ${profileMessage.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+                background: profileMessage.type === 'success' ? 'var(--success-bg)' : 'var(--error-bg)',
+                color: profileMessage.type === 'success' ? 'var(--success-text)' : 'var(--error)',
+                border: '1px solid var(--border)',
                 fontSize: '0.85rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -198,11 +199,12 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
           <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label>Họ và Tên</label>
+                <label>Họ và tên</label>
                 <input
                   type="text"
                   className="form-input"
-                  value={fullName}
+                  maxLength={120}
+                value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
                 />
@@ -215,20 +217,20 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                   className="form-input"
                   value={user.username}
                   disabled
-                  style={{ background: '#f8fafc', color: '#64748b', cursor: 'not-allowed' }}
+                  style={{ background: 'var(--input-disabled-bg)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
                 />
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label>Email Doanh nghiệp</label>
+                <label>Email doanh nghiệp</label>
                 <input
                   type="email"
                   className="form-input"
                   value={user.email}
                   disabled
-                  style={{ background: '#f8fafc', color: '#64748b', cursor: 'not-allowed' }}
+                  style={{ background: 'var(--input-disabled-bg)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
                 />
               </div>
 
@@ -238,7 +240,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                   type="text"
                   className="form-input"
                   placeholder="Nhập số điện thoại..."
-                  value={phone}
+                  maxLength={30}
+                value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
               </div>
@@ -251,7 +254,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                   type="text"
                   className="form-input"
                   placeholder="Chức danh hiện tại..."
-                  value={jobTitle}
+                  maxLength={100}
+                value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
                 />
               </div>
@@ -263,7 +267,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                   className="form-input"
                   value={user.department}
                   disabled
-                  style={{ background: '#f8fafc', color: '#64748b', cursor: 'not-allowed' }}
+                  style={{ background: 'var(--input-disabled-bg)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
                 />
               </div>
             </div>
@@ -274,6 +278,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                 type="text"
                 className="form-input"
                 placeholder="Địa chỉ trụ sở hoặc văn phòng làm việc..."
+                maxLength={150}
                 value={officeLocation}
                 onChange={(e) => setOfficeLocation(e.target.value)}
               />
@@ -285,6 +290,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                 className="form-input"
                 rows={3}
                 placeholder="Mô tả ngắn gọn về chuyên môn, nhiệm vụ..."
+                maxLength={10000}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 style={{ resize: 'vertical' }}
@@ -304,14 +310,14 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
         <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Card Quyền truy cập SSO */}
           <div className="glass-panel" style={{ padding: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-              <Sparkles size={18} color="#2563eb" />
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+              <Sparkles size={18} color="var(--accent-text)" />
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                 Hệ Thống Phân Quyền (SSO)
               </h3>
             </div>
 
-            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.4 }}>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.4 }}>
               Tài khoản của bạn được cấp quyền đăng nhập tự động vào các phân hệ nghiệp vụ sau:
             </p>
 
@@ -324,7 +330,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Báo cáo thu nhập & doanh số</div>
                   </div>
                 </div>
-                <span style={{ fontSize: '0.7rem', color: '#16a34a', background: 'rgba(22, 163, 74, 0.15)', fontWeight: 700, padding: '2px 8px', borderRadius: '12px' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--success-text)', background: 'var(--success-bg)', fontWeight: 700, padding: '2px 8px', borderRadius: '12px' }}>
                   Đã cấp phép
                 </span>
               </div>
@@ -337,7 +343,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Luồng trình ký & hồ sơ nội bộ</div>
                   </div>
                 </div>
-                <span style={{ fontSize: '0.7rem', color: '#16a34a', background: 'rgba(22, 163, 74, 0.15)', fontWeight: 700, padding: '2px 8px', borderRadius: '12px' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--success-text)', background: 'var(--success-bg)', fontWeight: 700, padding: '2px 8px', borderRadius: '12px' }}>
                   Đã cấp phép
                 </span>
               </div>
@@ -350,7 +356,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Quản lý tài sản & cấp phát IT</div>
                   </div>
                 </div>
-                <span style={{ fontSize: '0.7rem', color: '#16a34a', background: 'rgba(22, 163, 74, 0.15)', fontWeight: 700, padding: '2px 8px', borderRadius: '12px' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--success-text)', background: 'var(--success-bg)', fontWeight: 700, padding: '2px 8px', borderRadius: '12px' }}>
                   Đã cấp phép
                 </span>
               </div>
@@ -359,9 +365,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
 
           {/* Card Đổi mật khẩu */}
           <div className="glass-panel" style={{ padding: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-              <KeyRound size={18} color="#2563eb" />
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+              <KeyRound size={18} color="var(--accent-text)" />
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                 Đổi Mật Khẩu
               </h3>
             </div>
@@ -373,9 +379,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                   marginBottom: '1rem',
                   padding: '0.65rem 0.85rem',
                   borderRadius: '8px',
-                  background: passwordMessage.type === 'success' ? '#f0fdf4' : '#fef2f2',
-                  color: passwordMessage.type === 'success' ? '#166534' : '#b91c1c',
-                  border: `1px solid ${passwordMessage.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+                  background: passwordMessage.type === 'success' ? 'var(--success-bg)' : 'var(--error-bg)',
+                  color: passwordMessage.type === 'success' ? 'var(--success-text)' : 'var(--error)',
+                  border: '1px solid var(--border)',
                   fontSize: '0.825rem',
                   display: 'flex',
                   alignItems: 'center',

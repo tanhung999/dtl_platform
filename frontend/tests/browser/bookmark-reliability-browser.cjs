@@ -1,0 +1,19 @@
+const {chromium}=require('../.browser-tools/node_modules/playwright');
+const {createTestUsers}=require('../support/test-users.cjs');
+const assert=require('node:assert/strict');
+const base=process.env.PLATFORM_BASE_URL||'http://127.0.0.1:5173';
+(async()=>{const fixture=createTestUsers(1);let browser;
+try{
+ browser=await chromium.launch({channel:'msedge',headless:true});const page=await browser.newPage({viewport:{width:1500,height:1100}});page.setDefaultTimeout(15000);
+ await page.route(/fonts\.(googleapis|gstatic)\.com/,r=>r.abort());await page.goto(base);await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);await page.getByLabel('Mật khẩu',{exact:true}).fill(fixture.accounts[0].password);await page.getByRole('button',{name:'Đăng nhập hệ thống'}).click();
+ const widget=page.locator('.bookmarks-widget');await widget.waitFor();await widget.getByText('Đang tải liên kết…',{exact:true}).waitFor({state:'hidden'});const baseline=await widget.locator('.bookmark-card').count();
+ let failRead=true;const fail=async route=>{if(route.request().method()==='GET'&&failRead){failRead=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'QA đọc lỗi'})});}else await route.continue();};
+ await page.route('**/api/bookmarks',fail);await page.evaluate(()=>window.dispatchEvent(new CustomEvent('workspace:changed',{detail:['bookmarks']})));await widget.getByRole('alert').filter({hasText:'QA đọc lỗi'}).waitFor();await widget.getByRole('button',{name:'Tải lại danh sách',exact:true}).click();await widget.getByRole('alert').waitFor({state:'hidden'});assert.equal(await widget.locator('.bookmark-card').count(),baseline);await page.unroute('**/api/bookmarks',fail);
+ await widget.getByRole('button',{name:'Thêm',exact:true}).click();await widget.getByLabel('Tên liên kết',{exact:true}).fill('Reliable link');await widget.getByLabel('Địa chỉ liên kết',{exact:true}).fill('javascript:alert(1)');let posts=[];
+ page.on('request',r=>{if(new URL(r.url()).pathname==='/api/bookmarks'&&r.method()==='POST')posts.push(r.postDataJSON());});await widget.getByRole('button',{name:'Lưu',exact:true}).click();await widget.getByRole('alert').filter({hasText:'http hoặc https'}).waitFor();assert.equal(posts.length,0);
+ let lost=false;const drop=async route=>{if(route.request().method()==='POST'&&!lost){lost=true;await route.fetch();await route.abort('failed');}else await route.continue();};await page.route('**/api/bookmarks',drop);
+ await widget.getByLabel('Địa chỉ liên kết',{exact:true}).fill('example.com');await widget.getByRole('button',{name:'Lưu',exact:true}).click();await widget.getByRole('button',{name:'Thử lại lưu',exact:true}).waitFor();assert.ok(await widget.getByLabel('Tên liên kết',{exact:true}).isDisabled());await widget.locator('a').filter({hasText:'Reliable link'}).waitFor();assert.ok(await widget.getByRole('alert').isVisible(),'Realtime reads must not erase a create error');
+ await widget.getByRole('button',{name:'Thử lại lưu',exact:true}).click();await widget.getByLabel('Tên liên kết',{exact:true}).waitFor({state:'hidden'});await widget.locator('a').filter({hasText:'Reliable link'}).waitFor();assert.equal(await widget.locator('a').filter({hasText:'Reliable link'}).count(),1);assert.equal(posts.length,2);assert.equal(posts[0].client_request_id,posts[1].client_request_id);await page.unroute('**/api/bookmarks',drop);
+ await widget.getByRole('button',{name:'Xóa liên kết Reliable link',exact:true}).click();await widget.locator('a').filter({hasText:'Reliable link'}).waitFor({state:'hidden'});assert.equal(await widget.locator('.bookmark-card').count(),baseline);
+ console.log('PASS: bookmark read errors are visible and retryable; unsafe URLs send no writes; lost create replies reuse one request ID without duplicate cards; delete refreshes the list.');
+}finally{if(browser)await browser.close();fixture.cleanup();}})().catch(e=>{console.error(e);process.exitCode=1;});

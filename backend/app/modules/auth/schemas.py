@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 
@@ -30,11 +30,16 @@ class UserResponse(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
-    job_title: Optional[str] = None
-    office_location: Optional[str] = None
-    bio: Optional[str] = None
+    full_name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    phone: Optional[str] = Field(default=None, max_length=30)
+    job_title: Optional[str] = Field(default=None, max_length=100)
+    office_location: Optional[str] = Field(default=None, max_length=150)
+    bio: Optional[str] = Field(default=None, max_length=10000)
+
+    @field_validator('full_name', 'phone', 'job_title', 'office_location', 'bio', mode='before')
+    @classmethod
+    def trimmed(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
 
 class ChangePasswordRequest(BaseModel):

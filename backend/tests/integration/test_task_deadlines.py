@@ -6,7 +6,6 @@ from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import create_async_engine
 from tests.support import api_case as test_calendar
 from app.db.models import Task
-from app.db.task_reminders import TaskReminderReceipt
 from app.db.migrations.task_deadlines import migrate_task_deadlines
 from app.modules.tasks.deadlines import deadline_at, VN
 from app.core.realtime import stream

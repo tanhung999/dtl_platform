@@ -20,7 +20,6 @@ const assert = require('node:assert/strict');
     const grant = spawnSync('docker', ['compose', 'exec', '-T', 'platform-backend', 'python', '-c', `import asyncio,json,sys
 from app.core.database import async_session_maker
 from app.db.models import User
-from app.db.task_reminders import TaskReminderReceipt
 from app.db.access import UserRole,CalendarShare
 async def run():
  accounts=json.load(sys.stdin)

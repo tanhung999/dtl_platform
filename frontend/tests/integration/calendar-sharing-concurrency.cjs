@@ -9,7 +9,6 @@ const root=path.resolve(__dirname,'../../..');
  const script=`import asyncio,sys
 from app.core.database import async_session_maker
 from app.db.models import User
-from app.db.task_reminders import TaskReminderReceipt
 from app.db.access import UserRole
 async def main():
  async with async_session_maker() as db:

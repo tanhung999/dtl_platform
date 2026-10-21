@@ -43,10 +43,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       <div className="login-card">
         <div className="login-brand-header">
           <img src="/logo.png" alt="Đông Tây Land" className="login-brand-logo" />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e3a8a', marginTop: '0.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.5rem' }}>
             ĐÔNG TÂY LAND PLATFORM
           </h2>
-          <p style={{ fontSize: '0.825rem', color: '#64748b' }}>
+          <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
             Đăng nhập một lần để truy cập toàn bộ hệ thống
           </p>
         </div>
@@ -69,7 +69,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               />
               <User
                 size={16}
-                style={{ position: 'absolute', right: 12, top: 12, color: '#94a3b8' }}
+                style={{ position: 'absolute', right: 12, top: 12, color: 'var(--text-muted)' }}
               />
             </div>
           </div>
@@ -96,7 +96,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  color: '#94a3b8',
+                  color: 'var(--text-muted)',
                 }}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -121,13 +121,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           </button>
         </form>
 
-        <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '1rem', textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8' }}>
+        <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
-            <ShieldCheck size={14} color="#2563eb" />
-            <span style={{ fontWeight: 600, color: '#475569' }}>Bảo mật nội bộ Đông Tây Land</span>
+            <ShieldCheck size={14} color="var(--accent-text)" />
+            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Bảo mật nội bộ Đông Tây Land</span>
           </div>
-          <div>Tài khoản khởi tạo: <strong>admin</strong> / <strong>admin123</strong></div>
-          <div style={{ marginTop: '12px', fontSize: '11px', color: '#94a3b8' }}>
+          <div>Liên hệ quản trị viên nếu bạn chưa có tài khoản.</div>
+          <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
             Designed by <strong>Phòng CN & CĐS - Đông Tây Land</strong> &bull; v 1.0.0
           </div>
         </div>

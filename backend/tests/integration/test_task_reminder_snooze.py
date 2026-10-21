@@ -1,11 +1,8 @@
 import unittest
-from datetime import datetime
-from unittest.mock import patch
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from tests.support import api_case as test_calendar
-from app.db.migrations.task_reminder_snooze import migrate_task_reminder_snooze
-from app.modules.tasks.deadlines import VN
+from app.db.migrations.retire_reminder_receipts import migrate_retire_reminder_receipts
 
 
 class ReminderSnoozeTests(unittest.IsolatedAsyncioTestCase):
@@ -24,17 +21,14 @@ class ReminderSnoozeTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ReminderSnoozeMigrationTests(unittest.IsolatedAsyncioTestCase):
-    async def test_existing_dismissal_preserved_and_idempotent(self):
+    async def test_retired_receipts_removed_idempotently(self):
         engine = create_async_engine('sqlite+aiosqlite:///:memory:')
         try:
             async with engine.begin() as conn:
                 await conn.execute(text('CREATE TABLE task_reminder_receipts (id TEXT PRIMARY KEY, dismissed_at DATETIME NOT NULL)'))
                 await conn.execute(text("INSERT INTO task_reminder_receipts VALUES ('existing', '2026-10-12 09:00:00')"))
-                await migrate_task_reminder_snooze(conn)
-                await migrate_task_reminder_snooze(conn)
-                row = (await conn.execute(text('SELECT * FROM task_reminder_receipts'))).mappings().one()
-                self.assertEqual(row['id'], 'existing')
-                self.assertEqual(row['dismissed_at'], '2026-10-12 09:00:00')
-                self.assertIsNone(row['snoozed_until'])
+                await migrate_retire_reminder_receipts(conn)
+                await migrate_retire_reminder_receipts(conn)
+                self.assertIsNone(await conn.scalar(text("SELECT name FROM sqlite_master WHERE type='table' AND name='task_reminder_receipts'")))
         finally:
             await engine.dispose()

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from './validationErrors';
 import { AuthSession, User } from '../types';
 import { SharedReads } from './sharedReads';
 import { readScopes, workspaceBootstrap } from './realtimeBootstrap';
@@ -87,8 +88,8 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
     checkSession();
 
     if (!response.ok) {
-      const errorMsg = data?.detail || `Yêu cầu thất bại (Mã lỗi HTTP ${response.status})`;
-      throw new ApiError(typeof errorMsg === 'string' ? errorMsg : errorMsg.message || JSON.stringify(errorMsg), response.status, errorMsg?.current);
+      const detail = data?.detail;
+      throw new ApiError(apiErrorMessage(detail, response.status), response.status, detail?.current);
     }
 
     if (scopes.length) {
