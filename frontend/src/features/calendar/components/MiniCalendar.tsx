@@ -41,7 +41,7 @@ export function MiniCalendar({ month, selected, onMonthChange, onSelect, events,
           <button key={dateKey(day)} type="button" onClick={() => onSelect(day)}
             aria-label={formatDate(day, { dateStyle: 'full' })} aria-pressed={dateKey(day) === dateKey(selected)}
             data-date={key} aria-description={hasItems ? 'Có sự kiện, ghi chú hoặc công việc' : undefined} className={`${day.getUTCMonth() !== month.getUTCMonth() ? 'is-outside' : ''} ${dateKey(day) === todayKey ? 'is-today' : ''} ${dateKey(day) === dateKey(selected) ? 'is-selected' : ''} ${highlightWeek && key >= weekStart && key < weekEnd ? 'is-viewed-week' : ''}`}>
-            {day.getUTCDate()}{hasItems && <span className={`calendar-mini-day-dot ${urgent ? 'needs-attention' : ''}`} aria-hidden="true" />}
+            {day.getUTCDate()}{hasItems && <span className={`calendar-mini-day-dot ${urgent ? 'needs-attention' : key < todayKey ? 'is-past' : key > todayKey ? 'is-future' : ''}`} aria-hidden="true" />}
           </button>
         ); })}
       </div>

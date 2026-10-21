@@ -8,7 +8,7 @@ from tests.support import api_case as test_calendar
 from app.db.models import Task
 from app.db.task_reminders import TaskReminderReceipt
 from app.db.migrations.task_deadlines import migrate_task_deadlines
-from app.modules.tasks.deadlines import active_reminder, VN
+from app.modules.tasks.deadlines import deadline_at, VN
 from app.core.realtime import stream
 
 
@@ -105,29 +105,6 @@ class TaskDeadlineApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(cleared['due_date'])
             self.assertIsNone(cleared['due_time'])
 
-    async def test_reminder_dismissal_version_reset_and_delete_cascade(self):
-        task = await self.create(due_date='2026-10-13')
-        with patch('app.modules.tasks.router.utcnow', return_value=datetime(2026, 10, 12, 9, tzinfo=VN)):
-            _, reminders = await self.request('GET', '/api/tasks/reminders')
-            self.assertEqual(reminders[0]['kind'], 'before')
-            path = '/api/tasks/' + task['id'] + '/reminders/before/dismiss'
-            for _ in range(2):
-                status, _ = await self.request('POST', path, payload={'deadline_version': 0})
-                self.assertEqual(status, 204)
-            _, reminders = await self.request('GET', '/api/tasks/reminders')
-            self.assertEqual(reminders, [])
-            await self.request('PATCH', '/api/tasks/' + task['id'], payload={'due_time': '10:00'})
-            status, _ = await self.request('POST', path, payload={'deadline_version': 0})
-            self.assertEqual(status, 409)
-            _, reminders = await self.request('GET', '/api/tasks/reminders')
-            self.assertEqual(reminders[0]['deadline_version'], 1)
-        with patch('app.modules.tasks.router.utcnow', return_value=datetime(2026, 10, 13, 9, tzinfo=VN)):
-            _, reminders = await self.request('GET', '/api/tasks/reminders')
-            self.assertEqual(reminders[0]['kind'], 'day')
-        await self.request('DELETE', '/api/tasks/' + task['id'])
-        async with self.sessions() as session:
-            self.assertEqual((await session.execute(select(TaskReminderReceipt))).scalars().all(), [])
-
     async def test_committed_realtime_updates_are_private(self):
         class Connected:
             async def is_disconnected(self): return False
@@ -148,15 +125,9 @@ class TaskDeadlineApiTests(unittest.IsolatedAsyncioTestCase):
 class DeadlineRulesTests(unittest.TestCase):
     def test_vietnam_day_boundaries_and_early_time(self):
         task = Task(due_date='2026-10-13', is_completed=False)
-        self.assertIsNone(active_reminder(task, datetime(2026, 10, 12, 7, 59, tzinfo=VN)))
-        self.assertEqual(active_reminder(task, datetime(2026, 10, 12, 8, tzinfo=VN))[0], 'before')
-        self.assertEqual(active_reminder(task, datetime(2026, 10, 13, 23, 59, tzinfo=VN))[0], 'day')
-        self.assertIsNone(active_reminder(task, datetime(2026, 10, 14, tzinfo=VN)))
+        self.assertEqual(deadline_at(task), datetime(2026, 10, 14, tzinfo=VN))
         task.due_time = '07:00'
-        self.assertEqual(active_reminder(task, datetime(2026, 10, 13, 6, 30, tzinfo=VN))[0], 'day')
-        self.assertIsNone(active_reminder(task, datetime(2026, 10, 13, 7, tzinfo=VN)))
-        task.is_completed = True
-        self.assertIsNone(active_reminder(task, datetime(2026, 10, 12, 9, tzinfo=VN)))
+        self.assertEqual(deadline_at(task), datetime(2026, 10, 13, 7, tzinfo=VN))
 
 
 class DeadlineMigrationTests(unittest.IsolatedAsyncioTestCase):

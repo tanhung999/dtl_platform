@@ -4,9 +4,9 @@ import { displayDateInput, parseDateInput, vietnamDate } from './dateInputUtils'
 import './DatePicker.css';
 import { usePickerPopover } from './usePickerPopover';
 
-interface Props { value: string; onChange: (value: string) => void; label: string; disabled?: boolean; required?: boolean; min?: string; align?: 'start' | 'end'; clearLabel?: string; }
+interface Props { value: string; onChange: (value: string) => void; label: string; disabled?: boolean; required?: boolean; min?: string; align?: 'start' | 'end'; clearLabel?: string; validationMessage?: string; }
 
-export function DatePicker({ value, onChange, label, disabled = false, required = false, min, align = 'start', clearLabel = 'Xóa ngày' }: Props) {
+export function DatePicker({ value, onChange, label, disabled = false, required = false, min, align = 'start', clearLabel = 'Xóa ngày', validationMessage = '' }: Props) {
   const [text, setText] = useState(() => displayDateInput(value));
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(() => (value || vietnamDate()).slice(0, 7));
@@ -19,10 +19,10 @@ export function DatePicker({ value, onChange, label, disabled = false, required 
   const allowed = (date: string) => !min || date >= min;
   const validate = (raw: string) => {
     const parsed = parseDateInput(raw);
-    return parsed === null ? 'Nhập ngày hợp lệ theo định dạng dd/mm/yyyy.' : parsed && !allowed(parsed) ? `${label} không được trước ${displayDateInput(min!)}.` : '';
+    return parsed === null ? 'Nhập ngày hợp lệ theo định dạng dd/mm/yyyy.' : parsed && !allowed(parsed) ? `${label} không được trước ${displayDateInput(min!)}.` : validationMessage;
   };
-  useEffect(() => { setText(displayDateInput(value)); input.current?.setCustomValidity(''); }, [value]);
-  useEffect(() => { input.current?.setCustomValidity(validate(text)); }, [text, min, label]);
+  useEffect(() => { setText(displayDateInput(value)); }, [value]);
+  useEffect(() => { input.current?.setCustomValidity(validate(text)); }, [text, min, label, validationMessage]);
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
   useEffect(() => {
     if (!open) return;
@@ -37,7 +37,7 @@ export function DatePicker({ value, onChange, label, disabled = false, required 
     const next = new Date(first); next.setUTCMonth(next.getUTCMonth() + offset);
     setMonth(next.toISOString().slice(0, 7));
   };
-  const choose = (date: string) => { if (date && !allowed(date)) return; onChange(date); setText(displayDateInput(date)); input.current?.setCustomValidity(''); setOpen(false); trigger.current?.focus(); };
+  const choose = (date: string) => { if (date && !allowed(date)) return; onChange(date); setText(displayDateInput(date)); input.current?.setCustomValidity(validate(displayDateInput(date))); setOpen(false); trigger.current?.focus(); };
   return <div className="app-date-picker" ref={root} onKeyDown={event => {
     if (event.key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus(); }
   }}>

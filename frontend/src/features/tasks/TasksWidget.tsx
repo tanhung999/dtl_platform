@@ -1,6 +1,7 @@
+import { taskTooltip } from '../calendar/itemTooltip';
 import { PrivacyToggle } from '../access/PrivacyToggle';
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Calendar, CheckSquare, Lock, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowUpRight, Calendar, Clock, CheckSquare, Lock, Pencil, Plus, Trash2 } from 'lucide-react';
 import { TaskPriority } from '../../types';
 import { useTasks } from './context/TasksContext';
 import { deadlineLabel, isOverdue, overdueLabel, PRIORITY_LABELS } from './deadlineUtils';
@@ -12,6 +13,8 @@ import { AnimatedCount } from '../../components/AnimatedCount';
 import { CreateAttempt } from '../../services/mutationRecovery';
 import { TaskInput } from './types';
 import { ApiError } from '../../services/api';
+import { ReminderFields, ReminderValue, noReminder } from '../reminders/ReminderFields';
+import { dateKey, today, parseDate, toTimestamp } from '../calendar/dateUtils';
 
 export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolean; onOpenAll?: () => void }) {
   const data = useTasks();
@@ -21,6 +24,7 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
   const [isPrivate, setIsPrivate] = useState(false);
   const [dueDate, setDueDate] = useState('');
   const [dueTime, setDueTime] = useState('');
+  const [reminder, setReminder] = useState<ReminderValue>(noReminder);
   const { filter, setFilter } = data;
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -37,10 +41,10 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
     e.preventDefault();
     if (!title.trim() || saving) return;
     setSaving(true); setActionError('');
-    const payload = { title: title.trim(), priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null };
+    const payload = { title: title.trim(), priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, ...reminder };
     createAttempt.current ??= { requestId: crypto.randomUUID(), original: payload };
-    try { await data.create(payload, createAttempt.current); createAttempt.current = undefined; setTitle(''); setIsPrivate(false); setDueDate(''); setDueTime(''); }
-    catch (reason) { setActionError(reason instanceof Error ? reason.message : 'Không thể tạo công việc.'); }
+    try { await data.create(payload, createAttempt.current); createAttempt.current = undefined; setTitle(''); setIsPrivate(false); setDueDate(''); setDueTime(''); setReminder(noReminder()); }
+    catch (reason) { if (reason instanceof ApiError && [400, 404, 422].includes(reason.status)) createAttempt.current = undefined; setActionError(reason instanceof Error ? reason.message : 'Không thể tạo công việc.'); }
     finally { setSaving(false); }
   };
   return <div ref={panel} tabIndex={-1} className={`glass-panel widget-box tasks-widget ${fullPage ? 'tasks-full-collection' : ''}`}>
@@ -51,8 +55,9 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
         <select aria-label="Ưu tiên việc mới" className="task-priority-select" value={priority} disabled={saving} onChange={e => setPriority(e.target.value as TaskPriority)}>{Object.entries(PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <button type="submit" className="btn btn-primary btn-sm" disabled={saving} aria-label="Tạo công việc"><Plus size={16} /></button>
       </div>
-      <div className="task-quick-deadline"><div className="task-date-field"><span><Calendar size={13} /> Hạn (tùy chọn)</span><DatePicker clearLabel="Xóa hạn" label="Ngày hạn việc mới" value={dueDate} disabled={saving} onChange={value => { setDueDate(value); if (!value) setDueTime(''); }} /></div><div className="task-date-field"><span>Giờ</span><TimePicker label="Giờ hạn việc mới" value={dueTime} disabled={saving} onChange={setDueTime} /></div></div>
+      <div className="task-quick-deadline"><div className="task-date-field"><span><Calendar size={13} /> Ngày đến hạn</span><DatePicker clearLabel="Xóa hạn" label="Ngày đến hạn" value={dueDate} disabled={saving} onChange={value => { setDueDate(value); if (!value) { setDueTime(''); setReminder(noReminder()); } }} /></div><div className="task-date-field"><span><Clock size={13} /> Giờ đến hạn</span><TimePicker label="Giờ đến hạn" value={dueTime} disabled={saving} onChange={value => { setDueTime(value); if (!value && !dueDate) setReminder(noReminder()); }} /></div></div>
       {!dueDate && dueTime && <p className="task-time-default-hint">Chỉ chọn giờ: hạn vào ngày tạo công việc.</p>}
+      {(dueDate || dueTime) && <ReminderFields value={reminder} onChange={setReminder} disabled={saving} anchor={toTimestamp(parseDate(dueDate || dateKey(today())), dueTime || '00:00')} allDay={!dueTime} />}
       <PrivacyToggle label="Công việc mới riêng tư" value={isPrivate} onChange={setIsPrivate} disabled={saving} />
     </form>
     {fullPage && <label className="tasks-search">Tìm công việc<input type="search" className="form-input" placeholder="Tìm theo tiêu đề hoặc mô tả…" maxLength={200} value={data.query} onChange={event => data.setQuery(event.target.value)} /></label>}
@@ -65,8 +70,8 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
     {data.loading ? <p className="task-empty" role="status">Đang tải công việc…</p> : !filtered.length ? <p className="task-empty">{fullPage && data.query ? 'Không có công việc phù hợp.' : filter === 'OVERDUE' ? 'Bạn không có việc quá hạn.' : filter === 'DONE' ? 'Chưa có công việc hoàn thành.' : 'Chưa có công việc trong nhóm này.'}</p>
       : <div className="tasks-list">{filtered.map(task => <div key={task.id} data-task-id={task.id} className={`task-item ${task.is_completed ? 'completed' : ''} ${isOverdue(task, data.now) ? 'is-overdue' : ''}`}>
         <input type="checkbox" className="task-checkbox" aria-label={`Đánh dấu ${task.title}`} checked={task.is_completed} disabled={data.busyIds.includes(task.id)} onChange={() => { setActionError(''); data.toggle(task).catch(reason => setActionError(reason.message)); }} />
-        <div className="task-info"><button type="button" className="task-title-button task-title" onClick={() => data.edit(task)}>{task.is_private && <Lock size={12} aria-label="Riêng tư" />} {task.is_completed && '✓ '}{task.title}</button>
-          <div className="task-meta"><PriorityBadge priority={task.priority} /><button type="button" className="task-deadline-button" onClick={() => data.edit(task)}><Calendar size={11} />{deadlineLabel(task, true)}</button>{isOverdue(task, data.now) && <span className="task-overdue-text">Quá hạn · {overdueLabel(task, data.now)}</span>}</div>
+        <div className="task-info"><button type="button" className="task-title-button task-title" title={taskTooltip(task, data.now)} onClick={() => data.edit(task)}>{task.is_private && <Lock size={12} aria-label="Riêng tư" />} {task.is_completed && '✓ '}{task.title}</button>
+          <div className="task-meta"><PriorityBadge priority={task.priority} /><button type="button" className="task-deadline-button" title={taskTooltip(task, data.now)} onClick={() => data.edit(task)}><Calendar size={11} />{deadlineLabel(task, true)}</button>{isOverdue(task, data.now) && <span className="task-overdue-text">Quá hạn · {overdueLabel(task, data.now)}</span>}</div>
           {!task.due_date && task.legacy_due_date && task.deadline_version === 0 && <span className="task-legacy-hint">Cần đặt lại hạn: {task.legacy_due_date}</span>}
         </div>
         <button type="button" className="task-icon-button" aria-label={`Sửa ${task.title}`} onClick={() => data.edit(task)}><Pencil size={13} /></button>

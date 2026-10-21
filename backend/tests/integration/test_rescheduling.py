@@ -28,8 +28,7 @@ class ReschedulingTests(ApiTestCase):
         self.assertEqual(task['due_time'], '09:00')
         async with self.sessions() as db:
             jobs = (await db.scalars(select(NotificationJob).where(NotificationJob.task_id == task['id'], NotificationJob.processed_at.is_(None)))).all()
-            self.assertTrue(jobs)
-            self.assertTrue(all(job.deadline_version == task['deadline_version'] for job in jobs))
+            self.assertEqual(jobs, [])  # No reminder unless the user opts in.
         code, _ = await self.request('GET', path, user='bob')
         self.assertEqual(code, 404)
         code, _ = await self.request('POST', '/api/schedule-changes/records/' + moved['id'] + '/undo', user='bob')

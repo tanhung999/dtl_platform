@@ -24,6 +24,7 @@
 
 .access-filter { display:grid; gap:7px; margin:14px 0; font-size:12px; color:var(--text-muted); }
 .access-list-summary,.access-hint { font-size:12px; color:var(--text-muted); margin:12px 0; }
+.access-account-card .access-filter > span, .access-account-card .access-list-summary { font-weight:600; color:var(--text-main); }
 .access-account-list { max-height:410px; margin:10px 0; } .access-account-list button { display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border-light); }
 .access-account-list button:last-child { border-bottom:0; } .access-account-list button.is-selected { background:var(--primary-light); }
 .access-account-identity { min-width:0; } .access-account-identity strong,.access-account-identity small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

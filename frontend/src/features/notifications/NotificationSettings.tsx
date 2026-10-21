@@ -10,7 +10,7 @@ export function NotificationSettings() {
     notificationsApi.preferences(controller.signal).then(value => { if (!controller.signal.aborted) { setData(value); setError(''); } }).catch(reason => { if (!controller.signal.aborted) setError(reason.message); });
     return () => controller.abort();
   }, [revision]);
-  const options = [{ key: 'task_reminders', label: 'Nhắc hạn công việc' }, { key: 'bookingreports', label: 'Booking Reports' }, { key: 'workflows', label: 'Workflows' }, { key: 'itam', label: 'Quản lý tài sản' }] as const;
+  const options = [{ key: 'task_reminders', label: 'Nhắc nhở cá nhân' }, { key: 'bookingreports', label: 'Booking Reports' }, { key: 'workflows', label: 'Workflows' }, { key: 'itam', label: 'Quản lý tài sản' }] as const;
   return <section className="notification-settings" aria-label="Cài đặt thông báo"><h2>Nhận thông báo</h2><p>Tắt nhận không xóa lịch sử. Thông báo chỉ hiển thị trong website; chưa gửi email hoặc push.</p>
     {error && <p role="alert">{error}<button type="button" onClick={refresh}>Thử lại</button></p>}
     {!data ? <p>Đang tải cài đặt…</p> : options.map(option => <label key={option.key}><input type="checkbox" disabled={busy} checked={data[option.key]} onChange={async event => {

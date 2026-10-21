@@ -35,11 +35,11 @@ async def run():
   task_ids=[]
   for a in accounts:
    task_id=str(uuid.uuid4());task_ids.append(task_id)
-   await db.execute(insert(Task),[dict(id=task_id if i==0 else str(uuid.uuid4()),user_id=a['id'],title='Task '+str(i),due_date=(day+timedelta(days=i%14)).isoformat(),due_time='16:00',priority='MEDIUM') for i in range(100)])
+   await db.execute(insert(Task),[dict(id=task_id if i==0 else str(uuid.uuid4()),user_id=a['id'],title='Task '+str(i),due_date=(day+timedelta(days=i%14)).isoformat(),due_time='16:00',priority='MEDIUM',reminder_minutes=30) for i in range(100)])
    await db.execute(insert(Note),[dict(user_id=a['id'],title='Meeting '+str(i),content='Meeting content '*100,search_text='meeting content '+str(i),is_pinned=i<10) for i in range(20)])
    await db.execute(insert(CalendarEvent),[dict(user_id=a['id'],title='Event '+str(i),description='Detailed content '*100,starts_at=stamp+timedelta(hours=i),ends_at=stamp+timedelta(hours=i+1)) for i in range(10)])
    await db.execute(insert(Notification),[dict(user_id=a['id'],source='workflows',event_key='capacity-'+str(i),fingerprint='qa',kind='external.info',title='Notification '+str(i),body='Short preview',resource_type='workflows.record',occurred_at=stamp) for i in range(50)])
-   jobs=plan(SimpleNamespace(id=task_id,user_id=a['id'],due_date=day.isoformat(),due_time='16:00',deadline_version=0,is_completed=False),stamp)
+   jobs=plan(SimpleNamespace(id=task_id,user_id=a['id'],due_date=day.isoformat(),due_time='16:00',deadline_version=0,is_completed=False,reminder_minutes=30,reminder_at=None,reminder_version=0),stamp)
    if jobs: await db.execute(insert(NotificationJob),jobs)
   # One large account for deep pagination measurements, outside active 200.
   owner=accounts[-1]['id']

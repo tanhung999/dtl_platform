@@ -1,6 +1,6 @@
-# Đổi hạn và dời lịch cá nhân
+# Dời lịch cá nhân
 
-Trong chi tiết công việc có nút **Đặt hạn/Đổi hạn**. Sự kiện và Notes đã gắn lịch có nút **Dời lịch**. Người xem lịch chia sẻ không có thao tác này.
+Trong chi tiết công việc, sự kiện và Notes đã gắn lịch, ngày/giờ đã lưu chỉ được xem; dùng nút **Dời lịch** để thay đổi. Sự kiện đã lưu khóa cả lựa chọn cả ngày, công việc không còn nút xóa hạn trực tiếp trong form chi tiết. Công việc chưa có hạn cũng dùng **Dời lịch** để đặt hạn lần đầu. Khi tạo mới hoặc gắn Notes vào lịch lần đầu, các trường lịch vẫn nhập bình thường. Cấu hình nhắc hạn được chỉnh riêng. Người xem lịch chia sẻ không có thao tác dời lịch.
 
 Hộp thao tác dùng bộ chọn ngày/giờ chung; có Ngày mai, Tuần sau kèm ngày cụ thể, xem trước lịch cũ → mới, trường lý do tùy chọn tối đa 500 ký tự. Chọn thời điểm khác rồi xác nhận mới ghi dữ liệu. Chỉ nút X đóng hộp; bấm ngoài/Esc không đóng hộp nội dung. Bộ chọn ngày/giờ vẫn đóng theo cách cũ.
 

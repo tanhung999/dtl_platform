@@ -9,6 +9,9 @@ import { ApiError } from '../../../services/api';
 import { useMutationChecking } from '../../mutations/useMutationChecking';
 import { PrivacyToggle } from '../../access/PrivacyToggle';
 import { RescheduleControl } from '../../rescheduling/RescheduleControl';
+import { sameFields } from '../../../services/unchanged';
+import { ReminderFields, reminderValue, sameReminder } from '../../reminders/ReminderFields';
+import { dateKey, eventDate, parseDate, toTimestamp } from '../../calendar/dateUtils';
 
 interface Props {
   task: Task;
@@ -25,6 +28,8 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   const [isPrivate, setIsPrivate] = useState(task.is_private ?? false);
   const [dueDate, setDueDate] = useState(task.due_date ?? '');
   const [dueTime, setDueTime] = useState(task.due_time ?? '');
+  const [reminder, setReminder] = useState(() => reminderValue(task));
+  const [savedReminder, setSavedReminder] = useState(() => reminderValue(task));
   const [version, setVersion] = useState(task.version);
   const [savedDeadline, setSavedDeadline] = useState({ due_date: task.due_date, due_time: task.due_time });
   const [busy, setBusy] = useState(false);
@@ -44,8 +49,11 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   }, []);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (busy) return;
+    if (sameFields({ title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate, due_time: dueTime },
+      { ...task, ...savedDeadline, title: task.title.trim(), is_private: task.is_private ?? false }) && sameReminder(reminder, savedReminder)) { onClose(); return; }
     setBusy(true); setError('');
-    try { await onSave(task.id, { title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, expected_version: version }); if (mounted.current) onClose(); }
+    try { await onSave(task.id, { title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, expected_version: version, ...reminder }); if (mounted.current) onClose(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể lưu công việc.'); }
     finally { setBusy(false); }
   };
@@ -66,15 +74,16 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
       <fieldset disabled={busy} className="task-dialog-fields">
         <label>Tên công việc<input className="form-input" value={title} required maxLength={255} autoFocus onChange={e => setTitle(e.target.value)} /></label>
         <label>Ưu tiên<select className="form-input" value={priority} onChange={e => setPriority(e.target.value as TaskPriority)}>{Object.entries(PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <div className="task-form-row"><div className="task-date-field"><span>Ngày hạn</span><DatePicker clearLabel="Xóa hạn" label="Ngày hạn" value={dueDate} disabled={busy} onChange={value => { setDueDate(value); if (!value) setDueTime(''); }} /></div><div className="task-date-field"><span>Giờ hạn (tùy chọn)</span><TimePicker label="Giờ hạn (tùy chọn)" value={dueTime} disabled={busy} onChange={setDueTime} /></div></div>
-        <div className="task-deadline-help"><span>{!dueDate && dueTime ? 'Chỉ chọn giờ: hạn vào ngày tạo công việc.' : 'Giờ Việt Nam · Không đặt giờ: hết ngày mới quá hạn.'}</span>{dueDate && <button type="button" className="task-text-button" onClick={() => { setDueDate(''); setDueTime(''); }}>Xóa hạn</button>}</div>
-        <label>Mô tả công việc<textarea className="form-input" rows={3} maxLength={10000} value={description} onChange={e => setDescription(e.target.value)} /></label>
-        <PrivacyToggle label="Công việc riêng tư" value={isPrivate} onChange={setIsPrivate} />
-        <RescheduleControl kind="task" id={task.id} title={task.title} current={savedDeadline} version={version} disabled={busy} onMoved={change => {
+        <div className="task-form-row"><div className="task-date-field"><span>Ngày đến hạn</span><DatePicker label="Ngày đến hạn" value={dueDate} disabled onChange={setDueDate} /></div><div className="task-date-field"><span>Giờ đến hạn</span><TimePicker label="Giờ đến hạn" value={dueTime} disabled onChange={setDueTime} /></div></div>
+        <RescheduleControl kind="task" id={task.id} title={task.title} current={{ ...savedDeadline, ...savedReminder }} version={version} disabled={busy} onMoved={change => {
+          setReminder(reminderValue(change.after)); setSavedReminder(reminderValue(change.after));
           setDueDate(change.after.due_date || ''); setDueTime(change.after.due_time || '');
           setSavedDeadline({ due_date: change.after.due_date ?? null, due_time: change.after.due_time ?? null });
           setVersion(change.guard.expected_version!); setDeleteVersion(change.guard.expected_version!);
         }}/>
+        <label>Mô tả công việc<textarea className="form-input" rows={3} maxLength={10000} value={description} onChange={e => setDescription(e.target.value)} /></label>
+        <PrivacyToggle label="Công việc riêng tư" value={isPrivate} onChange={setIsPrivate} />
+        <ReminderFields value={reminder} onChange={setReminder} anchor={dueDate || dueTime ? toTimestamp(parseDate(dueDate || dateKey(eventDate(task.created_at))), dueTime || '00:00') : null} allDay={!dueTime} disabled={busy} />
       </fieldset>
       {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
       {error && <p className="alert-error task-dialog-error" role="alert">{error}</p>}

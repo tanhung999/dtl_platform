@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Bell, X } from 'lucide-react';
 import { useNotifications } from './NotificationsProvider';
@@ -9,7 +9,7 @@ export const NotificationBell = memo(function NotificationBell({ onOpenAll }: { 
   const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
   const feed = useNotificationFeed(open);
   const [position, setPosition] = useState({ top: 84, right: 20 });
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     const place = () => {
       const rect = button.current?.getBoundingClientRect();

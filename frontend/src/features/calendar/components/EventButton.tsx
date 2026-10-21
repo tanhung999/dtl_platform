@@ -1,7 +1,8 @@
-import { CalendarItemTitle, calendarItemType } from './CalendarItemTitle';
+import { eventTooltip } from '../itemTooltip';
+import { CalendarItemTitle } from './CalendarItemTitle';
 import { CSSProperties } from 'react';
 import { CalendarEvent } from '../types';
-import { eventLabel, eventDayLabel, eventContinuation, eventContinuesNextDay } from '../dateUtils';
+import { eventDayLabel, eventContinuation, eventContinuesNextDay } from '../dateUtils';
 import { eventStatus } from '../eventStatus';
 import { EventStatusBadge } from './EventStatusBadge';
 import { useTasks } from '../../tasks/context/TasksContext';
@@ -23,7 +24,7 @@ export function EventButton({ event, day, onSelect, compact = false, narrow = fa
   return (
     <div className="calendar-event-frame" style={style}><button type="button" data-event-id={event.id} data-event-status={status.key} className={`calendar-event ${compact ? 'is-compact' : ''} ${short ? 'is-short' : ''} ${event.is_all_day ? 'is-all-day' : ''} ${event.scheduled_note_id ? 'is-note' : ''}`}
       style={{ '--event-color': status.color } as CSSProperties}
-      onClick={() => onSelect(event, day)} title={ `${calendarItemType(event)} · ${event.title} · ${status.label} · ${eventLabel(event)}`}>
+      onClick={() => onSelect(event, day)} title={eventTooltip(event, now)}>
       <span className="calendar-event-title"><CalendarItemTitle event={event} continuation={eventContinuation(event, day, startMinute)} /></span>
       {!narrow && !short && <EventStatusBadge status={status} />}
       <span className="calendar-event-time">{eventDayLabel(event, day, narrow || compact)}</span>

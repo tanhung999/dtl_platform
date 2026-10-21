@@ -7,10 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.text_search import fold_text
 from app.db.models import Task, User, utcnow
-from app.db.task_reminders import TaskReminderReceipt as Receipt
 from app.modules.auth.dependencies import get_current_user
-from app.modules.tasks.deadlines import VN, active_reminder, deadline_at, task_sort_key
-from app.modules.tasks.schemas import TaskResponse, ReminderResponse
+from app.modules.tasks.deadlines import VN
+from app.modules.tasks.schemas import TaskResponse
 from .queries import overdue_condition, task_order, after_task
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
@@ -72,41 +71,6 @@ async def calendar_page(user: UserArg, db: DbArg, start: date, end: date, limit:
     items = [{name: getattr(row, name) for name in TaskResponse.model_fields if name != "description"} | {"description": None} for row in rows]
     return {"items": items, "total": total, "truncated": total > len(items)}
 
-@router.get("/reminders/schedule")
-async def reminder_schedule(user: UserArg, db: DbArg):
-    now = utcnow().astimezone(timezone.utc)
-    local_day = now.astimezone(VN).date()
-    rows = (await db.execute(select(Task, Receipt).outerjoin(Receipt, and_(Receipt.task_id == Task.id, Receipt.deadline_version == Task.deadline_version)).where(Task.user_id == user.id, Task.is_completed.is_(False), Task.due_date >= local_day, Task.due_date <= local_day + timedelta(days=1)))).all()
-    tasks, receipts = {}, {}
-    for task, receipt in rows:
-        tasks[task.id] = task
-        if receipt:
-            receipts[(task.id, receipt.kind)] = receipt
-    # At midnight the candidate two-day window changes, including early deadlines.
-    checks = [datetime.combine(local_day + timedelta(days=1), time.min, VN)]
-    items = []
-    for task in sorted(tasks.values(), key=task_sort_key):
-        due = deadline_at(task)
-        day = date.fromisoformat(task.due_date)
-        morning = datetime.combine(day, time(8), VN)
-        if task.due_time:
-            morning = min(morning, due - timedelta(minutes=30))
-        for stamp in (datetime.combine(day - timedelta(days=1), time(8), VN), morning, due):
-            if stamp > now:
-                checks.append(stamp)
-        active = active_reminder(task, now)
-        snoozed = False
-        for kind in ("before", "day"):
-            receipt = receipts.get((task.id, kind))
-            if receipt and receipt.snoozed_until:
-                until = receipt.snoozed_until
-                if until.tzinfo is None:
-                    until = until.replace(tzinfo=timezone.utc)
-                if until > now:
-                    snoozed = True
-                    checks.append(until)
-        receipt = receipts.get((task.id, active[0])) if active else None
-        dismissed = receipt is not None and receipt.snoozed_until is None
-        if active and not snoozed and not dismissed:
-            items.append(ReminderResponse(task_id=task.id, title=task.title, due_date=task.due_date, due_time=task.due_time, priority=task.priority, deadline_version=task.deadline_version, kind=active[0], scheduled_at=active[1]))
-    return {"items": items, "next_check_at": min(checks).astimezone(timezone.utc), "server_now": now}
+@router.get("/reminders/schedule", deprecated=True)
+async def reminder_schedule(user: UserArg):
+    return {"items": [], "next_check_at": None, "server_now": utcnow()}

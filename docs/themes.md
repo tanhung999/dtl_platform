@@ -7,12 +7,12 @@ Bộ chọn nằm ngay bên trái chuông thông báo và trên trang đăng nh�
 | `light` | Corporate Light | Sáng mặc định, nền trắng xanh |
 | `dark` | Midnight Dark | Tối mặc định, nền xanh đen |
 | `aurora` | Aurora Glass | Nền xanh tím, thẻ kính mờ |
-| `ivory` | Ivory & Forest | Nền ngà, điểm nhấn xanh rừng |
+| `ivory` | Ivory & Forest | Nền xanh rừng và ngà ấm, bề mặt sáng |
 | `sunset` | Sunset Coral Glass | Kính hồng đào, nền hoàng hôn tím cam |
 | `obsidian` | Obsidian Titanium | Nền titan tối, điểm nhấn bạc hà |
 | `emerald` | Emerald Aurora | Nền xanh ngọc, bề mặt sáng dịu |
-| `princess-pink` | Princess Pink | Hồng kẹo, hoa hồng, trái tim và nơ |
-| `fairy-purple` | Fairy Purple | Lavender, pha lê, bướm và ánh sao |
+| `princess-pink` | Rose Quartz | Nền hồng rose rõ sắc, thẻ trắng |
+| `fairy-purple` | Lavender Aura | Nền lavender rõ sắc, thẻ trắng |
 
 Bấm thẻ để áp dụng ngay, dấu tick chỉ lựa chọn hiện tại. Bấm nút X để đóng; bấm ngoài hoặc Esc giữ nguyên hộp chọn. Hỗ trợ phím mũi tên và Home/End trong nhóm lựa chọn. Hộp chọn được đưa vào portal, giới hạn theo màn hình và cuộn được khi chiều cao nhỏ.
 

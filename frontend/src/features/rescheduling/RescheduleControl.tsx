@@ -9,6 +9,7 @@ import { scheduleLabel } from './labels';
 import { showMoved } from './RescheduleToast';
 import { isUncertainFailure } from '../../services/mutationRecovery';
 import './rescheduling.css';
+import { ReminderFields, reminderValue } from '../reminders/ReminderFields';
 
 interface Props { kind: Kind; id: string; title: string; current: Schedule; version?: number; updatedAt?: string; disabled?: boolean; onMoved: (value: Change) => void }
 export function RescheduleControl(props: Props) {
@@ -19,7 +20,7 @@ export function RescheduleControl(props: Props) {
     if (props.updatedAt && change.current_guard.expected_updated_at && Date.parse(change.current_guard.expected_updated_at) < Date.parse(props.updatedAt)) return;
     props.onMoved({ ...change, after: change.current, guard: change.current_guard }); };
     window.addEventListener('schedule:undone', undone); return () => window.removeEventListener('schedule:undone', undone); }, [props.kind, props.id, props.onMoved]);
-  const label = props.kind === 'task' ? props.current.due_date ? 'Đổi hạn' : 'Đặt hạn' : 'Dời lịch';
+  const label = 'Dời lịch';
   return <><button type="button" className="btn btn-outline btn-sm reschedule-open" disabled={props.disabled} onClick={() => setOpen(true)}><CalendarClock size={15}/>{label}</button>
     {open && <MoveDialog {...props} label={label} onClose={() => setOpen(false)}/>}</>;
 }
@@ -27,6 +28,7 @@ export function RescheduleControl(props: Props) {
 function MoveDialog({ kind, id, title, current, version, updatedAt, onMoved, label, onClose }: Props & { label: string; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null), mounted = useRef(true), attempt = useRef<MoveInput>();
   const task = kind === 'task';
+  const [reminder, setReminder] = useState(() => reminderValue(current));
   const [startDate, setStartDate] = useState(task ? current.due_date || dateKey(today()) : dateKey(eventDate(current.starts_at!)));
   const [startTime, setStartTime] = useState(task ? current.due_time || '' : eventTime(current.starts_at!));
   const [allDay, setAllDay] = useState(task ? !current.due_time : !!current.is_all_day);
@@ -55,6 +57,7 @@ function MoveDialog({ kind, id, title, current, version, updatedAt, onMoved, lab
       if (Date.parse(ends_at) > Date.parse(starts_at)) target = { starts_at, ends_at, is_all_day: allDay };
     }
   }
+  if (target) target = { ...target, ...reminder };
   const changed = !!target && (task ? target.due_date !== current.due_date || target.due_time !== (current.due_time || null)
     : Date.parse(target.starts_at!) !== Date.parse(current.starts_at!) || Date.parse(target.ends_at!) !== Date.parse(current.ends_at!) || target.is_all_day !== !!current.is_all_day);
   const submit = async (event: FormEvent) => {
@@ -72,12 +75,14 @@ function MoveDialog({ kind, id, title, current, version, updatedAt, onMoved, lab
       {historyError ? <p role="alert">{historyError}<button type="button" onClick={() => setRetry(value => value + 1)}>Thử lại</button></p> : !entries ? <p role="status">Đang tải lịch sử…</p> : !entries.length ? <p>Chưa có lần dời lịch nào.</p> : entries.map(entry => <article key={entry.id}><p>{scheduleLabel(entry.before)} <span aria-label="sang">→</span> {scheduleLabel(entry.after)}</p><p>{entry.reason || 'Không nhập lý do'}</p><small>{entry.actor_name} · {new Date(entry.created_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}{entry.undone_at ? ' · Đã hoàn tác' : ''}</small></article>)}</section>
       : <form onSubmit={submit}><fieldset disabled={busy || uncertain}>
         <div className="reschedule-quick">{[[1, 'Ngày mai'], [7, 'Tuần sau']].map(([offset, text]) => { const value = dateKey(addDays(today(), Number(offset))); return <button key={value} type="button" className="btn btn-outline btn-sm" onClick={() => shift(value)}>{text} · {value.split('-').reverse().join('/')}</button>; })}</div>
-        <label>{task ? 'Ngày hạn mới' : 'Ngày bắt đầu mới'}<DatePicker label={task ? 'Ngày hạn mới' : 'Ngày bắt đầu mới'} value={startDate} required disabled={busy || uncertain} onChange={value => shift(value)}/></label>
+        <div className="reschedule-field"><span>{task ? 'Ngày đến hạn mới' : 'Ngày bắt đầu mới'}</span><DatePicker label={task ? 'Ngày đến hạn mới' : 'Ngày bắt đầu mới'} value={startDate} required disabled={busy || uncertain} onChange={value => shift(value)}/></div>
         <label className="reschedule-all-day"><input type="checkbox" checked={allDay} onChange={event => { const value = event.target.checked; setAllDay(value); if (!value) { setStartTime(current.starts_at ? eventTime(current.starts_at) : current.due_time || '09:00'); setEndTime(current.ends_at ? eventTime(current.ends_at) : '10:00'); } }}/>{task ? 'Hạn cả ngày (không đặt giờ)' : 'Cả ngày'}</label>
-        {!allDay && <label>{task ? 'Giờ hạn mới' : 'Giờ bắt đầu mới'}<TimePicker label={task ? 'Giờ hạn mới' : 'Giờ bắt đầu mới'} value={startTime} required disabled={busy || uncertain} onChange={value => shift(startDate, value)}/></label>}
-        {!task && <><label>Ngày kết thúc mới<DatePicker label="Ngày kết thúc mới" value={endDate} min={startDate} required disabled={busy || uncertain} onChange={setEndDate}/></label>{!allDay && <label>Giờ kết thúc mới<TimePicker label="Giờ kết thúc mới" value={endTime} required disabled={busy || uncertain} onChange={setEndTime}/></label>}<p className="reschedule-help">Mặc định giữ thời lượng khi đổi ngày/giờ bắt đầu. Giờ Việt Nam (UTC+7).</p></>}
+        {!allDay && <div className="reschedule-field"><span>{task ? 'Giờ đến hạn mới' : 'Giờ bắt đầu mới'}</span><TimePicker label={task ? 'Giờ đến hạn mới' : 'Giờ bắt đầu mới'} value={startTime} required disabled={busy || uncertain} onChange={value => shift(startDate, value)}/></div>}
+        {!task && <><div className="reschedule-field"><span>Ngày kết thúc mới</span><DatePicker label="Ngày kết thúc mới" value={endDate} min={startDate} required disabled={busy || uncertain} onChange={setEndDate}/></div>{!allDay && <div className="reschedule-field"><span>Giờ kết thúc mới</span><TimePicker label="Giờ kết thúc mới" value={endTime} required disabled={busy || uncertain} onChange={setEndTime}/></div>}</>}
+        <ReminderFields value={reminder} onChange={setReminder} anchor={target && (allDay || startTime) ? task ? toTimestamp(parseDate(startDate), allDay ? '00:00' : startTime) : target.starts_at : null} endsAt={task ? undefined : target?.ends_at} allDay={allDay} disabled={busy || uncertain} />
+        {reminder.reminder_at && <p className="reschedule-help">Giờ nhắc hạn tùy chỉnh được giữ nguyên khi đổi lịch. Hãy kiểm tra hoặc chọn lại trước khi xác nhận.</p>}
         <div className="reschedule-preview"><span>{scheduleLabel(current)}</span><span>↓</span><strong>{target ? scheduleLabel(target) : 'Vui lòng chọn thời gian hợp lệ'}</strong></div>
-        <label>{task ? 'Lý do đổi hạn' : 'Lý do dời lịch'} <span className="reschedule-help">(không bắt buộc)</span><textarea className="form-input" rows={3} maxLength={500} value={reason} onChange={event => setReason(event.target.value)} placeholder="Ví dụ: Chờ bổ sung hồ sơ…"/></label><small className="reschedule-help">{reason.length}/500 · Lý do chỉ lưu trong lịch sử của bạn.</small>
+        <label>Lý do dời lịch <span className="reschedule-help">(không bắt buộc)</span><textarea className="form-input" rows={3} maxLength={500} value={reason} onChange={event => setReason(event.target.value)} placeholder="Ví dụ: Chờ bổ sung hồ sơ…"/></label><small className="reschedule-help">{reason.length}/500 · Lý do chỉ lưu trong lịch sử của bạn.</small>
       </fieldset>{error && <p role="alert" className="reschedule-error">{error}</p>}<footer><button type="submit" className="btn btn-primary" disabled={busy || !target || !changed}>{busy ? 'Đang lưu/kiểm tra kết quả…' : uncertain ? 'Thử lại yêu cầu này' : label}</button></footer></form>}
   </dialog>, document.body);
 }

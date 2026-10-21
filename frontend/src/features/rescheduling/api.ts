@@ -1,9 +1,10 @@
+import type { ReminderValue } from '../reminders/ReminderFields';
 import { requestWithTimeout } from '../../services/requestTimeout';
 import { isUncertainFailure } from '../../services/mutationRecovery';
 import { WORKSPACE_CHANGED } from '../realtime/useWorkspaceRealtime';
 
 export type Kind = 'task' | 'event' | 'note';
-export interface Schedule { due_date?: string | null; due_time?: string | null; starts_at?: string; ends_at?: string; is_all_day?: boolean }
+export interface Schedule extends ReminderValue { due_date?: string | null; due_time?: string | null; starts_at?: string; ends_at?: string; is_all_day?: boolean }
 export interface Change { id: string; kind: Kind; resource_id: string; actor_name: string; reason: string; before: Schedule; after: Schedule; guard: { expected_version?: number; expected_updated_at?: string; event_id?: string }; current?: Schedule; current_guard?: Change['guard']; created_at: string; undone_at: string | null }
 export interface MoveInput extends Schedule { request_id: string; reason: string; expected_version?: number; expected_updated_at?: string }
 export const history = (kind: Kind, id: string, signal?: AbortSignal) => requestWithTimeout<Change[]>(`/api/schedule-changes/${kind}/${encodeURIComponent(id)}`, { signal, cache: 'no-store' }, 5000);

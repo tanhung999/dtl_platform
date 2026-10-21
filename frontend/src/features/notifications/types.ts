@@ -3,7 +3,7 @@ export type NotificationFilter = 'all' | 'unread' | 'hidden';
 export const SOURCE_LABELS: Record<NotificationSource, string> = { platform: 'Cá nhân', bookingreports: 'Booking Reports', workflows: 'Workflows', itam: 'Quản lý tài sản' };
 export interface NotificationItem {
   id: string; source: NotificationSource; kind: string; title: string; body: string;
-  resource_type: string; resource_id: string; state: 'active' | 'changed' | 'completed' | 'deleted' | 'overdue';
+  resource_type: string; resource_id: string; state: 'active' | 'changed' | 'completed' | 'deleted' | 'overdue' | 'ended' | 'archived';
   due_at: string | null; occurred_at: string; created_at: string;
   read_at: string | null; dismissed_at: string | null; snoozed_until: string | null;
 }

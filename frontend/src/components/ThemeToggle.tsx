@@ -49,7 +49,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLa
     {open && createPortal(<div ref={panel} id={id} role="dialog" aria-labelledby={`${id}-title`}
       className="theme-picker-panel" style={position}>
       <div className="theme-picker-heading"><span className="theme-picker-emblem"><Palette size={19} /></span>
-        <div><h2 id={`${id}-title`}>Không gian của bạn</h2><p>Chọn giao diện phù hợp với bạn</p></div>
+        <div><h2 id={`${id}-title`}>Theme</h2></div>
         <button type="button" className="theme-picker-close" aria-label="Đóng chọn giao diện" onClick={() => close(true)}><X size={17} /></button>
       </div>
       <div role="radiogroup" aria-label="Giao diện website" className="theme-picker-grid"
@@ -73,12 +73,9 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLa
               <span className="theme-choice-check">{theme === item.id && <Check size={12} strokeWidth={3} />}</span>
             </span>
             <span className="theme-choice-name"><ChoiceIcon size={14} />{item.name}</span>
-            <span className="theme-choice-description">{item.description}</span>
-            <span className="theme-choice-tag">{item.label}</span>
           </button>;
         })}
       </div>
-      <p className="theme-picker-footnote">Tự động ghi nhớ trên trình duyệt này</p>
     </div>, document.body)}
   </>;
 };

@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, String, Text, select
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, Text, select
 
 from app.db.types import UTCDateTime
 from app.core.database import Base
@@ -33,5 +33,8 @@ class CalendarEvent(Base):
     is_all_day = Column(Boolean, nullable=False, default=False)
     is_private = Column(Boolean, nullable=False, default=False, server_default="false")
     color = Column(String(7), nullable=False, default="#2563eb")
+    reminder_minutes = Column(Integer, nullable=True)
+    reminder_at = Column(UTCDateTime(), nullable=True)
+    reminder_version = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(UTCDateTime(), nullable=False, default=utcnow)
     updated_at = Column(UTCDateTime(), nullable=False, default=utcnow, onupdate=utcnow)

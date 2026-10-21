@@ -11,7 +11,7 @@ export const notificationsApi = {
   state: (id: string, payload: { read?: boolean; dismissed?: boolean }) => requestWithTimeout<void>(`${base}/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   readAll: (through: string) => requestWithTimeout<void>(base + '/read-all', { method: 'POST', body: JSON.stringify({ through }) }),
   snooze: (id: string) => requestWithTimeout<void>(`${base}/${id}/snooze`, { method: 'POST' }),
-  destination: (id: string) => requestWithTimeout<{ calendar_owner_id?: string; task_id?: string; target_app?: Exclude<NotificationSource, 'platform'>; action_path?: string }>(`${base}/${id}/destination`, { cache: 'no-store' }, 5000),
+  destination: (id: string) => requestWithTimeout<{ calendar_owner_id?: string; task_id?: string; event_id?: string; note_id?: string; target_app?: Exclude<NotificationSource, 'platform'>; action_path?: string }>(`${base}/${id}/destination`, { cache: 'no-store' }, 5000),
   preferences: (signal?: AbortSignal) => requestWithTimeout<NotificationPreferences>(base + '/preferences', { signal }),
   savePreferences: (payload: Partial<NotificationPreferences> & { expected_version: number }) => requestWithTimeout<NotificationPreferences>(base + '/preferences', { method: 'PATCH', body: JSON.stringify(payload) }),
 };

@@ -1,6 +1,7 @@
+import type { ReminderValue } from '../reminders/ReminderFields';
 export type CalendarView = 'week' | 'month' | 'agenda';
 
-export interface CalendarEventInput {
+export interface CalendarEventInput extends ReminderValue {
   expected_updated_at?: string;
   title: string;
   description: string;

@@ -41,7 +41,11 @@ async function main() {
   }, { id, value, calendar }, { timeout: 5000 });
   async function edit(page, id, change) {
     await todo(page, id).getByRole('button', { name: /^Sửa / }).click();
-    await change(page);
+    await page.getByRole('dialog').getByRole('button', { name: 'Dời lịch', exact: true }).click();
+    const move = page.locator('.reschedule-dialog');
+    await change(move);
+    await move.getByRole('button', { name: 'Dời lịch', exact: true }).last().click();
+    await move.waitFor({ state: 'hidden' });
     await page.getByRole('button', { name: 'Lưu công việc', exact: true }).click();
     await page.getByRole('dialog').waitFor({ state: 'hidden' });
   }
@@ -55,7 +59,7 @@ async function main() {
     const task = await (await created).json(); ids.push(task.id);
     await todo(a, task.id).waitFor(); await todo(b, task.id).waitFor({ timeout: 5000 });
     assert.equal(await deadline(a, task.id).count(), 0);
-    await edit(a, task.id, async page => { await page.getByLabel('Ngày hạn', { exact: true }).fill(today.split('-').reverse().join('/')); await page.getByLabel('Giờ hạn (tùy chọn)', { exact: true }).fill('23:59'); });
+    await edit(a, task.id, async page => { await page.getByLabel('Ngày đến hạn mới', { exact: true }).fill(today.split('-').reverse().join('/')); await page.getByLabel('Hạn cả ngày (không đặt giờ)', { exact: true }).uncheck(); await page.getByLabel('Giờ đến hạn mới', { exact: true }).fill('23:59'); });
     await deadline(a, task.id).waitFor(); await deadline(b, task.id).waitFor({ timeout: 5000 });
     assert.ok((await deadline(a, task.id).innerText()).includes('Hạn 23:59'));
     await deadline(b, task.id).getByRole('checkbox').click();
@@ -64,11 +68,13 @@ async function main() {
     assert.ok((await deadline(a, task.id).getAttribute('class')).includes('is-completed'));
     await todo(a, task.id).getByRole('checkbox').click();
     await checked(b, task.id, false, true);
-    await edit(a, task.id, async page => { await page.getByLabel('Ngày hạn', { exact: true }).fill(day(1).split('-').reverse().join('/')); });
+    await edit(a, task.id, async page => { await page.getByLabel('Ngày đến hạn mới', { exact: true }).fill(day(1).split('-').reverse().join('/')); });
     await deadline(b, task.id).waitFor({ state: 'hidden', timeout: 5000 });
-    await edit(a, task.id, async page => { await page.getByRole('button', { name: 'Xóa hạn', exact: true }).click(); });
+    // An external API edit still propagates through realtime; saved detail fields stay locked.
+    const latest = await api('GET', '/api/tasks/' + task.id);
+    await api('PATCH', '/api/tasks/' + task.id, { due_date: null, due_time: null, expected_version: latest.version });
     await todo(b, task.id).getByText('Không hạn', { exact: true }).waitFor({ timeout: 5000 });
-    await edit(a, task.id, async page => { await page.getByLabel('Ngày hạn', { exact: true }).fill(today.split('-').reverse().join('/')); });
+    await edit(a, task.id, async page => { await page.getByLabel('Ngày đến hạn mới', { exact: true }).fill(today.split('-').reverse().join('/')); });
     console.log('QA: reconnect and recover changes made while offline');
     await second.setOffline(true);
     await api('PATCH', '/api/tasks/' + task.id, { title: marker + ' Sau kết nối lại' });

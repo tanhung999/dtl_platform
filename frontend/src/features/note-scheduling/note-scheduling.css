@@ -3,3 +3,5 @@
 .note-schedule-fields .app-date-picker, .note-schedule-fields .app-time-picker { width:100%; }
 .note-schedule-fields p { grid-column:1/-1; margin:0; font-size:12px; }
 .note-editor-dialog .note-schedule-fields { background:#ffffff55; border-color:#0002; color:#334155; }
+
+.note-schedule-fields > .note-schedule-action { grid-column:1/-1; }

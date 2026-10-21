@@ -1,5 +1,5 @@
 import { notesApi, notifyNotesChanged } from './api';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Archive, ArrowUpRight, Plus } from 'lucide-react';
 import { FeatureIcon } from '../../components/FeatureIcon';
 import { Note } from '../../types';
@@ -26,19 +26,28 @@ export function NotesWidget({ fullPage = false, initialFilter = 'all', onOpenAll
   const [deleteTarget, setDeleteTarget] = useState<NoteSummary | null>(null), [actionBusy, setActionBusy] = useState(false);
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [hasScheduledNotes, setHasScheduledNotes] = useState(false);
+  const opening = useRef<{ generation: number; controller?: AbortController }>({ generation: 0 });
+  useEffect(() => () => { opening.current.generation++; opening.current.controller?.abort(); }, []);
   useEffect(() => { setHiddenIds([]); }, [archived, filter, query, offset]);
   useEffect(() => { if (data) { setHasScheduledNotes(data.has_scheduled); if (!data.has_scheduled && filter === 'scheduled') setFilter('all'); } }, [data, filter]);
   useEffect(() => { if (data) setHiddenIds(value => value.filter(id => data.items.some(note => note.id === id))); }, [data]);
   const notes = (data?.items ?? []).filter(note => !hiddenIds.includes(note.id));
   const refresh = () => { collection.refresh(); notifyNotesChanged(); };
   const open = async (note: NoteSummary | null) => {
+    opening.current.controller?.abort();
+    const generation = ++opening.current.generation;
     setActionError('');
-    if (!note) { setSelectedNote(null); setIsModalOpen(true); return; }
+    if (!note) { setActionBusy(false); setSelectedNote(null); setIsModalOpen(true); return; }
+    const controller = new AbortController(); opening.current.controller = controller;
     setActionBusy(true);
-    try { setSelectedNote(await notesApi.get(note.id)); setIsModalOpen(true); }
-    catch (reason) { setActionError(reason instanceof Error ? reason.message : 'Không mở được ghi chú.'); }
-    finally { setActionBusy(false); }
+    try {
+      const value = await notesApi.get(note.id, controller.signal);
+      if (opening.current.generation === generation && !controller.signal.aborted) { setSelectedNote(value); setIsModalOpen(true); }
+    }
+    catch (reason) { if (opening.current.generation === generation && !controller.signal.aborted) setActionError(reason instanceof Error ? reason.message : 'Không mở được ghi chú.'); }
+    finally { if (opening.current.generation === generation) setActionBusy(false); }
   };
+  const close = () => { opening.current.generation++; opening.current.controller?.abort(); setIsModalOpen(false); };
   const saveNote = async (payload: NoteWrite, attempt?: NoteCreateAttempt) => {
     if (selectedNote) await notesApi.updateNote(selectedNote.id, { ...payload, expected_version: payload.expected_version ?? selectedNote.version });
     else { if (!attempt) throw new Error('Thiếu mã yêu cầu tạo ghi chú.'); await createNoteWithRetry(payload, attempt); }
@@ -73,6 +82,6 @@ export function NotesWidget({ fullPage = false, initialFilter = 'all', onOpenAll
     {!fullPage && onOpenAll && (data?.pinned_total ?? 0) > 6 && <button type="button" className="notes-view-all" onClick={() => onOpenAll('pinned')}>Xem tất cả ghim ({data?.pinned_total})<ArrowUpRight size={14} /></button>}
     {!fullPage && onOpenAll && <button type="button" className="notes-view-all" onClick={() => onOpenAll(filter)}><span>Xem tất cả{(data?.hidden ?? 0) > 0 ? ` · còn ${data?.hidden} ghi chú` : ''}</span><ArrowUpRight size={14} /></button>}
     {deleteTarget && <DeleteNoteDialog note={deleteTarget} onClose={() => setDeleteTarget(null)} onDelete={(verifyOnly, expectedVersion) => deleteNote(deleteTarget.id, verifyOnly, expectedVersion)} />}
-    <NoteModal note={selectedNote} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={saveNote} onDelete={deleteNote} onArchive={archiveNote} />
+    {isModalOpen && <NoteModal key={selectedNote?.id ?? 'new-note'} note={selectedNote} isOpen onClose={close} onSave={saveNote} onDelete={deleteNote} onArchive={archiveNote} />}
   </div>;
 }

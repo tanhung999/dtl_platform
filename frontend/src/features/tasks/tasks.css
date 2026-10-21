@@ -45,7 +45,6 @@
 .task-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
 .task-form-row input { min-width: 0; }
 .task-dialog .app-date-picker, .task-dialog .app-time-picker { width: 100%; }
-.task-deadline-help { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: space-between; font-size: 0.65rem; color: var(--text-muted); }
 .task-dialog-error, .task-delete-confirm { margin: 0 1.25rem 1rem; }
 .task-delete-confirm { padding: 0.8rem; border: 1px solid #ef444450; border-radius: 8px; background: #ef444410; font-size: 0.8rem; }
 .task-delete-confirm > div { display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.8rem; }

@@ -25,6 +25,7 @@ from app.modules.realtime.router import router as realtime_router
 from app.core.realtime import listen
 from app.modules.notifications.router import router as notifications_router
 from app.modules.notifications.integrations import router as notification_integrations_router
+from app.modules.notifications.external_router import router as notification_access_router
 from app.modules.notifications.worker import run_worker
 from app.modules.notifications.scheduling import sync_task_jobs
 from app.modules.maintenance.cleanup import run_cleanup_worker
@@ -150,6 +151,7 @@ app.include_router(sharing_router)
 app.include_router(auth_router)
 app.include_router(notifications_router)
 app.include_router(notification_integrations_router)
+app.include_router(notification_access_router)
 app.include_router(sso_router)
 app.include_router(calendar_collection_router)
 app.include_router(notes_collection_router)

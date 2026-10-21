@@ -5,7 +5,7 @@ import { DEADLINE_MARKER_HEIGHT, weekTimedPlacements } from '../../calendar/dead
 import { addDays, dateKey, eventTime, formatDate, startOfWeek, toTimestamp, WEEKDAYS } from '../../calendar/dateUtils';
 import { eventStatus } from '../../calendar/eventStatus';
 import { SharedItem } from '../api';
-import { sharedEvent, sharedTask, sharedRangeLabel } from '../sharedItemUtils';
+import { sharedEvent, sharedTask, sharedItemTooltip } from '../sharedItemUtils';
 import { SharedItemCard } from './SharedItemCard';
 
 export function SharedWeekView({ anchor, items, now, showEarlyHours, onSelect, onShowDay }: {
@@ -32,7 +32,7 @@ export function SharedWeekView({ anchor, items, now, showEarlyHours, onSelect, o
         const event=placement.event, item=lookup.get(event.id)!, covered=days.slice(placement.start, placement.end+1);
         const before=Date.parse(event.starts_at)<Date.parse(toTimestamp(weekStart)), after=Date.parse(event.ends_at)>Date.parse(toTimestamp(addDays(weekStart,7)));
         return <div key={event.id} className="calendar-all-day-event-frame shared-all-day-frame" style={style}><button type="button" data-shared-id={item.id} data-shared-kind={item.kind}
-          className={`calendar-event is-compact calendar-all-day-span shared-calendar-item ${item.kind === 'note' ? 'is-note' : ''}`} title={sharedRangeLabel(item)} onClick={() => onSelect(item)} style={{ '--event-color':eventStatus(event,now,dateKey(covered[0])).color } as CSSProperties}>
+          className={`calendar-event is-compact calendar-all-day-span shared-calendar-item ${item.kind === 'note' ? 'is-note' : ''}`} title={sharedItemTooltip(item, now)} onClick={() => onSelect(item)} style={{ '--event-color':eventStatus(event,now,dateKey(covered[0])).color } as CSSProperties}>
           <span className="calendar-all-day-segments" aria-hidden="true">{covered.map(day => <span key={dateKey(day)} style={{ '--event-color':eventStatus(event,now,dateKey(day)).color } as CSSProperties} />)}</span>
           {before && <span className="calendar-all-day-continuation" aria-label="Tiếp tục từ tuần trước">◂</span>}<span className="calendar-event-title"><CalendarItemTitle event={event} /></span><span className="calendar-event-time">Cả ngày</span>{after && <span className="calendar-all-day-continuation" aria-label="Tiếp tục sang tuần sau">▸</span>}
         </button></div>;

@@ -14,7 +14,8 @@ async def create_note_once(db, user, payload):
     # Giữ dấu vân tay tương thích với yêu cầu tạo ghi chú độc lập trước đây.
     fingerprint_data = {"note": {k: v for k, v in data.items() if k != 'is_private' or v}, "event_id": None}
     if payload.calendar_schedule:
-        fingerprint_data["calendar_schedule"] = payload.calendar_schedule.model_dump(mode="json")
+        fingerprint_data["calendar_schedule"] = {k: v for k, v in payload.calendar_schedule.model_dump(mode="json").items()
+            if k not in ("reminder_minutes", "reminder_at") or v is not None}
     fingerprint = hashlib.sha256(json.dumps(fingerprint_data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     key = str(payload.request_id) if payload.request_id else None
     if key:

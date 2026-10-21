@@ -1,9 +1,11 @@
-import { CalendarItemTitle, calendarItemType } from './components/CalendarItemTitle';
+import { eventTooltip } from './itemTooltip';
+import { CalendarItemTitle } from './components/CalendarItemTitle';
 import { AnimatedCount } from '../../components/AnimatedCount';
 import { useState } from 'react';
+import { useLatestRequest } from '../../services/useLatestRequest';
 import { ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, MapPin, Plus } from 'lucide-react';
 import { CSSProperties } from 'react';
-import { addDays, dateKey, eventLabel, eventDayLabel, eventsOnDay, formatDate, startOfWeek, today, toTimestamp, WEEKDAYS } from './dateUtils';
+import { addDays, dateKey, eventDayLabel, eventsOnDay, formatDate, startOfWeek, today, toTimestamp, WEEKDAYS } from './dateUtils';
 import { CalendarEvent, EventDraft } from './types';
 import { useCalendarEvents } from './hooks/useCalendarEvents';
 import { CalendarItemModal } from './components/CalendarItemModal';
@@ -31,10 +33,12 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
   const data = useCalendarEvents(toTimestamp(weekStart), toTimestamp(addDays(weekStart, 7)));
   const dayData = useCalendarDays(dateKey(weekStart), dateKey(addDays(weekStart, 7)));
   const [openError, setOpenError] = useState('');
+  const opening = useLatestRequest();
   const openEvent = async (event: CalendarEvent) => {
+    const controller = opening.start();
     setOpenError('');
-    try { setSelected(await calendarApi.get(event.id)); setDraft({ date }); }
-    catch (reason) { setOpenError(reason instanceof Error ? reason.message : 'Không tải được sự kiện.'); }
+    try { const value = await calendarApi.get(event.id, controller.signal); if (!controller.signal.aborted) { setSelected(value); setDraft({ date }); } }
+    catch (reason) { if (!controller.signal.aborted) setOpenError(reason instanceof Error ? reason.message : 'Không tải được sự kiện.'); }
   };
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const todayKey = vietnamDay(tasksData.now);
@@ -44,7 +48,7 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
   const events = eventsOnDay(data.events, date);
   const renderEvent = (event: CalendarEvent) => {
     const status = eventStatus(event, tasksData.now, dateKey(date));
-    return <button type="button" key={event.id} data-event-id={event.id} data-event-status={status.key} className={`calendar-widget-event ${event.scheduled_note_id ? 'is-note' : ''}`} title={`${calendarItemType(event)} · ${event.title} · ${eventLabel(event)}`} style={{ '--event-color': status.color } as CSSProperties}
+    return <button type="button" key={event.id} data-event-id={event.id} data-event-status={status.key} className={`calendar-widget-event ${event.scheduled_note_id ? 'is-note' : ''}`} title={eventTooltip(event, tasksData.now)} style={{ '--event-color': status.color } as CSSProperties}
       onClick={() => { void openEvent(event); }}><span className="calendar-widget-event-marker" /><span><strong><CalendarItemTitle event={event} /></strong><EventStatusBadge status={status} /><span className="calendar-widget-event-time">{eventDayLabel(event, dateKey(date))}</span>{event.location && <span className="calendar-widget-event-location"><MapPin size={11} />{event.location}</span>}</span></button>;
   };
   const eventGroups = [
@@ -57,11 +61,11 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
     { key: 'deadlines', title: 'Việc đến hạn', items: deadlines.filter(task => !task.is_completed) },
     { key: 'completed', title: 'Việc đã xong', items: deadlines.filter(task => task.is_completed) },
   ];
-  const close = () => { setSelected(undefined); setDraft(undefined); };
+  const close = () => { opening.cancel(); setSelected(undefined); setDraft(undefined); };
 
   return <div className="glass-panel widget-box calendar-widget">
     <div className="widget-header"><div className="widget-title"><FeatureIcon name="calendar" /><span>Lịch Cá Nhân (My Calendar)</span></div>
-      <button type="button" className="btn btn-secondary btn-sm" aria-label="Tạo sự kiện" title="Tạo sự kiện" onClick={() => { setSelected(undefined); setDraft({ date }); }}><Plus size={14} /><span>Thêm</span></button>
+      <button type="button" className="btn btn-secondary btn-sm" aria-label="Tạo sự kiện" title="Tạo sự kiện" onClick={() => { opening.cancel(); setOpenError(''); setSelected(undefined); setDraft({ date }); }}><Plus size={14} /><span>Thêm</span></button>
     </div>
     <div className="calendar-widget-date"><div><span className="calendar-eyebrow">{dateKey(date) === todayKey ? 'HÔM NAY' : 'LỊCH TRONG NGÀY'}</span><h3>{formatDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</h3></div>
       <div className="calendar-inline-actions"><button type="button" className="calendar-icon-button" aria-label="Ngày trước" onClick={() => setDate(addDays(date, -1))}><ChevronLeft size={17} /></button><button type="button" className="calendar-icon-button" aria-label="Ngày sau" onClick={() => setDate(addDays(date, 1))}><ChevronRight size={17} /></button></div>
@@ -73,7 +77,7 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
       const hasItems = dayData.days ? dayData.days[dateKey(day)]?.events > 0 || dayData.days[dateKey(day)]?.notes > 0 || dayData.days[dateKey(day)]?.tasks > 0 : eventsOnDay(data.events, day).length > 0 || dayTasks.length > 0;
       const needsAttention = dayData.days ? dayData.days[dateKey(day)]?.attention : dayTasks.some(task => !task.is_completed && (task.priority === 'URGENT' || isOverdue(task, tasksData.now)));
       const description = hasItems ? (needsAttention ? 'Có công việc quá hạn hoặc gấp' : 'Có sự kiện, ghi chú hoặc công việc') : undefined;
-      return <button type="button" key={dateKey(day)} data-date={dateKey(day)} data-has-items={hasItems} aria-label={formatDate(day, { dateStyle: 'full' })} aria-description={description} aria-pressed={dateKey(day) === dateKey(date)} onClick={() => setDate(day)} className={`${dateKey(day) === dateKey(date) ? 'is-selected' : ''} ${dateKey(day) === todayKey ? 'is-today' : ''}`}><span>{WEEKDAYS[index]}</span><strong>{day.getUTCDate()}</strong><span className="calendar-widget-day-marker">{hasItems && <span className={`calendar-widget-day-dot ${needsAttention ? 'needs-attention' : ''}`} title={description} aria-hidden="true" />}</span></button>;
+      return <button type="button" key={dateKey(day)} data-date={dateKey(day)} data-has-items={hasItems} aria-label={formatDate(day, { dateStyle: 'full' })} aria-description={description} aria-pressed={dateKey(day) === dateKey(date)} onClick={() => setDate(day)} className={`${dateKey(day) === dateKey(date) ? 'is-selected' : ''} ${dateKey(day) === todayKey ? 'is-today' : ''}`}><span>{WEEKDAYS[index]}</span><strong>{day.getUTCDate()}</strong><span className="calendar-widget-day-marker">{hasItems && <span className={`calendar-widget-day-dot ${needsAttention ? 'needs-attention' : dateKey(day) < todayKey ? 'is-past' : dateKey(day) > todayKey ? 'is-future' : ''}`} title={description} aria-hidden="true" />}</span></button>;
     })}</div>
     <div className="calendar-widget-events" aria-live="polite" tabIndex={0} role="region" aria-label="Lịch và công việc trong ngày">
       {deadlineData.error && <p role="alert" className="calendar-error-state">{deadlineData.error}<button type="button" className="calendar-text-button" onClick={tasksData.refresh}>Thử lại</button></p>}

@@ -1,3 +1,9 @@
+import { CalendarNoteModal } from '../note-scheduling/CalendarNoteModal';
+import { EventModal } from '../calendar/components/EventModal';
+import { CalendarEvent } from '../calendar/types';
+import { calendarApi } from '../calendar/api';
+import { eventDate } from '../calendar/dateUtils';
+import { useLatestRequest } from '../../services/useLatestRequest';
 import { appsApi } from '../apps/api';
 import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { useTasks } from '../tasks/context/TasksContext';
@@ -14,6 +20,10 @@ interface State {
 const Context = createContext<State | null>(null);
 export function NotificationsProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const tasks = useTasks();
+  const [noteId, setNoteId] = useState<string>(), [event, setEvent] = useState<CalendarEvent>();
+  const opening = useLatestRequest();
+  const closeEditor = () => { opening.cancel(); setNoteId(undefined); setEvent(undefined); };
+  const changedCalendar = () => window.dispatchEvent(new CustomEvent(WORKSPACE_CHANGED, { detail: ['calendar', 'notifications'] }));
   const [summary, setSummary] = useState<NotificationSummary>(), [error, setError] = useState('');
   const [revision, refresh] = useInvalidation(), [busyIds, setBusyIds] = useState<string[]>([]);
   const busy = useRef(new Set<string>());
@@ -40,20 +50,34 @@ export function NotificationsProvider({ userId, children }: { userId: string; ch
     snooze: item => mutate(item.id, () => notificationsApi.snooze(item.id)),
     readAll: () => summary ? mutate('all', () => notificationsApi.readAll(summary.server_now)) : Promise.resolve(),
     open: async item => {
+      if (busy.current.has(item.id)) return;
+      const controller = opening.start();
       await mutate(item.id, async () => {
         await notificationsApi.state(item.id, { read: true });
         if (item.state === 'deleted') return;
         const destination = await notificationsApi.destination(item.id);
-        if (destination.calendar_owner_id) window.dispatchEvent(new CustomEvent('calendar:open-shared', { detail: destination.calendar_owner_id }));
-        else if (destination.task_id) await tasks.openTask(destination.task_id);
+        if (controller.signal.aborted) return;
+        setNoteId(undefined); setEvent(undefined);
+        if (destination.note_id) setNoteId(destination.note_id);
+        else if (destination.event_id) {
+          const value = await calendarApi.get(destination.event_id, controller.signal);
+          if (!controller.signal.aborted) setEvent(value);
+        }
+        else if (destination.calendar_owner_id) window.dispatchEvent(new CustomEvent('calendar:open-shared', { detail: destination.calendar_owner_id }));
+        else if (destination.task_id) await tasks.openTask(destination.task_id, controller.signal);
         else if (destination.target_app) {
           const session = await appsApi.launchSubApp(destination.target_app, 15000);
           // Deep paths are retained by the integration API; existing apps currently
           // support only their normal SSO callback, so do not invent a redirect contract.
-          window.location.assign(session.launch_url);
+          if (!controller.signal.aborted) window.location.assign(session.launch_url);
         }
       });
     },
-  }}>{children}</Context.Provider>;
+  }}>{children}
+    {noteId && <CalendarNoteModal key={noteId} noteId={noteId} onClose={closeEditor} />}
+    {event && <EventModal key={event.id} event={event} draft={{ date: eventDate(event.starts_at) }} onClose={closeEditor}
+      onSave={async (payload, id) => { await calendarApi.update(id!, payload); changedCalendar(); }}
+      onDelete={async (id, updatedAt) => { await calendarApi.remove(id, updatedAt); changedCalendar(); }} />}
+  </Context.Provider>;
 }
 export function useNotifications() { const value = useContext(Context); if (!value) throw new Error('NotificationsProvider is required.'); return value; }

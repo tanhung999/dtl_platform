@@ -13,6 +13,8 @@ import { notesApi } from './api';
 import { NoteWrite } from './types';
 import { WORKSPACE_CHANGED } from '../realtime/useWorkspaceRealtime';
 import './notes.css';
+import { sameFields, sameSchedule } from '../../services/unchanged';
+import { reminderValue } from '../reminders/ReminderFields';
 
 interface NoteModalProps {
   note: Partial<Note> | null;
@@ -41,6 +43,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
   onArchive,
 }) => {
   const dialog = useRef<HTMLDialogElement>(null);
+  const mounted = useRef(false);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
@@ -55,9 +58,13 @@ export const NoteModal: React.FC<NoteModalProps> = ({
   const [schedule, setSchedule] = useState<NoteSchedule>();
   const [savedSchedule, setSavedSchedule] = useState<NoteSchedule>();
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const savedFields = useRef<Record<string, unknown>>({});
+  const editableFields = (value: Partial<Note> | null) => ({ title: value?.title?.trim() || 'Ghi chú', content: value?.content?.trim() || '',
+    color: value?.color || '#fef08a', is_pinned: !!value?.is_pinned, is_private: !!value?.is_private });
 
   useEffect(() => {
     creationAttempt.current = undefined;
+    savedFields.current = editableFields(note);
     setSchedule(note?.calendar_schedule ?? undefined); setScheduleOpen(!!note?.calendar_schedule);
     setSavedSchedule(note?.calendar_schedule ?? undefined);
     version.current = note?.version ?? 0; setError(''); setRemote(false); setConfirmDelete(false);
@@ -77,10 +84,11 @@ export const NoteModal: React.FC<NoteModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    mounted.current = true;
     const element = dialog.current;
     const previousFocus = document.activeElement as HTMLElement | null;
     element?.showModal();
-    return () => { element?.close(); previousFocus?.focus(); };
+    return () => { mounted.current = false; element?.close(); previousFocus?.focus(); };
   }, [isOpen]);
 
   useEffect(() => {
@@ -100,6 +108,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
   }, [isOpen, note?.id]);
 
   if (!isOpen) return null;
+  const hasSavedSchedule = !!(note?.id && savedSchedule?.event_id && savedSchedule.expected_updated_at);
 
   const buildPayload = (): NoteWrite => {
     if (dialog.current?.querySelector('form')?.reportValidity() === false) throw new Error('Vui lòng kiểm tra lại ngày giờ đang nhập.');
@@ -112,16 +121,19 @@ export const NoteModal: React.FC<NoteModalProps> = ({
     setBusy(true); setError('');
     try {
       const payload = buildPayload();
+      const { calendar_schedule, expected_version, ...fields } = payload;
+      if (note?.id && sameFields(fields, savedFields.current) && sameSchedule(calendar_schedule, savedSchedule)) { onClose(); return; }
       if (!note?.id) creationAttempt.current ??= { requestId: crypto.randomUUID(), original: { ...payload } };
       await onSave(payload, creationAttempt.current);
-      onClose();
+      if (mounted.current) onClose();
     } catch (reason) {
+      if (!mounted.current) return;
       if (!note?.id && reason instanceof ApiError && [400, 404, 422].includes(reason.status)) creationAttempt.current = undefined;
       setError(reason instanceof Error ? reason.message : 'Không thể lưu ghi chú. Bản nháp vẫn được giữ.');
       if (note?.id && reason instanceof ApiError && reason.status === 409) {
         setRemote(true);
       }
-    } finally { setBusy(false); }
+    } finally { if (mounted.current) setBusy(false); }
   };
 
   return createPortal(
@@ -151,7 +163,6 @@ export const NoteModal: React.FC<NoteModalProps> = ({
           </div>
           <button
             type="button"
-            disabled={busy}
             aria-label="Đóng ghi chú"
             onClick={onClose}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
@@ -161,7 +172,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
         </div>
 
         {remote && <div className="note-editor-message" role="status">Ghi chú đã được cập nhật ở nơi khác. Bản nháp của bạn được giữ nguyên. <button type="button" disabled={busy} onClick={async () => {
-          setBusy(true); try { const value = await notesApi.get(note!.id!); setTitle(value.title); setContent(value.content); setColor(value.color); setIsPinned(value.is_pinned); setIsPrivate(value.is_private ?? false); setSchedule(value.calendar_schedule ?? undefined); setSavedSchedule(value.calendar_schedule ?? undefined); setScheduleOpen(!!value.calendar_schedule); version.current = value.version; setRemote(false); setError(''); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Không tải được bản mới.'); } finally { setBusy(false); }
+          setBusy(true); try { const value = await notesApi.get(note!.id!); savedFields.current = editableFields(value); setTitle(value.title); setContent(value.content); setColor(value.color); setIsPinned(value.is_pinned); setIsPrivate(value.is_private ?? false); setSchedule(value.calendar_schedule ?? undefined); setSavedSchedule(value.calendar_schedule ?? undefined); setScheduleOpen(!!value.calendar_schedule); version.current = value.version; setRemote(false); setError(''); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Không tải được bản mới.'); } finally { setBusy(false); }
         }}>Bỏ bản nháp, tải bản mới</button></div>}
         {error && <p className="note-editor-message" role="alert">{error}</p>}
         <form onSubmit={handleSubmit}>
@@ -226,20 +237,19 @@ export const NoteModal: React.FC<NoteModalProps> = ({
               </div>
             </div>
           <PrivacyToggle label="Ghi chú riêng tư" value={isPrivate} onChange={setIsPrivate} />
-          {note?.id && savedSchedule && !note.is_archived && <RescheduleControl kind="note" id={note.id} title={note.title || 'Ghi chú không có tiêu đề'} current={savedSchedule} version={version.current} updatedAt={savedSchedule.expected_updated_at} disabled={busy} onMoved={change => {
-            const value: NoteSchedule = { starts_at: change.after.starts_at!, ends_at: change.after.ends_at!, is_all_day: !!change.after.is_all_day, event_id: change.guard.event_id!, expected_updated_at: change.guard.expected_updated_at! };
-            version.current = change.guard.expected_version!; setSchedule(value); setSavedSchedule(value); setScheduleOpen(true); setRemote(false);
-          }}/>}
+
             {!note?.is_archived && <>
-              <div className="note-schedule-actions"><button type="button" className="btn btn-outline btn-sm" disabled={!!creationAttempt.current} aria-expanded={scheduleOpen} onClick={() => { setSchedule(value => value ?? initialNoteSchedule()); setScheduleOpen(true); }}>Gắn vào lịch</button></div>
-              {scheduleOpen && schedule && <><fieldset disabled={!!creationAttempt.current} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><NoteScheduleFields value={schedule} onChange={setSchedule} /></fieldset>{!schedule.event_id && <button type="button" className="btn btn-outline btn-sm" disabled={!!creationAttempt.current} onClick={() => { setScheduleOpen(false); setSchedule(undefined); }}>Bỏ chọn lịch</button>}</>}
+              {!hasSavedSchedule && !scheduleOpen && <div className="note-schedule-actions"><button type="button" className="btn btn-outline btn-sm" disabled={!!creationAttempt.current} aria-expanded={scheduleOpen} onClick={() => { setSchedule(value => value ?? initialNoteSchedule()); setScheduleOpen(true); }}>Gắn vào lịch</button></div>}
+              {scheduleOpen && schedule && <><fieldset disabled={!!creationAttempt.current} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><NoteScheduleFields value={schedule} onChange={setSchedule} scheduleReadOnly={hasSavedSchedule} scheduleAction={hasSavedSchedule && savedSchedule && !note?.is_archived && <RescheduleControl kind="note" id={note!.id!} title={note?.title || 'Ghi chú không có tiêu đề'} current={savedSchedule} version={version.current} updatedAt={savedSchedule.expected_updated_at} disabled={busy} onMoved={change => {
+            const value: NoteSchedule = { starts_at: change.after.starts_at!, ends_at: change.after.ends_at!, is_all_day: !!change.after.is_all_day, event_id: change.guard.event_id!, expected_updated_at: change.guard.expected_updated_at!, ...reminderValue(change.after) };
+            version.current = change.guard.expected_version!; setSchedule(value); setSavedSchedule(value); setScheduleOpen(true); setRemote(false);
+          }}/>} /></fieldset>{!schedule.event_id && <button type="button" className="btn btn-outline btn-sm" disabled={!!creationAttempt.current} onClick={() => { setScheduleOpen(false); setSchedule(undefined); }}>Bỏ chọn lịch</button>}</>}
             </>}
           </div>
 
           <div
             className="modal-footer"
             style={{
-              background: 'rgba(255,255,255,0.4)',
               borderTopColor: 'rgba(0,0,0,0.08)',
               justifyContent: 'space-between',
             }}
@@ -247,7 +257,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
             <div className="note-editor-secondary-actions">
               {note?.id && onArchive && !note.is_archived && <button type="button" className="btn btn-outline btn-sm" onClick={async () => {
                 setBusy(true); setError('');
-                try { await onArchive(note.id!, version.current, buildPayload()); onClose(); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể lưu trữ.'); if (reason instanceof ApiError && reason.status === 409) setRemote(true); } finally { setBusy(false); }
+                try { await onArchive(note.id!, version.current, buildPayload()); if (mounted.current) onClose(); } catch (reason) { if (mounted.current) { setError(reason instanceof Error ? reason.message : 'Không thể lưu trữ.'); if (reason instanceof ApiError && reason.status === 409) setRemote(true); } } finally { if (mounted.current) setBusy(false); }
               }}><Archive size={14} /> Lưu trữ</button>}
               {note?.id && onDelete && (
                 <button
@@ -271,7 +281,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
         </form>
       </div>
     </dialog>
-    {confirmDelete && note?.id && onDelete && <DeleteNoteDialog note={{ id: note.id, title: note.title }} onClose={() => setConfirmDelete(false)} onDelete={async (verifyOnly, expectedVersion) => { await onDelete(note.id!, verifyOnly, expectedVersion); setConfirmDelete(false); onClose(); }} />}
+    {confirmDelete && note?.id && onDelete && <DeleteNoteDialog note={{ id: note.id, title: note.title }} onClose={() => setConfirmDelete(false)} onDelete={async (verifyOnly, expectedVersion) => { await onDelete(note.id!, verifyOnly, expectedVersion); if (mounted.current) { setConfirmDelete(false); onClose(); } }} />}
     </>,
     document.body
   );

@@ -31,3 +31,7 @@ Riêng tư Task/Notes: `tests.integration.test_item_privacy` kiểm tra mặc đ
 Đổi hạn/dời lịch: `tests.integration.test_rescheduling` kiểm tra phiên bản, gửi lại yêu cầu, lý do/lịch sử riêng tư, đồng bộ Notes, nhắc hạn và hoàn tác. Thời gian không hợp lệ phải trả 422 và không ghi lịch sử.
 
 Dọn dữ liệu và lịch sử form cũ: `tests.integration.test_schedule_history_and_retention`. PostgreSQL: `tests/postgres/maintenance_realtime_check.py`, `tests/postgres/retention_plan_check.py`; kiểm tra NOTIFY theo lô, tranh chấp worker, giữ job đang chờ và receipt. Các bài PostgreSQL tạo schema UUID riêng hoặc bảng TEMP rồi tự dọn.
+
+Hộp thông báo dùng chung ba ứng dụng: `tests.integration.test_notification_api_access`. PostgreSQL: `docker compose exec -T -e PYTHONPATH=/app platform-backend python tests/postgres/notification_api_check.py`; mỗi ca tạo và dọn schema UUID riêng. Kiểm tra chữ ký, token giới hạn, gia hạn phiên, quyền, phân trang và truy vấn không tăng theo số thông báo. Hướng dẫn tích hợp tại `docs/notification-api-integration.md` ở gốc repo.
+
+Nhắc nhở do người dùng chọn: `tests.integration.test_user_reminders` và `test_user_reminder_migration`; mặc định Không nhắc, preset/tùy chỉnh, cả ngày, kiểm tra múi giờ, hủy/khôi phục/dời/hoàn tác, lưu không đổi và chống gửi lại. PostgreSQL: `docker compose exec -T -e PYTHONPATH=/app platform-backend python tests/postgres/user_reminders_check.py`. `notifications_postgres_check.py` kiểm tra rollback, 3 worker đồng thời và bỏ qua tài khoản đang bị khóa để tránh deadlock với thao tác sửa.

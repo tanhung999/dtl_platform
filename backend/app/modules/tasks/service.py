@@ -8,18 +8,23 @@ from app.core.realtime import mark_changed
 from app.db.models import User, utcnow
 from app.modules.tasks.deadlines import VN
 from app.modules.tasks.schemas import TaskUpdate
-from app.modules.notifications.scheduling import sync_task_jobs
+from app.modules.notifications.scheduling import signature, sync_task_jobs
+from app.modules.notifications.reminder_fields import reminder_update
 
 from .ownership import owned_task
 
 
-async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db: AsyncSession, *, record_history=True):
+async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db: AsyncSession, *, record_history=True, allow_elapsed=False):
     if 'is_private' in payload.model_fields_set:
         # Serialize permission changes with assignment/revocation for this owner.
         await db.execute(select(User.id).where(User.id == user.id).with_for_update())
     task = await owned_task(task_id, user, db, lock=True)
     before = {'due_date': task.due_date, 'due_time': task.due_time}
+    from app.modules.rescheduling.service import reminder_snapshot
+    before.update(reminder_snapshot(task))
+    reminder_before = signature(task, 'task')
     data = payload.model_dump(exclude_unset=True)
+    data.update(reminder_update(payload))
     from app.modules.access.privacy import require_privacy_change
     if 'is_private' in data:
         await require_privacy_change(db, user.id, data['is_private'], task.is_private)
@@ -40,6 +45,12 @@ async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db:
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=timezone.utc)
         date_value = data["due_date"] = created_at.astimezone(VN).date().isoformat()
+    if not date_value:
+        data.update(reminder_minutes=None, reminder_at=None)
+    data = {key: value for key, value in data.items()
+            if ((task.description or '') != (value or '') if key == 'description' else getattr(task, key) != value)}
+    if not data:
+        return task
     if (date_value, time_value) != (task.due_date, task.due_time):
         task.deadline_version += 1
     for key, value in data.items():
@@ -47,7 +58,7 @@ async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db:
     task.version += 1
     task.updated_at = utcnow()
     await db.flush()
-    await sync_task_jobs(db, task)
+    await sync_task_jobs(db, task, before=reminder_before, allow_elapsed=allow_elapsed)
     mark_changed(db, user.id, "notifications")
     mark_changed(db, user.id, "tasks")
     if record_history:

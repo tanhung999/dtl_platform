@@ -18,19 +18,3 @@ def task_sort_key(task: Task):
     due = deadline_at(task)
     return (task.is_completed, due is None, due.timestamp() if due else float("inf"),
             PRIORITIES.get(task.priority, 2), task.id)
-
-
-def active_reminder(task: Task, now: datetime):
-    due = deadline_at(task)
-    if task.is_completed or due is None or now >= due:
-        return None
-    day = date.fromisoformat(task.due_date)
-    before = datetime.combine(day - timedelta(days=1), time(8), VN)
-    morning = datetime.combine(day, time(8), VN)
-    if task.due_time:
-        morning = min(morning, due - timedelta(minutes=30))
-    if now >= morning:
-        return "day", morning
-    if now >= before:
-        return "before", before
-    return None

@@ -35,7 +35,7 @@ const assert = require('node:assert/strict');
   await page.waitForFunction(()=>document.querySelector('.calendar-note-toggle .calendar-toggle-count')?.textContent==='2');
   assert.equal(await calendar.locator('.calendar-event-toggle .calendar-toggle-count').innerText(),'1');
   await noteItem().click(); const editor=page.getByRole('dialog',{name:'Ghi chú',exact:true}); await editor.waitFor();
-  await editor.getByLabel('Giờ lịch hẹn',{exact:true}).fill('11:00'); await editor.getByPlaceholder('Tiêu đề ghi chú...').click();
+  await editor.getByLabel('Giờ bắt đầu',{exact:true}).fill('11:00'); await editor.getByPlaceholder('Tiêu đề ghi chú...').click();
   await editor.getByRole('button',{name:'Lưu trữ',exact:true}).click(); await editor.waitFor({state:'hidden'});
   const archived=await page.evaluate(async id=>(await fetch('/api/notes/'+id,{headers:{Authorization:'Bearer '+localStorage.getItem('dtl_platform_token')}})).json(),note.id);
   assert.equal(archived.is_archived,true); assert.match(archived.calendar_schedule.starts_at,/T04:00:00/);

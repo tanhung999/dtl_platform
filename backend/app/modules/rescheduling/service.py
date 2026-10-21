@@ -14,13 +14,17 @@ from app.modules.notes.schemas import NoteUpdate
 from app.modules.calendar.schemas import EventUpdate
 
 
+def reminder_snapshot(row):
+    return {'reminder_minutes': row.reminder_minutes, 'reminder_at': database_utc(row.reminder_at).isoformat() if row.reminder_at else None}
+
+
 def event_snapshot(event):
-    return {'starts_at': database_utc(event.starts_at).isoformat(), 'ends_at': database_utc(event.ends_at).isoformat(), 'is_all_day': event.is_all_day}
+    return {'starts_at': database_utc(event.starts_at).isoformat(), 'ends_at': database_utc(event.ends_at).isoformat(), 'is_all_day': event.is_all_day, **reminder_snapshot(event)}
 
 
 async def record_change(db, user, kind, row, before, *, request_id=None, fingerprint=None, reason=''):
     after, guard = await snapshot(db, row, kind)
-    if before == after:
+    if {k:v for k,v in before.items() if not k.startswith('reminder_')} == {k:v for k,v in after.items() if not k.startswith('reminder_')}:
         return None
     key = request_id or str(uuid4())
     digest = fingerprint or hashlib.sha256(json.dumps({'kind': kind, 'id': row.id, 'before': before, 'after': after}, sort_keys=True).encode()).hexdigest()
@@ -49,7 +53,7 @@ async def owned(db, user, kind, resource_id, *, lock=True):
 
 async def snapshot(db, row, kind):
     if kind == 'task':
-        return {'due_date': row.due_date, 'due_time': row.due_time}, {'expected_version': row.version}
+        return {'due_date': row.due_date, 'due_time': row.due_time, **reminder_snapshot(row)}, {'expected_version': row.version}
     if kind == 'note':
         event = await db.scalar(select(CalendarEvent).join(NoteCalendarSchedule, NoteCalendarSchedule.event_id == CalendarEvent.id)
             .where(NoteCalendarSchedule.note_id == row.id, CalendarEvent.user_id == row.user_id).with_for_update())
@@ -59,21 +63,21 @@ async def snapshot(db, row, kind):
     else:
         event = row
         guard = {'expected_updated_at': database_utc(event.updated_at).isoformat()}
-    return {'starts_at': database_utc(event.starts_at).isoformat(), 'ends_at': database_utc(event.ends_at).isoformat(), 'is_all_day': event.is_all_day}, guard
+    return event_snapshot(event), guard
 
 
-async def apply(db, user, row, kind, target, guard):
+async def apply(db, user, row, kind, target, guard, *, allow_elapsed=False):
     if kind == 'task':
         from app.modules.tasks.service import update_task_service
-        await update_task_service(row.id, TaskUpdate(**target, expected_version=guard['expected_version']), user, db, record_history=False)
+        await update_task_service(row.id, TaskUpdate(**target, expected_version=guard['expected_version']), user, db, record_history=False, allow_elapsed=allow_elapsed)
     elif kind == 'note':
         from app.modules.notes.service import update_note_service
         await update_note_service(row.id, NoteUpdate(expected_version=guard['expected_version'], calendar_schedule={**target,
-            'event_id': guard['event_id'], 'expected_updated_at': guard['expected_updated_at']}), user, db, record_history=False)
+            'event_id': guard['event_id'], 'expected_updated_at': guard['expected_updated_at']}), user, db, record_history=False, allow_elapsed=allow_elapsed)
     else:
         from app.modules.calendar.service import update_event_service
         await update_event_service(row.id, EventUpdate(title=row.title, description=row.description, location=row.location,
-            color=row.color, **target, expected_updated_at=guard['expected_updated_at']), user, db, record_history=False)
+            color=row.color, **target, expected_updated_at=guard['expected_updated_at']), user, db, record_history=False, allow_elapsed=allow_elapsed)
 
 
 def response(row):

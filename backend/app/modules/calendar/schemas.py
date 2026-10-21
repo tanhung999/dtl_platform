@@ -1,3 +1,4 @@
+from app.modules.notifications.reminder_fields import ReminderFields
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -7,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 CALENDAR_TIMEZONE = timezone(timedelta(hours=7))
 
 
-class EventWrite(BaseModel):
+class EventWrite(ReminderFields):
     model_config = ConfigDict(extra="forbid")
 
     title: str = Field(min_length=1, max_length=200)
@@ -44,6 +45,8 @@ class EventWrite(BaseModel):
 
 
 class EventResponse(BaseModel):
+    reminder_minutes: int | None = None
+    reminder_at: datetime | None = None
     scheduled_note_id: str | None = None
     model_config = ConfigDict(from_attributes=True)
 

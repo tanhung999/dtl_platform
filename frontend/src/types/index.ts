@@ -1,3 +1,4 @@
+import type { ReminderValue } from '../features/reminders/ReminderFields';
 export interface User {
   id: string;
   username: string;
@@ -39,7 +40,7 @@ export interface Note {
 
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
-export interface Task {
+export interface Task extends ReminderValue {
   is_private: boolean;
   version: number;
   id: string;

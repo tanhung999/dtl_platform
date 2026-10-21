@@ -2,7 +2,9 @@ const { chromium } = require('../.browser-tools/node_modules/playwright');
 const { createTestUsers } = require('../support/test-users.cjs');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert/strict');
+const base = process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
 const path = require('node:path');
+const { deliverReminders } = require('../support/deliver-reminders.cjs');
 
 const seed = `import asyncio,json,sys
 from datetime import datetime,timezone
@@ -10,6 +12,7 @@ from app.core.database import async_session_maker
 from app.db.models import User
 from app.db.task_reminders import TaskReminderReceipt
 from app.db.notifications import Notification
+from app.db.calendar import CalendarEvent
 from app.core.realtime import prepare_changes,mark_changed
 async def run():
     user_id=json.load(sys.stdin)['id']
@@ -29,7 +32,8 @@ asyncio.run(run())`;
     browser = await chromium.launch({ channel: 'msedge', headless: true });
     const context = await browser.newContext({ viewport: { width: 1450, height: 1000 } });
     let page = await context.newPage();
-    await page.goto('http://127.0.0.1:5173');
+    await context.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
+    await page.goto(base);
     await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);
     await page.getByLabel('Mật khẩu', { exact: true }).fill(fixture.accounts[0].password);
     await page.getByRole('button', { name: 'Đăng nhập hệ thống' }).click();
@@ -38,18 +42,19 @@ asyncio.run(run())`;
     const headers = { Authorization: `Bearer ${token}` };
     // No page exists while the server records and delivers this overdue task.
     await page.close();
-    const created = await context.request.post('http://127.0.0.1:5173/api/tasks', { headers, data: { title: 'Offline QA task', due_date: '2026-01-01', due_time: '16:00' } });
+    const created = await context.request.post(base+'/api/tasks', { headers, data: { title: 'Offline QA task', due_date: '2099-01-01', due_time: '16:00', reminder_minutes:30 } });
     assert.equal(created.status(), 201);
     const task = await created.json();
+    deliverReminders(fixture.accounts[0]);
     let items = [];
     for (let i = 0; i < 22; i++) {
-      items = (await (await context.request.get('http://127.0.0.1:5173/api/notifications', { headers })).json()).items;
+      items = (await (await context.request.get(base+'/api/notifications', { headers })).json()).items;
       if (items.length) break;
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    assert.equal(items.length, 1); assert.equal(items[0].kind, 'task.overdue');
+    assert.equal(items.length, 1); assert.equal(items[0].kind, 'task.reminder');
     page = await context.newPage();
-    await page.goto('http://127.0.0.1:5173');
+    await page.goto(base);
     await page.getByRole('button', { name: 'Thông báo, 1 chưa đọc', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Thông báo, 1 chưa đọc', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Thông báo', exact: true });
@@ -65,7 +70,7 @@ asyncio.run(run())`;
     await full.locator('.notification-card').waitFor();
     await full.getByRole('button', { name: /^Đánh dấu đã đọc:/ }).click();
     await page.waitForFunction(() => document.querySelector('.notification-bell')?.getAttribute('aria-label') === 'Thông báo');
-    const unchanged = await (await context.request.get('http://127.0.0.1:5173/api/tasks/' + task.id, { headers })).json();
+    const unchanged = await (await context.request.get(base+'/api/tasks/' + task.id, { headers })).json();
     assert.equal(unchanged.version, task.version); assert.equal(unchanged.is_completed, false);
 
     const result = spawnSync('docker', ['compose', 'exec', '-T', 'platform-backend', 'python', '-c', seed], { cwd: path.resolve(__dirname, '../../..'), input: JSON.stringify(fixture.accounts[0]), encoding: 'utf8' });

@@ -12,9 +12,17 @@ from app.modules.calendar.schemas import EventUpdate
 from .ownership import find_owned_event
 
 
-async def update_event_service(event_id: str, payload: EventUpdate, user: User, db: AsyncSession, *, record_history=True):
+async def update_event_service(event_id: str, payload: EventUpdate, user: User, db: AsyncSession, *, record_history=True, allow_elapsed=False):
     await db.execute(select(User.id).where(User.id == user.id).with_for_update())
     event, has_note = await find_owned_event(event_id, user, db)
+    from app.modules.notifications.scheduling import signature, sync_event_jobs
+    from app.modules.notifications.reminder_fields import reminder_update
+    note = None
+    if has_note:
+        from app.db.models import Note
+        note = await db.get(Note, event.scheduled_note_id)
+    active = not note.is_archived if note else True
+    reminder_before = signature(event, 'event', active)
     from app.modules.rescheduling.service import event_snapshot
     before = event_snapshot(event)
     modified = event.updated_at
@@ -22,6 +30,11 @@ async def update_event_service(event_id: str, payload: EventUpdate, user: User, 
         modified = modified.replace(tzinfo=timezone.utc)
     if modified != payload.expected_updated_at:
         raise HTTPException(409, "Sự kiện đã thay đổi. Nội dung đang sửa được giữ; hãy mở lại bản mới trước khi lưu.")
+    data = payload.model_dump(exclude={"expected_updated_at", "reminder_minutes", "reminder_at"} | ({"is_private"} if "is_private" not in payload.model_fields_set else set()))
+    data.update(reminder_update(payload))
+    data = {key: value for key, value in data.items() if getattr(event, key) != value}
+    if not data:
+        return event
     if "is_private" in payload.model_fields_set and payload.is_private != event.is_private:
         from app.modules.access.privacy import require_privacy_change
         await require_privacy_change(db, user.id, payload.is_private, event.is_private)
@@ -31,12 +44,14 @@ async def update_event_service(event_id: str, payload: EventUpdate, user: User, 
             await db.execute(update(Note).where(Note.id == event.scheduled_note_id, Note.user_id == user.id)
                 .values(is_private=payload.is_private, version=Note.version + 1, updated_at=utcnow()))
         mark_changed(db, user.id, "calendar-privacy")
-    for key, value in payload.model_dump(exclude={"expected_updated_at"} | ({"is_private"} if "is_private" not in payload.model_fields_set else set())).items():
+    for key, value in data.items():
         setattr(event, key, value)
     event.updated_at = utcnow()
+    await sync_event_jobs(db, event, before=reminder_before, active=active, allow_elapsed=allow_elapsed)
     await db.flush()
     await db.refresh(event)
     mark_changed(db, user.id, "calendar")
+    mark_changed(db, user.id, "notifications")
     if has_note: mark_changed(db, user.id, "notes")
     if record_history:
         from app.modules.rescheduling.service import record_change

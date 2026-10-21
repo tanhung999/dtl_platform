@@ -11,12 +11,12 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.db.models import Task, User, utcnow
 from app.db.notifications import Notification as N, NotificationJob as Job, NotificationPreference as Preference
-from app.modules.auth.dependencies import get_current_user
+from .auth import notification_user
 from app.modules.tasks.deadlines import deadline_at
 from .service import changed, insert_unique, select_feed, serialize, utc
 
 router = APIRouter(prefix='/api/notifications', tags=['Notifications'])
-UserArg = Annotated[User, Depends(get_current_user)]
+UserArg = Annotated[User, Depends(notification_user)]
 DbArg = Annotated[AsyncSession, Depends(get_db, scope='function')]
 Source = Literal['platform', 'bookingreports', 'workflows', 'itam']
 SOURCES = ('bookingreports', 'workflows', 'itam')
@@ -47,7 +47,7 @@ async def inbox(user: UserArg, db: DbArg, filter: Literal['all', 'unread', 'hidd
         stmt = stmt.where(or_(N.created_at < stamp, and_(N.created_at == stamp, N.id < id)))
     rows = (await db.execute(stmt.order_by(N.created_at.desc(), N.id.desc()).limit(limit + 1))).all()
     visible = rows[:limit]
-    return {'items': [serialize(n, task, now) for n, task in visible], 'has_more': len(rows) > limit,
+    return {'items': [serialize(n, task, now, event, note) for n, task, event, note in visible], 'has_more': len(rows) > limit,
             'next_cursor': cursor_for(visible[-1][0]) if len(rows) > limit else None, 'server_now': now}
 
 @router.get('/summary')
@@ -61,10 +61,10 @@ async def summary(user: UserArg, db: DbArg):
     ranked = select(N.id, func.row_number().over(partition_by=N.resource_id, order_by=(N.created_at.desc(), N.id.desc())).label('rank'))
     ranked = ranked.join(Task, Task.id == N.task_id).where(N.user_id == user.id, N.resource_type == 'task', Task.is_completed.is_(False),
         Task.deadline_version == N.deadline_version, Task.due_date.is_not(None), N.due_at > now).subquery()
-    actionable = or_(N.resource_type != 'task', N.id.in_(select(ranked.c.id).where(ranked.c.rank == 1)))
+    actionable = or_(N.resource_type != 'task', N.reminder_version.is_not(None), N.id.in_(select(ranked.c.id).where(ranked.c.rank == 1)))
     rows = (await db.execute(select_feed().where(N.user_id == user.id, actionable, N.read_at.is_(None), N.dismissed_at.is_(None))
         .order_by(N.created_at.desc(), N.id.desc()).limit(4))).all()
-    return {'unread_count': unread, 'preview': [serialize(n, task, now) for n, task in rows], 'server_now': now}
+    return {'unread_count': unread, 'preview': [serialize(n, task, now, event, note) for n, task, event, note in rows], 'server_now': now}
 
 @router.get('/preferences')
 async def preferences(user: UserArg, db: DbArg):
@@ -84,11 +84,17 @@ async def save_preferences(payload: PreferenceWrite, user: UserArg, db: DbArg):
     row = await db.get(Preference, user.id)
     if payload.expected_version != (row.version if row else 0):
         raise HTTPException(409, 'Cài đặt đã thay đổi. Hãy tải lại trước khi lưu.')
+    data = payload.model_dump(exclude={'expected_version'}, exclude_unset=True)
+    if any(value is None for value in data.values()):
+        raise HTTPException(422, 'Cài đặt không được để trống.')
+    current = preference_data(row)
+    data = {key: value for key, value in data.items() if current[key] != value}
+    if not data:
+        return current
     if row is None:
         row = Preference(user_id=user.id, version=0)
         db.add(row)
-    for key, value in payload.model_dump(exclude={'expected_version'}, exclude_unset=True).items():
-        if value is None: raise HTTPException(422, 'Cài đặt không được để trống.')
+    for key, value in data.items():
         setattr(row, key, value)
     row.version += 1
     await db.flush()
@@ -106,8 +112,9 @@ class ReadAll(BaseModel):
 @router.post('/read-all', status_code=204)
 async def read_all(payload: ReadAll, user: UserArg, db: DbArg):
     now = utcnow()
-    await db.execute(update(N).where(N.user_id == user.id, N.read_at.is_(None), N.dismissed_at.is_(None), N.created_at <= min(payload.through, now)).values(read_at=now))
-    changed(db, user.id)
+    result = await db.execute(update(N).where(N.user_id == user.id, N.read_at.is_(None), N.dismissed_at.is_(None), N.created_at <= min(payload.through, now)).values(read_at=now))
+    if result.rowcount:
+        changed(db, user.id)
 
 async def owned(db, user, id, lock=False):
     stmt = select(N).where(N.id == id, N.user_id == user.id)
@@ -123,16 +130,23 @@ class NotificationWrite(BaseModel):
 @router.patch('/{id}', status_code=204)
 async def set_state(id: str, payload: NotificationWrite, user: UserArg, db: DbArg):
     row = await owned(db, user, id, lock=True)
-    for key, value in payload.model_dump(exclude_unset=True).items():
-        if value is None: raise HTTPException(422, 'Trạng thái không được để trống.')
-        setattr(row, 'read_at' if key == 'read' else 'dismissed_at', utcnow() if value else None)
-    changed(db, user.id)
+    data = payload.model_dump(exclude_unset=True)
+    if any(value is None for value in data.values()):
+        raise HTTPException(422, 'Trạng thái không được để trống.')
+    modified = False
+    for key, value in data.items():
+        field = 'read_at' if key == 'read' else 'dismissed_at'
+        if (getattr(row, field) is not None) != value:
+            setattr(row, field, utcnow() if value else None)
+            modified = True
+    if modified:
+        changed(db, user.id)
 
 @router.post('/{id}/snooze', status_code=204)
 async def snooze(id: str, user: UserArg, db: DbArg):
     notice = await owned(db, user, id)
     task = await db.scalar(select(Task).where(Task.id == notice.task_id, Task.user_id == user.id).with_for_update()) if notice.task_id else None
-    if not task or task.is_completed or task.deadline_version != notice.deadline_version or not task.due_date:
+    if not task or task.is_completed or task.deadline_version != notice.deadline_version or not task.due_date or notice.reminder_version is None or task.reminder_version != notice.reminder_version or (task.reminder_minutes is None and task.reminder_at is None):
         raise HTTPException(409, 'Công việc không còn phù hợp để nhắc lại.')
     now, due = utcnow(), deadline_at(task)
     if due <= now + timedelta(hours=1):
@@ -141,6 +155,7 @@ async def snooze(id: str, user: UserArg, db: DbArg):
     if not notice.snoozed_until:
         notice.snoozed_until = now + timedelta(hours=1)
         await insert_unique(db, Job, [dict(task_id=task.id, user_id=user.id, deadline_version=task.deadline_version, kind='snooze',
+            reminder_version=task.reminder_version,
             event_key=f'snooze:{notice.id}', scheduled_at=notice.snoozed_until, available_at=notice.snoozed_until)], ['event_key'])
     notice.read_at = now
     changed(db, user.id)
@@ -149,6 +164,18 @@ async def snooze(id: str, user: UserArg, db: DbArg):
 async def destination(id: str, user: UserArg, db: DbArg):
     row = await owned(db, user, id)
     if row.source == 'platform':
+        if row.resource_type in ('event', 'note'):
+            from app.db.calendar import CalendarEvent
+            from app.db.models import Note
+            event = await db.scalar(select(CalendarEvent).where(CalendarEvent.id == row.event_id, CalendarEvent.user_id == user.id))
+            if not event:
+                raise HTTPException(404, 'Lịch hẹn đã bị xóa.')
+            if row.resource_type == 'note':
+                note = await db.scalar(select(Note).where(Note.id == row.resource_id, Note.user_id == user.id))
+                if not note:
+                    raise HTTPException(404, 'Ghi chú đã bị xóa.')
+                return {'note_id': note.id}
+            return {'event_id': event.id}
         if row.resource_type == 'calendar_share':
             from app.modules.calendar_sharing.service import grant_for
             await grant_for(db, row.resource_id, user.id)
