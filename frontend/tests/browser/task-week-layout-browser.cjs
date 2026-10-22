@@ -53,7 +53,7 @@ async function main() {
         assert.equal(await week.locator(`[data-deadline-id="${task.id}"]`).locator('..').evaluate(el => parseFloat(el.style.height)), 24, 'Deadline is a 24px marker');
       }
       assert.equal(await week.locator(`[data-deadline-id="${task.id}"] .calendar-deadline-priority-dot`).isVisible(), true);
-      assert.ok((await week.locator(`[data-deadline-id="${task.id}"] button`).getAttribute('title')).includes(task.title));
+      assert.ok((await week.locator(`[data-deadline-id="${task.id}"] button`).getAttribute('data-tooltip')).includes(task.title));
     }
     for (const allDay of [true, false]) {
       const event = await api('POST', 'calendar/events', { title: `${marker} event ${allDay}`, starts_at: tomorrow + (allDay ? 'T00:00:00+07:00' : 'T10:00:00+07:00'), ends_at: (allDay ? afterTomorrow + 'T00:00:00+07:00' : tomorrow + 'T11:00:00+07:00'), is_all_day: allDay, color: '#2563EB' });
@@ -82,12 +82,12 @@ async function main() {
     await narrowEvent.click();
     await page.getByRole('dialog').locator('.calendar-event-status').first().waitFor();
     await page.getByRole('button', { name: 'Đóng', exact: true }).click();
-    await page.getByRole('checkbox', { name: 'Hiện việc cần làm', exact: true }).uncheck();
+    await page.getByRole('checkbox', { name: 'Hiện công việc', exact: true }).uncheck();
     assert.equal(await page.locator('.calendar-main [data-deadline-id]').count(), 0);
-    assert.equal(await page.getByRole('button', { name: 'Bật/tắt hạn công việc' }).getAttribute('aria-pressed'), 'false');
-    await page.getByRole('button', { name: 'Bật/tắt hạn công việc' }).click();
+    assert.equal(await page.getByRole('button', { name: 'Bật/tắt công việc' }).getAttribute('aria-pressed'), 'false');
+    await page.getByRole('button', { name: 'Bật/tắt công việc' }).click();
     await week.locator(`[data-deadline-id="${tasks[3].id}"]`).waitFor();
-    assert.equal(await page.getByRole('checkbox', { name: 'Hiện việc cần làm', exact: true }).isChecked(), true);
+    assert.equal(await page.getByRole('checkbox', { name: 'Hiện công việc', exact: true }).isChecked(), true);
     const mondayDate = new Date(today + 'T00:00:00Z');
     mondayDate.setUTCDate(mondayDate.getUTCDate() - (mondayDate.getUTCDay() + 6) % 7);
     const monday = mondayDate.toISOString().slice(0, 10);
@@ -112,9 +112,9 @@ async function main() {
     for (const view of ['Tháng', 'Danh sách']) {
       await page.getByRole('button', { name: view, exact: true }).click();
       assert.equal(await page.locator(`.calendar-main [data-deadline-id="${overdue.id}"]`).count(), 1, 'Overdue only appears in banner in every view');
-      await page.getByRole('button', { name: 'Bật/tắt hạn công việc' }).click();
+      await page.getByRole('button', { name: 'Bật/tắt công việc' }).click();
       assert.equal(await page.locator('.calendar-main [data-deadline-id]').count(), 0);
-      await page.getByRole('button', { name: 'Bật/tắt hạn công việc' }).click();
+      await page.getByRole('button', { name: 'Bật/tắt công việc' }).click();
     }
     await page.getByRole('button', { name: 'Toggle dark/light theme' }).click();
     await page.setViewportSize({ width: 390, height: 844 });

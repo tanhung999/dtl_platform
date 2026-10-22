@@ -1,8 +1,9 @@
 import { Task, TaskPriority } from '../../types';
 
-export const PRIORITY_LABELS: Record<TaskPriority, string> = { URGENT: 'Gấp', HIGH: 'Cao', MEDIUM: 'Vừa', LOW: 'Thấp' };
-export const PRIORITY_SYMBOLS: Record<TaskPriority, string> = { URGENT: '⚑', HIGH: '▲', MEDIUM: '●', LOW: '▼' };
-export const PRIORITY_COLORS: Record<TaskPriority, string> = { URGENT: '#dc2626', HIGH: '#ea580c', MEDIUM: '#ca8a04', LOW: '#0284c7' };
+// HIGH is read only as a legacy alias; new tasks use the three canonical levels.
+export const PRIORITY_OPTIONS: TaskPriority[] = ['URGENT', 'MEDIUM', 'LOW'];
+export const PRIORITY_LABELS: Record<TaskPriority, string> = { URGENT: 'Gấp', HIGH: 'Trung bình', MEDIUM: 'Trung bình', LOW: 'Thấp' };
+export const normalizedPriority = (priority: TaskPriority): TaskPriority => priority === 'HIGH' ? 'MEDIUM' : priority;
 const RANK = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
 export function vietnamDay(now = new Date()): string {
@@ -40,8 +41,8 @@ export function sortTasks(tasks: Task[]): Task[] {
   });
 }
 
-export function deadlineLabel(task: Pick<Task, 'due_date' | 'due_time'>, includeDate = false): string {
-  if (!task.due_date) return 'Không hạn';
+export function deadlineLabel(task: Pick<Task, 'due_date' | 'due_time'>, includeDate = false, includePrefix = true): string {
+  if (!task.due_date) return includePrefix ? 'Không hạn' : '';
   const date = includeDate ? new Date(`${task.due_date}T00:00:00Z`).toLocaleDateString('vi-VN', { timeZone: 'UTC' }) : '';
-  return ['Hạn', date, task.due_time].filter(Boolean).join(' ');
+  return [includePrefix ? 'Hạn' : '', date, task.due_time].filter(Boolean).join(' ');
 }

@@ -9,7 +9,7 @@
 .reminder-fields .reminder-warning { color:var(--warning-text); }
 .note-schedule-fields > .reminder-fields { display:grid; grid-column:1/-1; margin:0; background:#ffffff55; border-color:#0002; color:#334155; }
 
-.reminder-fields.is-unavailable .reminder-choice,
+.reminder-fields.is-unavailable .reminder-choice.is-locked,
 .reminder-fields.is-unavailable .reminder-custom { opacity:.55; }
 .reminder-fields select:disabled { cursor:not-allowed; }
 

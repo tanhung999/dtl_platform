@@ -1,3 +1,4 @@
+import { changeNoteScheduleStart } from './scheduleUtils';
 import type { ReactNode } from 'react';
 import { DatePicker } from '../../components/date-time/DatePicker';
 import { TimePicker } from '../../components/date-time/TimePicker';
@@ -13,12 +14,7 @@ export function initialNoteSchedule(): NoteSchedule {
 export function NoteScheduleFields({ value, onChange, scheduleReadOnly = false, scheduleAction }: { value: NoteSchedule; scheduleReadOnly?: boolean; scheduleAction?: ReactNode; onChange: (value: NoteSchedule) => void }) {
   const startDay = dateKey(eventDate(value.starts_at));
   const endDay = dateKey(eventDate(value.is_all_day ? new Date(Date.parse(value.ends_at) - 1).toISOString() : value.ends_at));
-  const changeStart = (day: string, time: string) => {
-    if (!day) return;
-    const start = toTimestamp(parseDate(day), time || '00:00');
-    const duration = value.is_all_day ? 30 * 60000 : Date.parse(value.ends_at) - Date.parse(value.starts_at);
-    onChange({ ...value, starts_at: start, ends_at: time ? new Date(Date.parse(start) + duration).toISOString() : toTimestamp(addDays(parseDate(day), 1)), is_all_day: !time });
-  };
+  const changeStart = (day: string, time: string) => onChange(changeNoteScheduleStart(value, day, time));
   return <section className="note-schedule-fields" aria-label="Ngày giờ của ghi chú">
     <div><span>Ngày bắt đầu</span><DatePicker disabled={scheduleReadOnly} label="Ngày bắt đầu" required value={startDay} onChange={day => changeStart(day, value.is_all_day ? '' : eventTime(value.starts_at))} /></div>
     <div><span>Giờ bắt đầu</span><TimePicker disabled={scheduleReadOnly} label="Giờ bắt đầu" value={value.is_all_day ? '' : eventTime(value.starts_at)} onChange={time => changeStart(startDay, time)} /></div>

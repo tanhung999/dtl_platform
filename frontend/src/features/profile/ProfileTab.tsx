@@ -1,3 +1,4 @@
+import './profile.css';
 import { profileApi } from './api';
 import { sameFields } from '../../services/unchanged';
 import { featureIcons } from '../../assets/featureIcons';
@@ -21,9 +22,11 @@ import { User } from '../../types';
 interface ProfileTabProps {
   user: User;
   onUserUpdated: (user: User) => void;
+  canManage?: boolean;
 }
 
-export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) => {
+export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, canManage = false }) => {
+  const allowedApps = new Set((user.allowed_apps ?? '').split(',').map(value => value.trim()));
   // Profile edit form state
   const [fullName, setFullName] = useState(user.full_name || '');
   const [phone, setPhone] = useState(user.phone || '');
@@ -52,8 +55,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
       const updated = await profileApi.updateProfile(payload);
       onUserUpdated(updated);
       setProfileMessage({ type: 'success', text: 'Cập nhật thông tin tài khoản thành công!' });
-    } catch (err: any) {
-      setProfileMessage({ type: 'error', text: err.message || 'Lỗi khi cập nhật hồ sơ' });
+    } catch (err) {
+      setProfileMessage({ type: 'error', text: err instanceof Error ? err.message : 'Không thể cập nhật hồ sơ.' });
     } finally {
       setSavingProfile(false);
     }
@@ -79,15 +82,15 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
-      setPasswordMessage({ type: 'error', text: err.message || 'Lỗi khi đổi mật khẩu' });
+    } catch (err) {
+      setPasswordMessage({ type: 'error', text: err instanceof Error ? err.message : 'Không thể đổi mật khẩu.' });
     } finally {
       setSavingPassword(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="profile-page">
       {/* 1. Header Hero Card */}
       <div className="glass-panel" style={{ padding: '1.75rem', position: 'relative', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
@@ -96,26 +99,26 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
               width: '84px',
               height: '84px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
-              color: 'white',
+              background: 'var(--accent-gradient)',
+              color: 'var(--on-accent)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '2.25rem',
               fontWeight: 800,
-              boxShadow: '0 8px 16px rgba(37, 99, 235, 0.25)',
+              boxShadow: '0 8px 16px color-mix(in srgb, var(--accent) 25%, transparent)',
               border: '3px solid white',
             }}
           >
             {user.full_name ? user.full_name.charAt(0).toUpperCase() : <UserIcon size={36} />}
           </div>
 
-          <div style={{ flex: 1, minWidth: '240px' }}>
+          <div style={{ flex: '1 1 240px', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                 {user.full_name}
               </h2>
-              <span
+              {canManage && <span
                 style={{
                   background: 'var(--primary-light)',
                   color: 'var(--accent-text)',
@@ -126,8 +129,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
                   border: '1px solid var(--border)',
                 }}
               >
-                {user.role}
-              </span>
+                Quản trị hệ thống
+              </span>}
               {user.employee_code && (
                 <span
                   style={{
@@ -149,15 +152,15 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
               {user.job_title || 'Thành viên'} &bull; <span style={{ color: 'var(--accent-text)' }}>{user.department}</span>
             </p>
 
-            <div style={{ display: 'flex', gap: '16px', marginTop: '10px', flexWrap: 'wrap', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+            <div className="profile-contacts">
               <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Mail size={14} color="var(--accent)" /> {user.email}
+                <Mail size={14} color="var(--accent-text)" aria-hidden="true" /><span>{user.email}</span>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Phone size={14} color="var(--accent)" /> {user.phone || 'Chưa cập nhật'}
+                <Phone size={14} color="var(--accent-text)" aria-hidden="true" /><span>{user.phone || 'Chưa cập nhật'}</span>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <MapPin size={14} color="var(--accent)" /> {user.office_location || 'Trụ sở chính'}
+                <MapPin size={14} color="var(--accent-text)" aria-hidden="true" /><span>{user.office_location || 'Trụ sở chính'}</span>
               </span>
             </div>
           </div>
@@ -165,13 +168,13 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
       </div>
 
       {/* 2. Hai cột: Form Thông tin cá nhân & Quyền truy cập SSO / Đổi mật khẩu */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1.5rem' }}>
+      <div className="profile-layout">
         {/* Cột trái: Chỉnh sửa thông tin hồ sơ */}
-        <div className="glass-panel" style={{ gridColumn: 'span 7', padding: '1.5rem' }}>
+        <div className="glass-panel profile-edit-card" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
             <Briefcase size={20} color="var(--accent-text)" />
             <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-              Thông Tin Cá Nhân & Công Tác
+              Thông tin cá nhân và công tác
             </h3>
           </div>
 
@@ -197,10 +200,10 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
           )}
 
           <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="profile-fields">
               <div className="form-group">
-                <label>Họ và tên</label>
-                <input
+                <label htmlFor="profile-field-1">Họ và tên</label>
+                <input id="profile-field-1" disabled={savingProfile}
                   type="text"
                   className="form-input"
                   maxLength={120}
@@ -211,8 +214,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
               </div>
 
               <div className="form-group">
-                <label>Tên đăng nhập (Username)</label>
-                <input
+                <label htmlFor="profile-field-2">Tên đăng nhập</label>
+                <input id="profile-field-2"
                   type="text"
                   className="form-input"
                   value={user.username}
@@ -222,10 +225,10 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="profile-fields">
               <div className="form-group">
-                <label>Email doanh nghiệp</label>
-                <input
+                <label htmlFor="profile-field-3">Email doanh nghiệp</label>
+                <input id="profile-field-3"
                   type="email"
                   className="form-input"
                   value={user.email}
@@ -235,8 +238,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
               </div>
 
               <div className="form-group">
-                <label>Số điện thoại liên hệ</label>
-                <input
+                <label htmlFor="profile-field-4">Số điện thoại liên hệ</label>
+                <input id="profile-field-4" disabled={savingProfile}
                   type="text"
                   className="form-input"
                   placeholder="Nhập số điện thoại..."
@@ -247,10 +250,10 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="profile-fields">
               <div className="form-group">
-                <label>Chức danh / Vị trí</label>
-                <input
+                <label htmlFor="profile-field-5">Chức danh / Vị trí</label>
+                <input id="profile-field-5" disabled={savingProfile}
                   type="text"
                   className="form-input"
                   placeholder="Chức danh hiện tại..."
@@ -261,8 +264,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
               </div>
 
               <div className="form-group">
-                <label>Phòng ban / Khối</label>
-                <input
+                <label htmlFor="profile-field-6">Phòng ban / Khối</label>
+                <input id="profile-field-6"
                   type="text"
                   className="form-input"
                   value={user.department}
@@ -273,8 +276,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
             </div>
 
             <div className="form-group">
-              <label>Chi nhánh / Địa điểm làm việc</label>
-              <input
+              <label htmlFor="profile-field-7">Chi nhánh / Địa điểm làm việc</label>
+              <input id="profile-field-7" disabled={savingProfile}
                 type="text"
                 className="form-input"
                 placeholder="Địa chỉ trụ sở hoặc văn phòng làm việc..."
@@ -285,8 +288,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
             </div>
 
             <div className="form-group">
-              <label>Ghi chú / Giới thiệu bản thân</label>
-              <textarea
+              <label htmlFor="profile-field-8">Ghi chú / Giới thiệu bản thân</label>
+              <textarea id="profile-field-8" disabled={savingProfile}
                 className="form-input"
                 rows={3}
                 placeholder="Mô tả ngắn gọn về chuyên môn, nhiệm vụ..."
@@ -307,59 +310,30 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
         </div>
 
         {/* Cột phải: Quyền truy cập SSO & Đổi mật khẩu */}
-        <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div className="profile-secondary">
           {/* Card Quyền truy cập SSO */}
           <div className="glass-panel" style={{ padding: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
               <Sparkles size={18} color="var(--accent-text)" />
               <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-                Hệ Thống Phân Quyền (SSO)
+                Quyền truy cập ứng dụng
               </h3>
             </div>
 
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.4 }}>
-              Tài khoản của bạn được cấp quyền đăng nhập tự động vào các phân hệ nghiệp vụ sau:
+              Quyền truy cập các ứng dụng của tài khoản:
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <img src={featureIcons.income} alt="Income Statement" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
-                  <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Income Statement</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Báo cáo thu nhập & doanh số</div>
-                  </div>
-                </div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--success-text)', background: 'var(--success-bg)', fontWeight: 700, padding: '2px 8px', borderRadius: '12px' }}>
-                  Đã cấp phép
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <img src={featureIcons.workflow} alt="Workflows" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
-                  <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Workflows</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Luồng trình ký & hồ sơ nội bộ</div>
-                  </div>
-                </div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--success-text)', background: 'var(--success-bg)', fontWeight: 700, padding: '2px 8px', borderRadius: '12px' }}>
-                  Đã cấp phép
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <img src={featureIcons.assets} alt="Asset Manager" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
-                  <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Asset Manager</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Quản lý tài sản & cấp phát IT</div>
-                  </div>
-                </div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--success-text)', background: 'var(--success-bg)', fontWeight: 700, padding: '2px 8px', borderRadius: '12px' }}>
-                  Đã cấp phép
-                </span>
-              </div>
+            <div className="profile-app-permissions">
+              {[
+                { id: 'bookingreports', name: 'Income Statement', description: 'Báo cáo thu nhập và doanh số', icon: featureIcons.income },
+                { id: 'workflows', name: 'Workflows', description: 'Luồng phê duyệt và trình ký', icon: featureIcons.workflow },
+                { id: 'itam', name: 'Asset Manager', description: 'Quản lý tài sản và cấp phát IT', icon: featureIcons.assets },
+              ].map(app => <div className="profile-app-permission" key={app.id} data-app-id={app.id}>
+                <img src={app.icon} alt="" width={24} height={24} />
+                <div><strong>{app.name}</strong><small>{app.description}</small></div>
+                <span className={allowedApps.has(app.id) ? 'is-granted' : 'is-unavailable'}>{allowedApps.has(app.id) ? 'Đã cấp quyền' : 'Chưa cấp quyền'}</span>
+              </div>)}
             </div>
           </div>
 
@@ -368,7 +342,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
               <KeyRound size={18} color="var(--accent-text)" />
               <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-                Đổi Mật Khẩu
+                Đổi mật khẩu
               </h3>
             </div>
 
@@ -395,11 +369,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
 
             <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               <div className="form-group">
-                <label style={{ fontSize: '0.775rem' }}>Mật khẩu hiện tại</label>
-                <input
+                <label htmlFor="profile-field-9" style={{ fontSize: '0.775rem' }}>Mật khẩu hiện tại</label>
+                <input id="profile-field-9" disabled={savingPassword}
                   type="password"
                   className="form-input"
-                  placeholder="Nhập mật khẩu đang dùng..."
+                  autoComplete="current-password" placeholder="Nhập mật khẩu đang dùng..."
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   required
@@ -407,11 +381,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
               </div>
 
               <div className="form-group">
-                <label style={{ fontSize: '0.775rem' }}>Mật khẩu mới</label>
-                <input
+                <label htmlFor="profile-field-10" style={{ fontSize: '0.775rem' }}>Mật khẩu mới</label>
+                <input id="profile-field-10" disabled={savingPassword}
                   type="password"
                   className="form-input"
-                  placeholder="Tối thiểu 6 ký tự..."
+                  autoComplete="new-password" minLength={6} placeholder="Tối thiểu 6 ký tự..."
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
@@ -419,11 +393,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
               </div>
 
               <div className="form-group">
-                <label style={{ fontSize: '0.775rem' }}>Xác nhận mật khẩu mới</label>
-                <input
+                <label htmlFor="profile-field-11" style={{ fontSize: '0.775rem' }}>Xác nhận mật khẩu mới</label>
+                <input id="profile-field-11" disabled={savingPassword}
                   type="password"
                   className="form-input"
-                  placeholder="Nhập lại mật khẩu mới..."
+                  autoComplete="new-password" placeholder="Nhập lại mật khẩu mới..."
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required

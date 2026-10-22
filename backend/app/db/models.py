@@ -50,6 +50,8 @@ class Note(Base):
     is_pinned = Column(Boolean, default=False)
     is_private = Column(Boolean, nullable=False, default=False, server_default="false")
     is_archived = Column(Boolean, default=False)
+    reminder_at = Column(UTCDateTime(), nullable=True)
+    reminder_version = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(UTCDateTime(), default=utcnow)
     updated_at = Column(UTCDateTime(), default=utcnow, onupdate=utcnow)
 

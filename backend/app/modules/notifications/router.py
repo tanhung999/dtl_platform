@@ -12,6 +12,7 @@ from app.core.database import get_db
 from app.db.models import Task, User, utcnow
 from app.db.notifications import Notification as N, NotificationJob as Job, NotificationPreference as Preference
 from .auth import notification_user
+from .sharing import visible_notice, ownership_labels
 from app.modules.tasks.deadlines import deadline_at
 from .service import changed, insert_unique, select_feed, serialize, utc
 
@@ -34,7 +35,8 @@ def cursor_for(item):
 async def inbox(user: UserArg, db: DbArg, filter: Literal['all', 'unread', 'hidden'] = 'all', source: Source | None = None,
                 before: str | None = Query(None, max_length=256), limit: int = Query(25, ge=1, le=50)):
     now = utcnow()
-    stmt = select_feed().where(N.user_id == user.id, N.dismissed_at.is_not(None) if filter == 'hidden' else N.dismissed_at.is_(None))
+    owners = await ownership_labels(db, user.id)
+    stmt = select_feed().where(visible_notice(), N.user_id == user.id, N.dismissed_at.is_not(None) if filter == 'hidden' else N.dismissed_at.is_(None))
     if filter == 'unread': stmt = stmt.where(N.read_at.is_(None))
     if source: stmt = stmt.where(N.source == source)
     if before:
@@ -47,13 +49,14 @@ async def inbox(user: UserArg, db: DbArg, filter: Literal['all', 'unread', 'hidd
         stmt = stmt.where(or_(N.created_at < stamp, and_(N.created_at == stamp, N.id < id)))
     rows = (await db.execute(stmt.order_by(N.created_at.desc(), N.id.desc()).limit(limit + 1))).all()
     visible = rows[:limit]
-    return {'items': [serialize(n, task, now, event, note) for n, task, event, note in visible], 'has_more': len(rows) > limit,
+    return {'items': [serialize(n, task, now, event, note, owners) for n, task, event, note in visible], 'has_more': len(rows) > limit,
             'next_cursor': cursor_for(visible[-1][0]) if len(rows) > limit else None, 'server_now': now}
 
 @router.get('/summary')
 async def summary(user: UserArg, db: DbArg):
     now = utcnow()
-    unread = await db.scalar(select(func.count()).select_from(N).where(N.user_id == user.id, N.read_at.is_(None), N.dismissed_at.is_(None)))
+    owners = await ownership_labels(db, user.id)
+    unread = await db.scalar(select(func.count()).select_from(N).where(visible_notice(), N.user_id == user.id, N.read_at.is_(None), N.dismissed_at.is_(None)))
     # Rank all current task notices, including read/hidden ones: dismissing a new
     # stage must not bring an older stage back into the action banner.
     # External notices are already distinct deliveries; do not sort their entire
@@ -62,9 +65,9 @@ async def summary(user: UserArg, db: DbArg):
     ranked = ranked.join(Task, Task.id == N.task_id).where(N.user_id == user.id, N.resource_type == 'task', Task.is_completed.is_(False),
         Task.deadline_version == N.deadline_version, Task.due_date.is_not(None), N.due_at > now).subquery()
     actionable = or_(N.resource_type != 'task', N.reminder_version.is_not(None), N.id.in_(select(ranked.c.id).where(ranked.c.rank == 1)))
-    rows = (await db.execute(select_feed().where(N.user_id == user.id, actionable, N.read_at.is_(None), N.dismissed_at.is_(None))
+    rows = (await db.execute(select_feed().where(visible_notice(), N.user_id == user.id, actionable, N.read_at.is_(None), N.dismissed_at.is_(None))
         .order_by(N.created_at.desc(), N.id.desc()).limit(4))).all()
-    return {'unread_count': unread, 'preview': [serialize(n, task, now, event, note) for n, task, event, note in rows], 'server_now': now}
+    return {'has_shared_calendars': bool(owners), 'unread_count': unread, 'preview': [serialize(n, task, now, event, note, owners) for n, task, event, note in rows], 'server_now': now}
 
 @router.get('/preferences')
 async def preferences(user: UserArg, db: DbArg):
@@ -112,12 +115,12 @@ class ReadAll(BaseModel):
 @router.post('/read-all', status_code=204)
 async def read_all(payload: ReadAll, user: UserArg, db: DbArg):
     now = utcnow()
-    result = await db.execute(update(N).where(N.user_id == user.id, N.read_at.is_(None), N.dismissed_at.is_(None), N.created_at <= min(payload.through, now)).values(read_at=now))
+    result = await db.execute(update(N).where(visible_notice(), N.user_id == user.id, N.read_at.is_(None), N.dismissed_at.is_(None), N.created_at <= min(payload.through, now)).values(read_at=now))
     if result.rowcount:
         changed(db, user.id)
 
 async def owned(db, user, id, lock=False):
-    stmt = select(N).where(N.id == id, N.user_id == user.id)
+    stmt = select(N).where(N.id == id, N.user_id == user.id, visible_notice())
     row = await db.scalar(stmt.with_for_update() if lock else stmt)
     if not row: raise HTTPException(404, 'Không tìm thấy thông báo.')
     return row
@@ -163,7 +166,16 @@ async def snooze(id: str, user: UserArg, db: DbArg):
 @router.get('/{id}/destination')
 async def destination(id: str, user: UserArg, db: DbArg):
     row = await owned(db, user, id)
+    if row.calendar_owner_id:
+        # owned() rechecks live scope/privacy; shared resources are always read-only.
+        return {'calendar_owner_id': row.calendar_owner_id}
     if row.source == 'platform':
+        if row.resource_type == 'note' and row.note_id:
+            from app.db.models import Note
+            note = await db.scalar(select(Note).where(Note.id == row.note_id, Note.user_id == user.id))
+            if not note:
+                raise HTTPException(404, 'Ghi chú đã bị xóa.')
+            return {'note_id': note.id}
         if row.resource_type in ('event', 'note'):
             from app.db.calendar import CalendarEvent
             from app.db.models import Note

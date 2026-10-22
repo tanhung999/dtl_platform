@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from tests.support.api_case import ApiTestCase
 from app.db.migrations.user_reminders import migrate_user_reminders
 from app.db.migrations.runner import upgrade
+from app.db.migrations.shared_notifications import migrate_shared_notifications
 
 class ReminderMigrationTests(ApiTestCase):
     async def test_existing_schema_preserves_history_and_cancels_implicit_jobs(self):
@@ -35,6 +36,8 @@ class ReminderMigrationTests(ApiTestCase):
             await migrate_user_reminders(conn); await migrate_user_reminders(conn)
             self.assertEqual((await conn.execute(text('SELECT id FROM notification_jobs'))).scalars().all(),['sent'])
             self.assertEqual((await conn.execute(text('SELECT title FROM notifications'))).scalars().all(),['Keep'])
+            await migrate_shared_notifications(conn); await migrate_shared_notifications(conn)
+            self.assertEqual((await conn.execute(text('SELECT title, calendar_owner_id FROM notifications'))).all(),[('Keep',None)])
             await conn.execute(text("INSERT INTO notification_jobs (id,user_id,deadline_version,kind,event_key,scheduled_at,available_at) VALUES ('event-job','alice',0,'user','event-job','2026-10-20','2026-10-20')"))
 
     async def test_fresh_upgrade_and_repeated_upgrade_do_not_seed_implicit_jobs(self):

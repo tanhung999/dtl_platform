@@ -47,3 +47,8 @@ Cả 9 theme có kiểm tra chữ chính, chữ phụ, gợi ý và liên kết 
 Notes có sáu màu giấy sáng độc lập với theme; editor dùng bộ màu chữ/ô nhập sáng riêng, kể cả khi chọn theme tối. Cảnh báo vẫn dùng chữ nâu đậm trên nền giấy, tránh màu vàng sáng chìm vào nền. Không thay màu giấy người dùng đã chọn. Sự kiện đã kết thúc không giảm opacity của cả thẻ làm mờ chữ; viền/chấm và nền xanh lá vẫn phân biệt trạng thái.
 
 Kiểm thử: `tests/unit/theme-contrast.test.cjs` bảo vệ tỷ lệ tương phản màu khai báo; `tests/browser/theme-reading-browser.cjs` kiểm tra màu chữ thực tế ở Login, Workspace, Profile và Notes với cả sáu màu giấy trên đủ chín theme. Các vùng tô gradient được kiểm tra theo từng điểm màu trong unit test; vùng không gradient được tính thêm các lớp nền trong trình duyệt. `theme-picker-browser.cjs` vẫn kiểm tra lưu lựa chọn, bàn phím, màn hình nhỏ và đổi theme không tải lại dữ liệu.
+
+
+Kiểm tra khả năng đọc sau khi đổi bố cục trang chủ: `theme-reading-browser.cjs` dùng sidebar mới và kiểm tra thêm tìm kiếm, thông báo, ứng dụng, công việc, lịch, liên kết nhanh; phép đo tính cả độ mờ của các lớp cha. Chữ phụ Aurora được làm đậm hơn để đọc trên nền kính. Nhãn quá hạn dùng màu lỗi theo theme; công việc đã hoàn thành dùng gạch ngang thay vì làm mờ chữ. Ô ngày giờ khóa giữ nền riêng và con trỏ cấm, không làm mờ toàn bộ nội dung.
+
+Các nút ghim, mở lịch và dời lịch trong ghi chú dùng màu nhấn theo theme. `--accent-on-paper` cung cấp sắc độ đậm đủ đọc trên sáu màu giấy sáng, kể cả khi giao diện chính ở chế độ tối. Ngày được chọn trên lịch dùng `--calendar-selected-bg` và `--on-calendar-selected`; mặc định đi theo màu nhấn và màu chữ của nút trong theme. Màu trạng thái lịch và ưu tiên công việc vẫn giữ ý nghĩa riêng.

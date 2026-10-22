@@ -24,7 +24,7 @@ export function AgendaView({ anchor, events, tasks, onCreate, onSelect }: Calend
       <div className={`calendar-agenda-date ${dateKey(day) === todayKey ? 'is-today' : ''}`}><strong>{day.getUTCDate()}</strong><span>{formatDate(day, { weekday: 'short', month: 'short' })}</span></div>
       <div className="calendar-agenda-events">{tasks.filter(task => task.due_date === dateKey(day)).map(task => <DeadlineRow key={task.id} task={task} />)}{eventsOnDay(events, day).map(event => {
         const status = eventStatus(event, now, dateKey(day));
-        return <button type="button" className={`calendar-agenda-event ${event.scheduled_note_id ? 'is-note' : ''}`} title={eventTooltip(event, now)} key={event.id} data-event-id={event.id} data-event-status={status.key}
+        return <button type="button" className={`calendar-agenda-event ${event.scheduled_note_id ? 'is-note' : ''}`} data-tooltip={eventTooltip(event, now)} key={event.id} data-event-id={event.id} data-event-status={status.key}
         style={{ '--event-color': status.color } as CSSProperties} onClick={() => onSelect(event, dateKey(day))}>
         <span className="calendar-agenda-info"><strong><CalendarItemTitle event={event} /></strong><EventStatusBadge status={status} /><span className="calendar-agenda-time">{eventDayLabel(event, dateKey(day))}</span>{event.location && <span><MapPin size={13} /> {event.location}</span>}</span>
       </button>; })}</div>

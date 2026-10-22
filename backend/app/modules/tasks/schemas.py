@@ -4,7 +4,7 @@ from uuid import UUID
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-PriorityType = Literal["LOW", "MEDIUM", "HIGH", "URGENT"]
+PriorityType = Literal["LOW", "MEDIUM", "URGENT"]
 
 
 class TaskCreate(ReminderFields):
@@ -16,6 +16,11 @@ class TaskCreate(ReminderFields):
     priority: PriorityType = "MEDIUM"
     due_date: date | None = None
     due_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def normalize_legacy_priority(cls, value):
+        return "MEDIUM" if value == "HIGH" else value
 
     @field_validator("title", mode="before")
     @classmethod
@@ -34,6 +39,11 @@ class TaskUpdate(ReminderFields):
     is_completed: bool | None = None
     expected_deadline_version: int | None = Field(default=None, ge=0)
 
+    @field_validator("priority", mode="before")
+    @classmethod
+    def normalize_legacy_priority(cls, value):
+        return "MEDIUM" if value == "HIGH" else value
+
     @field_validator("title", mode="before")
     @classmethod
     def trim_title(cls, value):
@@ -48,6 +58,11 @@ class TaskUpdate(ReminderFields):
 
 
 class TaskResponse(BaseModel):
+    @field_validator("priority", mode="before")
+    @classmethod
+    def normalize_legacy_priority(cls, value):
+        return "MEDIUM" if value == "HIGH" else value
+
     reminder_minutes: int | None = None
     reminder_at: datetime | None = None
     is_private: bool = False

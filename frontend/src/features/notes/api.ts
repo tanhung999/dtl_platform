@@ -21,6 +21,7 @@ export const notesApi = {
       method: 'PATCH', body: JSON.stringify(payload),
     }), () => requestWithTimeout<Note>(`/api/notes/${id}`, { cache: 'no-store' }, 5000), latest => latest.version >= payload.expected_version && Object.entries(payload).every(([key, value]) => {
       if (key === 'expected_version') return true;
+      if (key === 'reminder_at') return sameReminder(latest, { reminder_at: value as string | null });
       if (key === 'calendar_schedule') {
         const schedule = value as NonNullable<Note['calendar_schedule']>;
         return !!latest.calendar_schedule && sameReminder(latest.calendar_schedule, schedule) && latest.calendar_schedule.is_all_day === schedule.is_all_day && ['starts_at', 'ends_at'].every(field => Date.parse(latest.calendar_schedule![field as 'starts_at' | 'ends_at']) === Date.parse(schedule[field as 'starts_at' | 'ends_at']));

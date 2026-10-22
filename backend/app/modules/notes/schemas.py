@@ -3,11 +3,12 @@ from uuid import UUID
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 from app.core.datetime_utils import database_utc
+from app.modules.notifications.reminder_fields import ReminderFields
 
 
 from app.modules.note_scheduling.schemas import NoteScheduleWrite, NoteScheduleResponse
 
-class NoteCreate(BaseModel):
+class NoteCreate(ReminderFields):
     is_private: bool = False
     calendar_schedule: NoteScheduleWrite | None = None
     request_id: Optional[UUID] = None
@@ -17,7 +18,7 @@ class NoteCreate(BaseModel):
     is_pinned: Optional[bool] = False
 
 
-class NoteUpdate(BaseModel):
+class NoteUpdate(ReminderFields):
     is_private: bool | None = None
     calendar_schedule: NoteScheduleWrite | None = None
     expected_version: int = Field(ge=0)
@@ -29,6 +30,7 @@ class NoteUpdate(BaseModel):
 
 
 class NoteResponse(BaseModel):
+    reminder_at: datetime | None = None
     is_private: bool = False
     calendar_schedule: NoteScheduleResponse | None = None
     version: int

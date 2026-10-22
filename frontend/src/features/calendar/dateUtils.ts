@@ -118,6 +118,7 @@ export interface TimedPlacement {
   end: number;
   lane: number;
   lanes: number;
+  laneSpan?: number;
 }
 
 export function timedPlacements(events: CalendarEvent[], date: Date): TimedPlacement[] {
@@ -134,12 +135,25 @@ export function timedPlacements(events: CalendarEvent[], date: Date): TimedPlace
 }
 
 // Both events and timed task deadlines share lanes so their cards do not cover each other.
-export function arrangeTimedLanes<T extends { start: number; end: number; lane: number; lanes: number; minimumHeight?: number }>(items: T[]): T[] {
+export function arrangeTimedLanes<T extends { start: number; end: number; lane: number; lanes: number; laneSpan?: number; minimumHeight?: number }>(items: T[]): T[] {
   const placements = [...items].sort((a, b) => a.start - b.start || b.end - a.end);
   let group: T[] = [];
   let laneEnds: number[] = [];
   let groupEnd = -1;
-  const finish = () => group.forEach(item => { item.lanes = laneEnds.length; });
+  const paintedEnd = (item: T) => Math.max(item.end, item.start + (item.minimumHeight ?? MIN_EVENT_HEIGHT));
+  const finish = () => {
+    const lanes = laneEnds.length;
+    const byLane = Array.from({ length: lanes }, (_, lane) => group.filter(item => item.lane === lane));
+    group.forEach(item => {
+      item.lanes = lanes;
+      item.laneSpan = 1;
+      // Only reserve a neighboring column when an item there actually overlaps.
+      for (let lane = item.lane + 1; lane < lanes; lane++) {
+        if (byLane[lane].some(other => other.start < paintedEnd(item) && paintedEnd(other) > item.start)) break;
+        item.laneSpan++;
+      }
+    });
+  };
   for (const item of placements) {
     // Account for the painted title, status and time when assigning overlap lanes.
     const displayEnd = Math.max(item.end, item.start + (item.minimumHeight ?? MIN_EVENT_HEIGHT));

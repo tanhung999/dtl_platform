@@ -61,7 +61,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 id="username"
                 type="text"
                 className="form-input"
-                placeholder="Nhập username hoặc email..."
+                placeholder="Nhập tên đăng nhập hoặc email…"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}

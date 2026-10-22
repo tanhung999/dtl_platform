@@ -33,6 +33,8 @@ test('deadline rows distinguish dates and optional times', () => {
   assert.equal(deadlineLabel(task('x', { due_date: '2026-10-12', due_time: '09:00' })), 'Hạn 09:00');
   assert.equal(deadlineLabel(task('x', { due_date: '2026-10-12' })), 'Hạn');
   assert.equal(deadlineLabel(task('x')), 'Không hạn');
+  assert.equal(deadlineLabel(task('x', { due_date: '2026-10-12', due_time: '09:00' }), false, false), '09:00');
+  assert.equal(deadlineLabel(task('x', { due_date: '2026-10-12' }), false, false), '');
 });
 test('overdue severity uses Vietnam calendar days for untimed tasks and elapsed time for timed tasks', () => {
   const now = new Date('2026-10-13T01:30:00Z');

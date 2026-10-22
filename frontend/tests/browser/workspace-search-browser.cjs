@@ -1,0 +1,81 @@
+const { chromium } = require('../.browser-tools/node_modules/playwright');
+const { createTestUsers } = require('../support/test-users.cjs');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const base=process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
+(async()=>{
+ const fixture=createTestUsers(1);let browser;
+ try{
+  browser=await chromium.launch({channel:'msedge',headless:true});
+  const page=await browser.newPage({viewport:{width:1550,height:1050}});
+  await page.route(/fonts\.(googleapis|gstatic)\.com/,r=>r.abort());
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(base);
+  await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);
+  await page.getByLabel('Mật khẩu',{exact:true}).fill(fixture.accounts[0].password);
+  await page.getByRole('button',{name:'Đăng nhập hệ thống'}).click();await page.locator('.workspace-home').waitFor();
+  const token=await page.evaluate(()=>localStorage.getItem('dtl_platform_token'));
+  const headers={Authorization:`Bearer ${token}`};
+  const post=async(url,data)=>{const r=await page.request.post(base+url,{headers,data});assert.equal(r.status(),201,await r.text());return r.json();};
+  const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
+  const schedule=(start,end)=>({starts_at:`${day}T${start}:00+07:00`,ends_at:`${day}T${end}:00+07:00`,is_all_day:false});
+  const task=await post('/api/tasks',{title:'Công việc kiểm toán QA',description:'Nội dung ngân sách bí mật QA'});
+  const note=await post('/api/notes',{title:'Ghi chú kiểm toán QA',content:'Nội dung ngân sách bí mật QA',calendar_schedule:schedule('11:00','11:30')});
+  const event=await post('/api/calendar/events',{title:'Họp kiểm toán QA',description:'Nội dung ngân sách bí mật QA',location:'Phòng Đà Nẵng',...schedule('08:00','18:00')});
+  for(let i=0;i<8;i++)await post('/api/calendar/events',{title:`Cuộc họp đông ${i}`, ...schedule('12:00','13:00')});
+  for(let i=0;i<21;i++)await post('/api/tasks',{title:`Phân trang QA ${i}`});
+  const search=page.getByRole('searchbox',{name:'Tìm kiếm toàn hệ thống'});
+  const requests=[];page.on('request',r=>{if(new URL(r.url()).pathname==='/api/search')requests.push(new URL(r.url()).searchParams.get('q'));});
+  await search.fill('ngan sach bi mat');
+  await page.locator('.search-result').filter({hasText:task.title}).waitFor();
+  assert.equal(await page.locator('.search-result').count(),3,'Scheduled note appears once, in Notes');
+  for(const [title,close] of [[task.title,'Đóng công việc'],[note.title,'Đóng ghi chú'],[event.title,'Đóng']]){
+   await page.locator('.search-result').filter({hasText:title}).click();
+   await page.getByRole('dialog').waitFor();
+   await page.getByRole('dialog').getByRole('button',{name:close,exact:true}).click();
+   await page.getByRole('dialog').waitFor({state:'hidden'});
+  }
+  await search.fill('da nang');await page.locator('.search-result').filter({hasText:event.title}).waitFor();
+  assert.equal(await page.locator('.search-result').count(),1);
+  await search.fill('ngan sach bi mat');await page.locator('.search-result').filter({hasText:task.title}).waitFor();
+  assert.ok(requests.filter(q=>q==='ngan sach bi mat').length>=2,'Repeated query returns to server');
+  await search.fill('phan trang qa');await page.getByRole('button',{name:'Xem tất cả công việc (21)',exact:true}).click();
+  await page.getByRole('button',{name:'Trang sau',exact:true}).waitFor();
+  assert.equal(await page.locator('.search-result').count(),20);
+  const nextPage=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/search' && new URL(r.url()).searchParams.get('offset')==='20');
+  await page.getByRole('button',{name:'Trang sau',exact:true}).click();
+  assert.equal((await nextPage).status(),200);
+  await page.locator('.search-result').first().waitFor();
+  assert.equal(await page.locator('.search-result').count(),1);
+  await search.fill('trinh ky');await page.getByRole('button',{name:'Mở Workflows',exact:true}).waitFor();
+  await page.route('**/api/search?**',async route=>{
+   const q=new URL(route.request().url()).searchParams.get('q');
+   if(q==='slow query')await new Promise(resolve=>setTimeout(resolve,1000));
+   await route.continue();
+  });
+  await search.fill('slow query');await page.waitForRequest(r=>new URL(r.url()).searchParams.get('q')==='slow query');
+  await search.fill('da nang');await page.locator('.search-result').filter({hasText:event.title}).waitFor();
+  await page.waitForTimeout(1100);assert.equal(await page.locator('.search-result').count(),1);
+  await page.unroute('**/api/search?**');
+  // A delayed detail request must not open an old item after the query changes.
+  await page.route('**/api/calendar/events/'+event.id,async route=>{await new Promise(resolve=>setTimeout(resolve,900));await route.continue();});
+  const openingRequest=page.waitForRequest(r=>new URL(r.url()).pathname==='/api/calendar/events/'+event.id);
+  await page.locator('.search-result').filter({hasText:event.title}).click();await openingRequest;
+  await search.fill('phan trang qa');await page.locator('.search-result').first().waitFor();
+  await page.waitForTimeout(1000);assert.equal(await page.getByRole('dialog').count(),0,'Late detail must not interrupt a new search');
+  await page.unroute('**/api/calendar/events/'+event.id);
+  await page.setViewportSize({width:390,height:844});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.screenshot({path:path.resolve(__dirname,'../../../.audit-backups/workspace-search-mobile.png'),fullPage:true});
+  await page.setViewportSize({width:1550,height:1050});
+  await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'Lịch',exact:true}).click();
+  await page.getByRole('button',{name:'Tuần',exact:true}).click();
+  const card=page.locator(`.calendar-time-column [data-event-id="${note.calendar_schedule.event_id}"]`);
+  await card.waitFor();
+  const ratio=await card.evaluate(el=>el.closest('.calendar-event-frame').getBoundingClientRect().width/el.closest('.calendar-time-column').getBoundingClientRect().width);
+  assert.ok(ratio>.8,`11:00 note should expand independently of noon crowd, actual ${ratio}`);
+  await card.scrollIntoViewIfNeeded();await page.screenshot({path:path.resolve(__dirname,'../../../.audit-backups/calendar-free-lanes.png')});
+  assert.deepEqual(errors,[]);
+  console.log('PASS server search: content/accent matching, open all 3 detail types, pagination, repeated requests, stale response cancellation, mobile; calendar note >80% width despite 8 noon overlaps');
+ }finally{await browser?.close();fixture.cleanup();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

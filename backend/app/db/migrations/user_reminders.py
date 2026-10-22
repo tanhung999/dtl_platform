@@ -37,5 +37,8 @@ async def migrate_user_reminders(conn):
     # Old implicit reminders must never be delivered after upgrading.
     await conn.execute(text("DELETE FROM notification_jobs WHERE processed_at IS NULL AND reminder_version IS NULL"))
     for table in (Notification.__table__, NotificationJob.__table__):
+        present = await conn.run_sync(lambda sync, name=table.name: {c['name'] for c in inspect(sync).get_columns(name)})
         for index in table.indexes:
+            if not {c.name for c in index.columns} <= present:
+                continue  # A later migration may add columns from the current model.
             await conn.run_sync(lambda sync, index=index: index.create(sync, checkfirst=True))

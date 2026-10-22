@@ -42,6 +42,8 @@ async def save_schedule(db, note, payload, *, allow_elapsed=False):
         db.add(event)
         await db.flush()
         db.add(NoteCalendarSchedule(note_id=note.id, event_id=event.id))
+        from app.modules.notes.reminders import cancel_note_reminder
+        await cancel_note_reminder(db, note)
     data = dict(title=note.title or "Ghi chú không có tiêu đề", is_private=note.is_private,
                 starts_at=payload.starts_at, ends_at=payload.ends_at, is_all_day=payload.is_all_day)
     data.update(reminder_update(payload))

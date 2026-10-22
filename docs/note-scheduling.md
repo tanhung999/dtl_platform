@@ -62,7 +62,7 @@ Khối có giờ còn kéo dài qua ngày sau hiện mũi tên ↓ ở cuối kh
 
 ## Bộ lọc Lịch độc lập
 
-Sidebar có ba ô tick Sự kiện (xanh dương), Việc cần làm (cam), Ghi chú (tím), mỗi ô có số lượng riêng và lưu trạng thái theo tài khoản trong localStorage. Sự kiện thường và lịch hẹn ghi chú được lọc riêng bằng `include_events`/`include_notes` ở API collection **trước LIMIT**; trả `event_total`/`note_total` đầy đủ kể cả khi đang ẩn. Tắt cả hai vẫn trả số đếm nhưng không có mục. Mini-calendar đếm `events` và `notes` riêng để chấm ngày khớp bộ lọc. Không phát sinh API đếm theo từng ngày hoặc từng ghi chú và không thêm chỉ mục/bảng.
+Sidebar có ba ô tick Sự kiện (xanh dương), Công việc (cam), Ghi chú (tím), mỗi ô có số lượng riêng và lưu trạng thái theo tài khoản trong localStorage. Sự kiện thường và lịch hẹn ghi chú được lọc riêng bằng `include_events`/`include_notes` ở API collection **trước LIMIT**; trả `event_total`/`note_total` đầy đủ kể cả khi đang ẩn. Tắt cả hai vẫn trả số đếm nhưng không có mục. Mini-calendar đếm `events` và `notes` riêng để chấm ngày khớp bộ lọc. Không phát sinh API đếm theo từng ngày hoặc từng ghi chú và không thêm chỉ mục/bảng.
 
 Nút Lưu trữ trong trình sửa lưu cả ngày giờ đang sửa, kiểm tra biểu mẫu và phiên bản trong cùng giao dịch. Xung đột lịch hẹn không lưu nội dung hay trạng thái lưu trữ dở dang.
 

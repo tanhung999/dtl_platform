@@ -41,8 +41,11 @@ async def prepare_changes(session):
             topics = changes[owner]
             relevant = (events or notes) and bool(topics & {'calendar', 'calendar-privacy'}) or tasks and 'tasks' in topics or notes and 'notes' in topics
             if relevant:
-                changes.setdefault(viewer, set()).add('shared-calendar')
+                changes.setdefault(viewer, set()).update({'shared-calendar', 'notifications'})
                 if 'calendar-privacy' in topics: changes[viewer].add('calendar-sharing')
+    for topics in changes.values():
+        if 'calendar-sharing' in topics:
+            topics.add('notifications')
     from app.core.workspace_versions import advance_versions
     versions = await advance_versions(session, changes)
     if session.bind.dialect.name == "postgresql":

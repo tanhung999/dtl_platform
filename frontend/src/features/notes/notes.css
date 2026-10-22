@@ -1,9 +1,9 @@
 .note-card { background-color: var(--note-color, #fef08a); }
 .note-card .note-footer button { color: inherit; }
 .note-card .note-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
-.note-card .note-footer .note-event-summary { display: flex; align-items: center; gap: 4px; justify-self: start; width: fit-content; max-width: 100%; min-width: 0; margin: 0; padding: 4px 6px; border: 1px solid rgb(30 64 175 / 16%); border-radius: 999px; background: rgb(255 255 255 / 75%); color: #1e40af; font: 500 11px var(--font-family); text-align: left; cursor: pointer; }
-.note-card .note-footer .note-event-summary:hover { background: #eff6ff; }
-.note-card .note-footer .note-event-summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.note-card .note-footer .note-event-summary { display: flex; align-items: center; gap: 4px; justify-self: start; width: fit-content; max-width: 100%; min-width: 0; margin: 0; padding: 4px 6px; border: 1px solid color-mix(in srgb, var(--accent-on-paper) 25%, transparent); border-radius: 999px; background: rgb(255 255 255 / 75%); color: var(--accent-on-paper); font: 500 11px var(--font-family); text-align: left; cursor: pointer; }
+.note-card .note-footer .note-event-summary:hover { background: color-mix(in srgb, var(--accent-on-paper) 8%, white); }
+.note-card .note-footer .note-event-summary:focus-visible { outline: 2px solid var(--accent-on-paper); outline-offset: 2px; }
 .note-card .note-footer .note-event-summary.is-past { color: #596579; background: rgb(255 255 255 / 55%); border-color: rgb(89 101 121 / 18%); }
 .note-event-summary svg, .note-event-date { flex-shrink: 0; white-space: nowrap; }
 .note-event-name { flex: 1 1 auto; min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -59,7 +59,7 @@
   --text-main:#1e293b; --text-secondary:#334155; --text-muted:#475569; --text-sub:#475569;
   --input-bg:#ffffffc9; --input-disabled-bg:#ffffff80; --input-border:#64748b66;
   --bg-card-solid:#fffdf8; --bg-surface:#ffffff55; --bg-subtle:#ffffff80;
-  --accent-text:#1e40af; --error:#991b1b; --warning-text:#854d0e;
+  --accent-text:var(--accent-on-paper); --error:#991b1b; --warning-text:#854d0e;
   color-scheme:light;
 }
 .note-card .note-footer { color:#475569; }
@@ -67,3 +67,11 @@
 
 .note-card { --bg-subtle:#ffffff99; }
 .note-editor-dialog input::placeholder, .note-editor-dialog textarea::placeholder { color:var(--text-muted); opacity:1; }
+
+/* Use theme ink adjusted for light paper, including dark themes. */
+.note-editor-dialog .btn-outline {
+  background:var(--bg-card-solid); color:var(--accent-on-paper); border-color:color-mix(in srgb,var(--accent-on-paper) 35%,white);
+}
+.note-editor-dialog .btn-outline:hover:not(:disabled) {
+  background:color-mix(in srgb,var(--accent-on-paper) 8%,white); color:var(--accent-on-paper); border-color:var(--accent-on-paper);
+}

@@ -13,7 +13,7 @@ export function AllDayWeek({ anchor, events, tasks, onCreate, onSelect, onShowDa
   const days = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(anchor), i));
   const items = allDayPlacements(events, tasks, anchor);
   const rows = Math.max(1, Math.min(4, items.reduce((max, item) => Math.max(max, item.lane + 1), 0)));
-  return <div className="calendar-week-all-day" style={{ gridTemplateRows: `repeat(${rows}, 32px) 26px`, rowGap: 4 }}>
+  return <div className="calendar-week-all-day" style={{ gridTemplateRows: `repeat(${rows}, 36px) 26px`, rowGap: 4 }}>
     <span className="calendar-zone" style={{ gridColumn: 1, gridRow: `1 / span ${rows + 1}` }}>Cả ngày</span>
     {days.map((day, index) => <div key={dateKey(day)} data-date={dateKey(day)} className={`calendar-all-day-background ${dateKey(day) === vietnamDay(now) ? 'is-today' : ''}`} style={{ gridColumn: index + 2, gridRow: `1 / span ${rows + 1}` }} />)}
     {items.filter(item => item.lane < 4).map(item => {

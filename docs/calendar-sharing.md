@@ -4,14 +4,14 @@
 
 1. Tài khoản quản trị khởi tạo `admin` mở **Quản trị → Phân quyền**, tìm/lọc tài khoản trong danh sách có phân trang và bấm **Cho phép chia sẻ lịch**.
 2. Tài khoản vừa được cấp quyền thấy nút **Chia sẻ lịch** trong sidebar Lịch. Tìm người nhận, chọn phạm vi và xác nhận.
-3. Mặc định chỉ bật **Sự kiện**. **Việc cần làm** và **Ghi chú** phải được chọn riêng; bắt buộc có ít nhất một mục.
+3. Mặc định chỉ bật **Sự kiện**. **Công việc** và **Ghi chú** phải được chọn riêng; bắt buộc có ít nhất một mục.
 4. Người nhận thấy mục **Được chia sẻ với tôi**, mở từng lịch ở chế độ **Chỉ xem**. Có Tuần/Tháng/Danh sách; không kéo thả, sửa, xóa hay tick công việc.
 5. Chủ lịch sửa phạm vi hoặc thu hồi trong hộp Chia sẻ lịch. Thu hồi khả năng chia sẻ cũng vô hiệu hóa toàn bộ quyền xem do tài khoản đó cấp. Cấp lại không tự khôi phục các người xem cũ.
 
 ## Phạm vi và riêng tư
 
 - Sự kiện: chỉ các sự kiện thông thường. Công tắc **Riêng tư** mặc định tắt khi tạo mới, giữ giá trị khi sửa. Bật công tắc sẽ ẩn hoàn toàn mục đó với người xem, bao gồm số đếm và API chi tiết.
-- Việc cần làm: chỉ công việc có hạn trong khoảng đang xem; việc không hạn và danh sách To-Do đầy đủ không được chia sẻ.
+- Công việc: chỉ công việc có hạn trong khoảng đang xem; việc không hạn và danh sách To-Do đầy đủ không được chia sẻ.
 - Ghi chú: chỉ ghi chú gắn vào lịch, gồm nội dung khi mở chi tiết. Không cấp quyền xem toàn bộ kho Notes. Ghi chú vẫn có giao diện note và giữ màu người dùng chọn.
 - Quyền chia sẻ chỉ áp dụng cho lịch của chính người cấp, không có chuyển tiếp quyền.
 - Quản trị quyền không mặc nhiên được đọc dữ liệu lịch. Vai trò dạng chữ trên hồ sơ không quyết định quyền truy cập.

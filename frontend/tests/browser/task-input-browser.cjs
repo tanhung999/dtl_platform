@@ -44,7 +44,8 @@ async function main() {
     await page.locator(`.calendar-widget [data-deadline-id="${timeOnlyId}"]`).waitFor();
     assert.equal(await date.getAttribute('placeholder'), 'dd/mm/yyyy');
     await page.getByLabel('Tên việc mới').fill(title);
-    await page.getByLabel('Ưu tiên việc mới').selectOption('URGENT');
+    await page.getByLabel('Ưu tiên việc mới').click();
+    await page.getByRole('option', { name: 'Gấp', exact: true }).click();
     await date.fill('31/02/2026');
     await page.getByRole('button', { name: 'Tạo công việc', exact: true }).click();
     assert.equal(await date.evaluate(el => el.validity.valid), false);

@@ -1,10 +1,12 @@
+import { PrioritySelect } from './components/PrioritySelect';
+import { FeatureIcon } from '../../components/FeatureIcon';
 import { taskTooltip } from '../calendar/itemTooltip';
 import { PrivacyToggle } from '../access/PrivacyToggle';
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Calendar, Clock, CheckSquare, Lock, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowUpRight, Calendar, Clock, Lock, Pencil, Plus, Trash2 } from 'lucide-react';
 import { TaskPriority } from '../../types';
 import { useTasks } from './context/TasksContext';
-import { deadlineLabel, isOverdue, overdueLabel, PRIORITY_LABELS } from './deadlineUtils';
+import { deadlineLabel, isOverdue, overdueLabel } from './deadlineUtils';
 import './tasks.css';
 import { PriorityBadge } from './components/PriorityBadge';
 import { DatePicker } from '../../components/date-time/DatePicker';
@@ -48,16 +50,16 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
     finally { setSaving(false); }
   };
   return <div ref={panel} tabIndex={-1} className={`glass-panel widget-box tasks-widget ${fullPage ? 'tasks-full-collection' : ''}`}>
-    <div className="widget-header"><div className="widget-title"><CheckSquare size={18} className="widget-title-icon" /><span>Việc Cần Làm (To-Do List)</span></div><span className="task-pending-badge"><AnimatedCount value={pending} /> việc chưa xong</span></div>
+    <div className="widget-header"><div className="widget-title"><FeatureIcon name="tasks" /><span>Công việc</span></div><span className="task-pending-badge"><AnimatedCount value={pending} /> việc chưa xong</span></div>
     {data.counts.OVERDUE > 0 && <button type="button" className="task-overdue-badge" onClick={() => setFilter('OVERDUE')}><AnimatedCount value={data.counts.OVERDUE} /> việc quá hạn</button>}
     <form onSubmit={create} className="task-quick-form">
-      <div className="quick-input-bar"><input placeholder="Thêm việc cần làm. (Enter để tạo)" aria-label="Tên việc mới" value={title} maxLength={255} onChange={e => setTitle(e.target.value)} disabled={saving} required />
-        <select aria-label="Ưu tiên việc mới" className="task-priority-select" value={priority} disabled={saving} onChange={e => setPriority(e.target.value as TaskPriority)}>{Object.entries(PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <div className="quick-input-bar"><input placeholder="Nhập công việc, nhấn Enter để tạo" aria-label="Tên việc mới" value={title} maxLength={255} onChange={e => setTitle(e.target.value)} disabled={saving} required />
+        <PrioritySelect label="Ưu tiên việc mới" value={priority} disabled={saving} onChange={setPriority} />
         <button type="submit" className="btn btn-primary btn-sm" disabled={saving} aria-label="Tạo công việc"><Plus size={16} /></button>
       </div>
-      <div className="task-quick-deadline"><div className="task-date-field"><span><Calendar size={13} /> Ngày đến hạn</span><DatePicker clearLabel="Xóa hạn" label="Ngày đến hạn" value={dueDate} disabled={saving} onChange={value => { setDueDate(value); if (!value) { setDueTime(''); setReminder(noReminder()); } }} /></div><div className="task-date-field"><span><Clock size={13} /> Giờ đến hạn</span><TimePicker label="Giờ đến hạn" value={dueTime} disabled={saving} onChange={value => { setDueTime(value); if (!value && !dueDate) setReminder(noReminder()); }} /></div></div>
+      <div className="task-quick-deadline"><div className="task-date-field"><span><Calendar size={13} /> Ngày đến hạn</span><DatePicker clearLabel="Xóa hạn" label="Ngày đến hạn" value={dueDate} disabled={saving} onChange={value => { setDueDate(value); if (!value) { setDueTime(''); if (reminder.reminder_minutes != null) setReminder(noReminder()); } }} /></div><div className="task-date-field"><span><Clock size={13} /> Giờ đến hạn</span><TimePicker label="Giờ đến hạn" value={dueTime} disabled={saving} onChange={value => { setDueTime(value); if (!value && !dueDate && reminder.reminder_minutes != null) setReminder(noReminder()); }} /></div></div>
       {!dueDate && dueTime && <p className="task-time-default-hint">Chỉ chọn giờ: hạn vào ngày tạo công việc.</p>}
-      {(dueDate || dueTime) && <ReminderFields value={reminder} onChange={setReminder} disabled={saving} anchor={toTimestamp(parseDate(dueDate || dateKey(today())), dueTime || '00:00')} allDay={!dueTime} />}
+      <ReminderFields allowUnscheduled value={reminder} onChange={setReminder} disabled={saving} anchor={dueDate || dueTime ? toTimestamp(parseDate(dueDate || dateKey(today())), dueTime || '00:00') : null} allDay={!dueTime} />
       <PrivacyToggle label="Công việc mới riêng tư" value={isPrivate} onChange={setIsPrivate} disabled={saving} />
     </form>
     {fullPage && <label className="tasks-search">Tìm công việc<input type="search" className="form-input" placeholder="Tìm theo tiêu đề hoặc mô tả…" maxLength={200} value={data.query} onChange={event => data.setQuery(event.target.value)} /></label>}
@@ -70,13 +72,13 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
     {data.loading ? <p className="task-empty" role="status">Đang tải công việc…</p> : !filtered.length ? <p className="task-empty">{fullPage && data.query ? 'Không có công việc phù hợp.' : filter === 'OVERDUE' ? 'Bạn không có việc quá hạn.' : filter === 'DONE' ? 'Chưa có công việc hoàn thành.' : 'Chưa có công việc trong nhóm này.'}</p>
       : <div className="tasks-list">{filtered.map(task => <div key={task.id} data-task-id={task.id} className={`task-item ${task.is_completed ? 'completed' : ''} ${isOverdue(task, data.now) ? 'is-overdue' : ''}`}>
         <input type="checkbox" className="task-checkbox" aria-label={`Đánh dấu ${task.title}`} checked={task.is_completed} disabled={data.busyIds.includes(task.id)} onChange={() => { setActionError(''); data.toggle(task).catch(reason => setActionError(reason.message)); }} />
-        <div className="task-info"><button type="button" className="task-title-button task-title" title={taskTooltip(task, data.now)} onClick={() => data.edit(task)}>{task.is_private && <Lock size={12} aria-label="Riêng tư" />} {task.is_completed && '✓ '}{task.title}</button>
-          <div className="task-meta"><PriorityBadge priority={task.priority} /><button type="button" className="task-deadline-button" title={taskTooltip(task, data.now)} onClick={() => data.edit(task)}><Calendar size={11} />{deadlineLabel(task, true)}</button>{isOverdue(task, data.now) && <span className="task-overdue-text">Quá hạn · {overdueLabel(task, data.now)}</span>}</div>
+        <div className="task-info"><button type="button" className="task-title-button task-title" data-tooltip={taskTooltip(task, data.now)} onClick={() => data.edit(task)}>{task.is_private && <Lock size={12} aria-label="Riêng tư" />} {task.is_completed && '✓ '}{task.title}</button>
+          <div className="task-meta"><PriorityBadge priority={task.priority} /><button type="button" className="task-deadline-button" data-tooltip={taskTooltip(task, data.now)} onClick={() => data.edit(task)}><Calendar size={11} />{deadlineLabel(task, true)}</button>{isOverdue(task, data.now) && <span className="task-overdue-text">Quá hạn · {overdueLabel(task, data.now)}</span>}</div>
           {!task.due_date && task.legacy_due_date && task.deadline_version === 0 && <span className="task-legacy-hint">Cần đặt lại hạn: {task.legacy_due_date}</span>}
         </div>
         <button type="button" className="task-icon-button" aria-label={`Sửa ${task.title}`} onClick={() => data.edit(task)}><Pencil size={13} /></button>
         <button type="button" className="task-icon-button" aria-label={`Xóa ${task.title}`} disabled={data.busyIds.includes(task.id)} onClick={async () => {
-          if (!window.confirm(`Xóa công việc “${task.title}”? Deadline trên lịch và nhắc hạn cũng sẽ được xóa.`)) return;
+          if (!window.confirm(`Xóa công việc “${task.title}”? Hạn trên lịch và lời nhắc cũng sẽ được xóa.`)) return;
           try { await data.remove(task.id, task.version); } catch (reason) {
             if (reason instanceof ApiError && reason.status === 409 && reason.current && window.confirm(`Công việc vừa được cập nhật: “${reason.current.title}”. Vẫn xóa bản mới?`)) {
               try { await data.remove(task.id, reason.current.version); } catch (error) { setActionError(error instanceof Error ? error.message : 'Không thể xóa công việc.'); }

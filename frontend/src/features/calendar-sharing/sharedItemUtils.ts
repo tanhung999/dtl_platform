@@ -4,7 +4,7 @@ import { CalendarEvent } from '../calendar/types';
 import { addDays, dateKey, eventDate, eventTime, formatDate, toTimestamp } from '../calendar/dateUtils';
 import { SharedItem, Scope } from './api';
 
-export const sharedKindLabel = (item: SharedItem) => item.kind === 'note' ? 'Ghi chú' : item.kind === 'task' ? 'Việc cần làm' : 'Sự kiện';
+export const sharedKindLabel = (item: SharedItem) => item.kind === 'note' ? 'Ghi chú' : item.kind === 'task' ? 'Công việc' : 'Sự kiện';
 export function permitted(item: SharedItem, scope: Scope) {
   return item.kind === 'note' ? scope.share_notes : item.kind === 'task' ? scope.share_tasks : scope.share_events;
 }

@@ -1,7 +1,7 @@
 import { CalendarEvent } from './types';
 
 export const EVENT_STATUSES = {
-  upcoming: { label: 'Sắp tới', color: '#EAB308' },
+  upcoming: { label: 'Sắp diễn ra', color: '#EAB308' },
   ongoing: { label: 'Đang diễn ra', color: '#2563EB' },
   ended: { label: 'Đã kết thúc', color: '#16A34A' },
 } as const;

@@ -5,9 +5,10 @@ Mô-đun lịch nội bộ của DTL Platform, không phụ thuộc Google Lịc
 
 ## Giao diện
 
-- Workspace: thẻ lịch cá nhân ở cột phải, phía trên Ghi chú, xem từng ngày trong tuần.
+- Trang chủ: thẻ lịch cá nhân ở cột phải, xem từng ngày trong tuần; trên màn hình nhỏ lịch nằm dưới các ô truy cập và liên kết nhanh.
 - Tab Lịch: xem Tuần, Tháng và Danh sách (30 ngày từ ngày đang chọn).
 - Bấm ô trống/nút Tạo để tạo sự kiện; bấm sự kiện để xem, sửa hoặc xóa.
+- Trong lịch tuần, các mục chỉ chia chiều rộng khi thực sự chồng giờ (tính cả chiều cao tối thiểu của thẻ). Mỗi mục mở rộng qua các cột trống bên phải; một nhóm đông ở giờ sau không làm hẹp ghi chú ở giờ trước. Lịch cá nhân và lịch được chia sẻ dùng cùng quy tắc.
 - Tạo/sửa sự kiện dùng chung bộ chọn ngày giờ với To-Do tại
   `frontend/src/components/date-time/`. Ngày hiển thị `dd/mm/yyyy`; giờ 24 giờ
   `HH:mm` kèm AM/PM. Bấm ô hoặc biểu tượng để mở, bấm ngoài hoặc Escape để đóng
@@ -16,7 +17,7 @@ Mô-đun lịch nội bộ của DTL Platform, không phụ thuộc Google Lịc
   thời điểm kết thúc phải sau bắt đầu. Sự kiện cả ngày không hiện ô giờ và vẫn
   tính ngày kết thúc trên biểu mẫu là ngày bao gồm.
 - Hỗ trợ sự kiện có giờ, cả ngày, nhiều ngày, địa điểm và mô tả.
-- Màu tự đổi theo thời gian: Sắp tới vàng `#EAB308`, Đang diễn ra xanh dương
+- Màu tự đổi theo thời gian: Sắp diễn ra vàng `#EAB308`, Đang diễn ra xanh dương
   `#2563EB`, Đã kết thúc xanh lá `#16A34A`. Quy tắc áp dụng cho cả sự kiện và ghi chú có lịch hẹn. Nền nhạt, viền hoặc chấm đậm, có nhãn trạng thái.
   Mỗi phần hiển thị xét theo ngày của ô lịch: ngày đã qua xanh lá, ngày chưa tới
   vàng; hôm nay xét giờ bắt đầu/kết thúc. Cùng một sự kiện nhiều ngày có thể có
@@ -38,18 +39,18 @@ Mô-đun lịch nội bộ của DTL Platform, không phụ thuộc Google Lịc
   thúc đúng 00:00 thứ Hai kế tiếp không có dấu này vì thời điểm kết thúc không bao gồm.
 - Sự kiện trùng giờ trong cột hẹp chỉ hiện tên và giờ; chú thích khi rê chuột và hộp chi tiết
   giữ trạng thái. Lịch tháng nhỏ tô tuần đang xem, chấm đánh dấu ngày có dữ liệu.
-- Công tắc Việc cần làm ở thanh bên và nhãn số hạn dùng chung trạng thái, áp dụng
+- Công tắc Công việc ở thanh bên và nhãn số hạn dùng chung trạng thái, áp dụng
   cho Tuần/Tháng/Danh sách, ghi nhớ ở trình duyệt. Việc quá hạn vẫn hiện đúng ngày/giờ hạn trong Tuần/Tháng/Danh sách và widget, đồng thời có trong khung tổng hợp quá hạn. Lịch được chia sẻ dùng cùng quy tắc.
-- Ô chọn Sự kiện và nhãn số sự kiện bật/tắt sự kiện độc lập với việc cần làm,
+- Ô chọn Sự kiện và nhãn số sự kiện bật/tắt sự kiện độc lập với công việc,
   áp dụng cho Tuần/Tháng/Danh sách và chấm lịch nhỏ. Lựa chọn được ghi nhớ
   riêng theo ID người dùng trong localStorage, trên trình duyệt đang sử dụng.
   Sidebar chỉ có tên chủ lịch và hai ô chọn cùng kiểu chữ: Sự kiện xanh dương,
-  Việc cần làm cam, số lượng theo khoảng đang xem khớp nhãn thanh công cụ.
+  Công việc cam, số lượng theo khoảng đang xem khớp nhãn thanh công cụ.
   Khung “Trạng thái sự kiện” tách riêng, dùng chấm 8px, không áp dụng cho hạn công việc.
   Dữ liệu sự kiện vẫn đồng bộ thời gian thực trong lúc ẩn, bật lại hiển thị dữ liệu mới nhất.
-- Hạn công việc To-Do hiển thị bằng dòng có ô chọn và nhãn “Hạn”, đồng bộ hai chiều.
+- Công việc To-Do hiển thị bằng dòng có ô chọn và ký hiệu ưu tiên (tam giác lên, chấm tròn, tam giác xuống), đồng bộ hai chiều.
   Cả ngày và lưới giờ dùng chung cỡ chữ 12px, ô chọn 14px và chấm ưu tiên;
-  hạn công việc có giờ giữ nhãn đầy đủ như “Hạn 16:56”.
+  công việc có giờ vẫn hiển thị giờ, ví dụ “16:56”, sau icon; không thêm chữ “Hạn”.
   Trong lịch Tuần, hạn công việc chưa quá hạn không giờ nằm ở hàng Cả ngày;
   có giờ nằm đúng mốc giờ trên lưới giờ dưới dạng thẻ 24px. Sự kiện và
   hạn công việc trùng giờ chia cột để tránh che nhau. Thẻ hạn công việc biểu thị một mốc
@@ -145,3 +146,20 @@ QA và dọn đúng các sự kiện đó sau khi chạy. Có thể đặt `CALE
 Ảnh kiểm tra lưu ở `frontend/tests/artifacts/` (không đưa vào Git).
 
 Nền màu trạng thái sự kiện và ghi chú dùng hệ số `--calendar-status-strength: 1.3`: tăng 30% độ phủ màu so với trước, giữ nguyên màu cơ sở của chấm/viền và màu ưu tiên Tasks. Thanh Notes cả ngày dùng viền trên nét đứt trên từng đoạn ngày, tương ứng với viền bên nét đứt của Notes có giờ; sự kiện giữ viền liền.
+
+
+Widget trang chủ sắp xếp: Việc quá hạn → Công việc → Sự kiện cả ngày → Sự kiện theo giờ → Ghi chú cả ngày → Ghi chú theo giờ → Việc đã xong. Việc chưa hoàn thành đã qua hạn chỉ xuất hiện ở nhóm quá hạn. Hạn không đặt giờ vẫn còn hiệu lực hết ngày Việt Nam. Hôm nay giữ danh sách quá hạn chung có phân trang; khi xem ngày khác, nhóm quá hạn chỉ gồm công việc thuộc ngày được chọn.
+
+
+Mũi tên tiếp diễn ở thanh cả ngày hướng sang trái khi tiếp tục từ trước và sang phải khi còn kéo dài về sau. Trong lưới giờ, mũi tên được vẽ riêng khỏi tiêu đề: mũi tên lên cho phần tiếp tục từ ngày/khung giờ trước, mũi tên xuống khi còn kéo dài qua ngày sau (không tính kết thúc đúng 00:00). Với ô rộng tối đa 40 px, phần chữ được ẩn để ưu tiên mũi tên; tooltip và thao tác mở chi tiết vẫn giữ nội dung đầy đủ. Quy tắc áp dụng cho sự kiện và ghi chú trong cả lịch cá nhân và lịch được chia sẻ.
+
+
+Công việc đã hoàn thành trên lịch dùng nền, viền và chữ màu xám trung tính, có sắc độ riêng cho chế độ sáng/tối và không lấy màu nhấn của theme. Gạch ngang áp dụng cho toàn bộ phần chữ gồm giờ (nếu có) và tên công việc, không gạch qua ô đánh dấu. Lịch cá nhân và lịch được chia sẻ dùng cùng cách hiển thị.
+
+Công việc có ba mức ưu tiên: Gấp (tam giác cảnh báo có dấu chấm than màu đỏ), Trung bình (chấm tròn màu cam), Thấp (tam giác xuống màu xanh dương). Dropdown tạo/sửa, To-do và lịch cá nhân/chia sẻ dùng chung bảng màu trong `tasks/priority.css`. Mức Cao cũ được chuyển về Trung bình; mức Vừa cũ hiển thị Trung bình. Công việc hoàn thành vẫn dùng màu xám.
+
+Ký hiệu ưu tiên dùng chung trong dropdown, To-do và lịch: tam giác cảnh báo có dấu chấm than cho Gấp, chấm tròn cho Trung bình, tam giác xuống cho Thấp. Trên lịch ký hiệu này thay icon Công việc, vẫn giữ giờ nếu có.
+
+Tooltip nội dung công việc, sự kiện và ghi chú dùng `data-tooltip` cùng `ContentTooltip`, xuất hiện sau 250 ms thay cho thời gian chờ mặc định của trình duyệt. Di chuột đi trước thời điểm đó sẽ hủy hiển thị; Esc, cuộn trang hoặc bấm chuột sẽ đóng tooltip. Có thể rê chuột vào tooltip để đọc, hoặc mở bằng focus bàn phím.
+
+Màu trạng thái trên thanh cả ngày nhiều ngày bám theo chiều rộng cột ngày của lưới, không chia theo phần trong viền thẻ. Khi bấm vào thanh, ngày được chọn cũng tính theo cột ngày đó. Áp dụng cho sự kiện/ghi chú và cả lịch được chia sẻ.
