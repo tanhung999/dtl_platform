@@ -91,3 +91,32 @@ def response(row):
     if row.guard.get('scoped'):
         result.update(current=row.guard['scoped'].get('source_current'), current_guard=row.guard['scoped'].get('source_guard'))
     return result
+
+
+async def write_response(db, user, change, **updates):
+    """Return the actual editable resource from the same transaction as the move.
+
+    The history record still belongs to the source, so receipts and Undo retain
+    their original identity. Only the editor target follows a newly split item.
+    """
+    result = {**response(change), **updates}
+    if change.kind == 'task':
+        return result
+    scoped = change.guard.get('scoped') or {}
+    target_id = change.resource_id
+    occurrence_at = None
+    if scoped:
+        if change.undone_at:
+            occurrence_at = scoped['occurrence_at']
+        else:
+            target_id = scoped['child_note_id'] if change.kind == 'note' else scoped['child_id']
+            occurrence_at = change.after['starts_at']
+    resource = await owned(db, user, change.kind, target_id, lock=False)
+    if change.kind == 'note':
+        from app.modules.note_scheduling.service import with_schedule
+        value = await with_schedule(db, resource)
+    else:
+        from app.modules.calendar.service import event_details
+        value = await event_details(db, resource)
+    result['editor'] = {'kind': change.kind, 'resource': value.model_dump(mode='json'), 'occurrence_at': occurrence_at}
+    return result

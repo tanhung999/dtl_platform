@@ -26,8 +26,9 @@ interface Props {
   onDelete: (id: string, updatedAt: string, selection?: ScopeSelection) => Promise<void>;
 }
 
-export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
+export function EventModal({ event: initialEvent, draft, onClose, onSave, onDelete }: Props) {
   const { now } = useTasks();
+  const [event, setEvent] = useState(initialEvent);
   const dialog = useRef<HTMLDialogElement>(null);
   const initialHour = draft.hour ?? 9;
   const [title, setTitle] = useState(event?.title ?? '');
@@ -46,7 +47,6 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
   const [endTime, setEndTime] = useState(event ? eventTime(event.ends_at) : initialHour === 23 ? '23:30' : `${String(initialHour + 1).padStart(2, '0')}:00`);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [scopedMoved, setScopedMoved] = useState(false);
   const [deleteScope, setDeleteScope] = useState<RecurrenceScope>('THIS');
   const [occurrenceAt, setOccurrenceAt] = useState(() => event ? occurrenceFor(event.starts_at, event.recurrence, draft.occurrenceAt) : undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -58,7 +58,7 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
   const [savedSchedule, setSavedSchedule] = useState({ starts_at: event?.starts_at, ends_at: event?.ends_at, is_all_day: event?.is_all_day, recurrence: event?.recurrence });
   const recurring = !!event && ((savedSchedule.recurrence ?? 'NONE') !== 'NONE' || event.recurrence === 'NONE' && !!event.series_recurrence);
   const status = event && eventStatus({ ...event, starts_at: savedSchedule.starts_at!, ends_at: savedSchedule.ends_at!, recurrence: savedSchedule.recurrence }, now,
-    updatedAt !== event.updated_at ? startDate : dateKey(draft.date));
+    occurrenceAt ? dateKey(eventDate(occurrenceAt)) : dateKey(draft.date));
   const checking = useMutationChecking();
   const mounted = useRef(true);
 
@@ -103,7 +103,7 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
   };
 
   const remove = async () => {
-    if (!event || submitting.current || deleteUncertain || scopedMoved) return;
+    if (!event || submitting.current || deleteUncertain) return;
     submitting.current = true; setBusy(true);
     setError('');
     try { await onDelete(event.id, deleteVersion!, recurring ? {scope:deleteScope, occurrence_at:occurrenceAt!} : undefined); if (mounted.current) onClose(); }
@@ -147,15 +147,22 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
 
           <RecurrenceSelect startDate={startDate} value={recurrence} disabled={busy || !!event} onChange={value => { setRecurrence(value); if (!allDay) setEndDate(startDate); }}/>
           {event && <p className="calendar-repeat-help">Chọn “Dời lịch / Thông báo” để thay đổi lịch hoặc cài đặt thông báo.</p>}
-          {scopedMoved && <p className="calendar-repeat-help">Đã cập nhật phần lịch đã chọn. Lưu nội dung nếu cần, rồi đóng và mở lại sự kiện để dời hoặc xóa tiếp.</p>}
-          {event && <RescheduleControl occurrenceAt={occurrenceAt} seriesRecurrence={savedSchedule.recurrence !== 'NONE' ? savedSchedule.recurrence : event.recurrence === 'NONE' ? event.series_recurrence : undefined} onScoped={() => { setScopedMoved(true); setConfirmDelete(false); }} kind="event" id={event.id} title={event.title} current={{ ...savedSchedule, ...savedReminder }} updatedAt={updatedAt} disabled={busy || scopedMoved} onMoved={change => {
-            if (occurrenceAt && savedSchedule.starts_at) setOccurrenceAt(new Date(Date.parse(occurrenceAt) + Date.parse(change.after.starts_at!) - Date.parse(savedSchedule.starts_at)).toISOString());
-            setReminder(reminderValue(change.after)); setSavedReminder(reminderValue(change.after));
-            setSavedSchedule({ starts_at: change.after.starts_at!, ends_at: change.after.ends_at!, is_all_day: change.after.is_all_day!, recurrence: change.after.recurrence });
-            setRecurrence(change.after.recurrence ?? recurrence);
-            setStartDate(dateKey(eventDate(change.after.starts_at!))); setStartTime(eventTime(change.after.starts_at!));
-            setEndDate(dateKey(eventDate(change.after.is_all_day ? new Date(Date.parse(change.after.ends_at!) - 1).toISOString() : change.after.ends_at!)));
-            setEndTime(eventTime(change.after.ends_at!)); setAllDay(!!change.after.is_all_day); setUpdatedAt(change.guard.expected_updated_at); setDeleteVersion(change.guard.expected_updated_at);
+          {event && <RescheduleControl occurrenceAt={occurrenceAt} seriesRecurrence={event.series_recurrence} kind="event" id={event.id} title={event.title} current={{ ...savedSchedule, ...savedReminder }} updatedAt={updatedAt} disabled={busy} onMoved={change => {
+            const fresh = change.editor?.kind === 'event' ? change.editor.resource : undefined;
+            const next = fresh ?? { ...event, ...change.after, updated_at: change.guard.expected_updated_at! };
+            const at = change.editor?.occurrence_at ?? (occurrenceAt && savedSchedule.starts_at
+              ? new Date(Date.parse(occurrenceAt) + Date.parse(next.starts_at) - Date.parse(savedSchedule.starts_at)).toISOString() : next.starts_at);
+            setOccurrenceAt(at); setEvent(next); setConfirmDelete(false); setDeleteUncertain(false); setError('');
+            setTitle(value => value === event.title ? next.title : value);
+            setDescription(value => value === (event.description ?? '') ? next.description ?? '' : value);
+            setLocation(value => value === (event.location ?? '') ? next.location ?? '' : value);
+            setIsPrivate(value => value === !!event.is_private ? !!next.is_private : value);
+            setReminder(reminderValue(next)); setSavedReminder(reminderValue(next));
+            setSavedSchedule({ starts_at: next.starts_at, ends_at: next.ends_at, is_all_day: next.is_all_day, recurrence: next.recurrence });
+            setRecurrence(next.recurrence ?? 'NONE');
+            setStartDate(dateKey(eventDate(next.starts_at))); setStartTime(eventTime(next.starts_at));
+            setEndDate(dateKey(eventDate(next.is_all_day ? new Date(Date.parse(next.ends_at) - 1).toISOString() : next.ends_at)));
+            setEndTime(eventTime(next.ends_at)); setAllDay(!!next.is_all_day); setUpdatedAt(next.updated_at); setDeleteVersion(next.updated_at);
           }}/>}
           <label className="calendar-field"><span><MapPin size={15} /> Địa điểm</span><input className="form-input" value={location} onChange={e => setLocation(e.target.value)} placeholder="Thêm địa điểm" maxLength={255} /></label>
           <label className="calendar-field">Mô tả<textarea className="form-input" value={description} onChange={e => setDescription(e.target.value)} placeholder="Ghi chú cho sự kiện…" rows={3} maxLength={10000} /></label>
@@ -167,12 +174,12 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
         {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
         {error && <p className="alert-error calendar-dialog-error" role="alert">{error}</p>}
         {confirmDelete && <div className="calendar-delete-confirm" role="alert">
-          {!scopedMoved && recurring && <RecurrenceScopePicker action="delete" at={occurrenceAt!} value={deleteScope} onChange={setDeleteScope} disabled={busy || deleteUncertain} />}
+          {recurring && <RecurrenceScopePicker action="delete" at={occurrenceAt!} value={deleteScope} onChange={setDeleteScope} disabled={busy || deleteUncertain} />}
           <p>{recurring ? 'Các lần đã chọn và thông báo tương ứng sẽ bị xóa. Các phần còn lại được giữ nguyên.' : event?.deletion_includes_series ? `Mục này thuộc một chuỗi lịch. Xóa sẽ xóa cả chuỗi chứa “${event.title}” và các thông báo còn chờ.` : `Xóa sự kiện “${event?.title}”?`} Thao tác này không thể hoàn tác.</p>
           <div className="calendar-inline-actions"><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirmDelete(false)}>Giữ lại</button><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || deleteUncertain} onClick={remove}>{busy ? 'Đang xóa…' : 'Xác nhận xóa'}</button></div>
         </div>}
         <footer className="calendar-dialog-footer">
-          {event && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || scopedMoved || deleteUncertain} onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Xóa</button>}
+          {event && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || deleteUncertain} onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Xóa</button>}
           <div className="calendar-inline-actions"><button type="submit" className="btn btn-primary" disabled={busy || confirmDelete || deleteUncertain}>{busy ? 'Đang lưu…' : 'Lưu sự kiện'}</button></div>
         </footer>
       </form>

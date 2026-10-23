@@ -65,3 +65,16 @@ async def update_event_service(event_id: str, payload: EventUpdate, user: User, 
         else:
             await record_change(db, user, 'event', event, before)
     return event
+
+
+async def event_details(db, event):
+    """Canonical detail metadata, including the owning recurrence family."""
+    from .deletion import recurrence_parent
+    from app.db.calendar_exceptions import CalendarException
+    from app.modules.calendar.schemas import EventResponse
+    parent_id = await recurrence_parent(db, event.id, event.user_id)
+    has_edits = await db.scalar(select(CalendarException.replacement_id).where(
+        CalendarException.event_id == event.id, CalendarException.replacement_id.is_not(None)).limit(1))
+    value = EventResponse.model_validate(event)
+    from .scopes import series_rule
+    return value.model_copy(update={'series_recurrence':await series_rule(db,event.id,event.recurrence), 'deletion_includes_series': event.recurrence != 'NONE' or bool(parent_id or has_edits)})
