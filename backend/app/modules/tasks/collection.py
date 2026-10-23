@@ -61,15 +61,15 @@ async def calendar_tasks(user: UserArg, db: DbArg, start: date, end: date):
     return (await db.scalars(select(Task).where(Task.user_id == user.id, Task.due_date >= start, Task.due_date < end).order_by(*task_order(db)).limit(500))).all()
 
 @router.get("/calendar/page")
-async def calendar_page(user: UserArg, db: DbArg, start: date, end: date, limit: int = Query(500, ge=1, le=500)):
+async def calendar_page(user: UserArg, db: DbArg, start: date, end: date, limit: int = Query(500, ge=1, le=500), offset: int = Query(0, ge=0)):
     if end <= start or (end - start).days > 93:
         raise HTTPException(422, "Khoảng xem phải lớn hơn 0 và tối đa 93 ngày.")
     owned = (Task.user_id == user.id, Task.due_date >= start, Task.due_date < end)
     total = await db.scalar(select(func.count()).select_from(Task).where(*owned))
     from sqlalchemy.orm import defer
-    rows = (await db.scalars(select(Task).options(defer(Task.description)).where(*owned).order_by(*task_order(db)).limit(limit))).all()
+    rows = (await db.scalars(select(Task).options(defer(Task.description)).where(*owned).order_by(*task_order(db)).offset(offset).limit(limit))).all()
     items = [{name: getattr(row, name) for name in TaskResponse.model_fields if name != "description"} | {"description": None} for row in rows]
-    return {"items": items, "total": total, "truncated": total > len(items)}
+    return {"items": items, "total": total, "offset": offset, "limit": limit, "truncated": offset + len(items) < total}
 
 @router.get("/reminders/schedule", deprecated=True)
 async def reminder_schedule(user: UserArg):

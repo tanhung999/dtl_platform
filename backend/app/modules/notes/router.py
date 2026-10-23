@@ -1,13 +1,13 @@
-from typing import Annotated, List
+from typing import Annotated, List, Literal
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Body
 from sqlalchemy import select, desc, delete, func, update, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.realtime import mark_changed
-from app.db.models import Note, User, utcnow
+from app.db.models import Note, User
 from app.db.note_scheduling import NoteCalendarSchedule
-from app.db.calendar import CalendarEvent
 from app.modules.note_scheduling.service import with_schedule
 from app.db.note_create_requests import NoteCreateRequest
 from app.modules.notes.creation import create_note_once
@@ -81,6 +81,8 @@ async def delete_note(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
     expected_version: int = Body(ge=0, embed=True),
+    scope: Literal["ALL", "FOLLOWING", "THIS"] = Body(default="ALL"),
+    occurrence_at: datetime | None = Body(default=None),
 ):
     await db.execute(select(User.id).where(User.id == user.id).with_for_update())
     stmt = select(Note).where(Note.id == note_id, Note.user_id == user.id)
@@ -91,21 +93,24 @@ async def delete_note(
     if note.version != expected_version:
         raise HTTPException(409, "Ghi chú vừa được cập nhật. Hãy xem thông tin mới và xác nhận xóa lại.")
     event_id = await db.scalar(select(NoteCalendarSchedule.event_id).where(NoteCalendarSchedule.note_id == note.id))
+    if scope != 'ALL':
+        from app.db.calendar import CalendarEvent
+        event = await db.get(CalendarEvent, event_id) if event_id else None
+        if not event: raise HTTPException(422, 'Ghi chú chưa gắn vào lịch.')
+        from app.modules.calendar.scopes import scoped_delete
+        await scoped_delete(db, event, scope, occurrence_at)
+        return
     if event_id:
-        # The retained appointment must not silently move from Notes scope into shared Events.
-        await db.execute(update(CalendarEvent).where(CalendarEvent.id == event_id, CalendarEvent.user_id == user.id)
-            .values(is_private=True, reminder_minutes=None, reminder_at=None, reminder_version=CalendarEvent.reminder_version + 1, updated_at=utcnow()))
-        from app.db.notifications import NotificationJob
-        await db.execute(delete(NotificationJob).where(NotificationJob.event_id == event_id, NotificationJob.processed_at.is_(None)))
+        from app.modules.calendar.deletion import delete_series
+        await delete_series(db, event_id, user.id, delete_notes=True)
         mark_changed(db, user.id, 'notifications')
-        mark_changed(db, user.id, 'calendar-privacy')
     await db.execute(delete(NoteCalendarSchedule).where(NoteCalendarSchedule.note_id == note.id))
     await db.execute(update(NoteCreateRequest).where(NoteCreateRequest.note_id == note.id).values(note_id=None))
     from app.db.notifications import NotificationJob, Notification
     await db.execute(delete(NotificationJob).where(NotificationJob.note_id == note.id))
     await db.execute(update(Notification).where(Notification.note_id == note.id).values(note_id=None))
     mark_changed(db, user.id, 'notifications')
-    await db.delete(note)
+    if not event_id: await db.delete(note)
     mark_changed(db, user.id, "notes")
     mark_changed(db, user.id, "calendar")
     return None

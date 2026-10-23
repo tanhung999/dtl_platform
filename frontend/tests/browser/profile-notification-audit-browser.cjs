@@ -20,7 +20,7 @@ asyncio.run(run())`],{cwd:path.resolve(__dirname,'../../..'),input:JSON.stringif
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route(/fonts\.(googleapis|gstatic)\.com/,r=>r.abort());
  await page.goto(base);await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);await page.getByLabel('Mật khẩu',{exact:true}).fill(fixture.accounts[0].password);await page.getByRole('button',{name:'Đăng nhập hệ thống'}).click();await page.locator('.workspace-home').waitFor();
- const nav=page.getByRole('navigation',{name:'Điều hướng chính'});await nav.getByRole('button',{name:'Hồ sơ',exact:true}).click();
+ const nav=page.getByRole('navigation',{name:'Điều hướng chính'});await nav.getByRole('link',{name:'Hồ sơ',exact:true}).click();
  const profile=page.locator('.profile-page');await profile.waitFor();
  assert.equal(await profile.getByText('admin',{exact:true}).count(),0,'Legacy admin field is not proof of actual access');
  assert.equal(await profile.locator('.is-granted').count(),1);assert.equal(await profile.locator('.is-unavailable').count(),2);
@@ -34,7 +34,7 @@ asyncio.run(run())`],{cwd:path.resolve(__dirname,'../../..'),input:JSON.stringif
  for(const width of [1024,600,390,360]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Profile overflow at ${width}`);assert.ok(await profile.locator('.profile-contacts').evaluate(el=>[...el.querySelectorAll('span')].every(node=>node.scrollWidth<=node.clientWidth+1)),`Contact text clipped at ${width}`);}
  await page.screenshot({path:path.resolve(__dirname,'../../../.audit-backups/profile-mobile-audit.png'),fullPage:true});
  await page.setViewportSize({width:1500,height:1100});
- const notice=(id,created_at)=>({id,created_at,occurred_at:created_at,source:'platform',kind:'task.reminder',title:'Nhắc công việc '+id,body:'Nội dung QA',resource_type:'task',resource_id:id,state:'active',due_at:null,read_at:null,dismissed_at:null,snoozed_until:null});
+ const notice=(id,created_at)=>({id,created_at,occurred_at:created_at,source:'platform',kind:'task.reminder',title:'Thông báo công việc '+id,body:'Nội dung QA',resource_type:'task',resource_id:id,state:'active',due_at:null,read_at:null,dismissed_at:null,snoozed_until:null});
  const items=[notice('new','2026-10-21T17:30:00Z'),notice('old','2026-10-21T16:30:00Z')];
  await page.route('**/api/notifications?**',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({items,has_more:false,next_cursor:null,server_now:'2026-10-22T04:00:00Z'})}));
  await page.getByRole('button',{name:'Thông báo',exact:true}).click();await page.getByRole('button',{name:'Xem tất cả thông báo',exact:true}).click();await page.locator('.notification-day-heading').first().waitFor();

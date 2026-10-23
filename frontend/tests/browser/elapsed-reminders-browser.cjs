@@ -25,7 +25,7 @@ async def run():
         db.add_all([task,note,event,linked]); await db.flush()
         db.add(NoteCalendarSchedule(note_id=note.id,event_id=linked.id))
         db.add(Notification(user_id=owner.id,source='platform',event_key='expired-event-qa',fingerprint='qa',
-            kind='event.reminder',title='Nhắc sự kiện: Expired event QA',body='Historical reminder',
+            kind='event.reminder',title='Thông báo sự kiện: Expired event QA',body='Historical reminder',
             resource_type='event',resource_id=event.id,event_id=event.id,reminder_version=0,occurred_at=start,due_at=start))
         for topic in ('tasks','notes','calendar','notifications'): mark_changed(db,owner.id,topic)
         await prepare_changes(db); await db.commit()
@@ -51,32 +51,31 @@ asyncio.run(run())`;
     const waitResponse = predicate => { const result = page.waitForResponse(predicate); result.catch(() => {}); return result; };
     const responseFor = (method, pathname) => waitResponse(r => r.request().method() === method && new URL(r.url()).pathname === pathname);
     async function editElapsed(dialog) {
-      const choice = dialog.getByLabel('Thời gian nhắc nhở', { exact: true });
+      const choice = dialog.getByLabel('Thời gian thông báo', { exact: true });
       assert.ok(await choice.isEnabled());
       assert.ok(await choice.locator('option[value="custom"]').evaluate(el => !el.disabled));
       for (const option of ['0', '15', '30', '60', '1440']) assert.ok(await choice.locator(`option[value="${option}"]`).evaluate(el => el.disabled));
       await choice.selectOption('none');
       assert.ok(await choice.isEnabled(), 'Past items remain editable even after removing the reminder');
       await choice.selectOption('custom');
-      assert.ok(await dialog.getByLabel('Ngày nhắc hạn', { exact: true }).isEnabled());
-      assert.ok(await dialog.getByLabel('Giờ nhắc hạn', { exact: true }).isEnabled());
-      const day = await dialog.getByLabel('Ngày nhắc hạn', { exact: true }).inputValue();
-      const time = await dialog.getByLabel('Giờ nhắc hạn', { exact: true }).inputValue();
+      assert.ok(await dialog.getByLabel('Ngày thông báo', { exact: true }).isEnabled());
+      assert.ok(await dialog.getByLabel('Giờ thông báo', { exact: true }).isEnabled());
+      const day = await dialog.getByLabel('Ngày thông báo', { exact: true }).inputValue();
+      const time = await dialog.getByLabel('Giờ thông báo', { exact: true }).inputValue();
       assert.ok(Date.parse(day.split('/').reverse().join('-')+'T'+time+':00+07:00') > Date.now(), 'Default custom time must be future, even for a past item');
-      await dialog.getByLabel('Ngày nhắc hạn', { exact: true }).fill('01/01/2099');
-      await dialog.getByLabel('Giờ nhắc hạn', { exact: true }).fill('09:00');
-      assert.equal(await dialog.getByLabel('Ngày nhắc hạn', { exact: true }).evaluate(el => el.validity.valid), true);
+      await dialog.getByLabel('Ngày thông báo', { exact: true }).fill('01/01/2099');
+      await dialog.getByLabel('Giờ thông báo', { exact: true }).fill('09:00');
+      assert.equal(await dialog.getByLabel('Ngày thông báo', { exact: true }).evaluate(el => el.validity.valid), true);
     }
     // Exact reported flow: an unscheduled Note carries a past reminder into a past appointment.
-    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'Ghi chú',exact:true}).click();
+    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('link',{name:'DT My Note',exact:true}).click();
     await page.locator('.notes-widget').getByRole('button', { name: 'Thêm', exact: true }).click();
     let dialog = page.getByRole('dialog', { name: 'Ghi chú', exact: true });
     await dialog.getByPlaceholder('Tiêu đề ghi chú...', { exact: true }).fill('Recovered past note QA');
-    await dialog.getByLabel('Thời gian nhắc nhở', { exact: true }).selectOption('custom');
-    await dialog.getByLabel('Ngày nhắc hạn', { exact: true }).fill('01/01/2000');
+    await dialog.getByLabel('Thời gian thông báo', { exact: true }).selectOption('custom');
+    await dialog.getByLabel('Ngày thông báo', { exact: true }).fill('01/01/2000');
     await dialog.getByRole('button', { name: 'Gắn vào lịch', exact: true }).click();
     await dialog.getByLabel('Ngày bắt đầu', { exact: true }).fill('01/01/2000');
-    await dialog.getByLabel('Ngày kết thúc', { exact: true }).fill('01/01/2000');
     let saved = responseFor('POST', '/api/notes');
     await dialog.getByRole('button', { name: 'Lưu ghi chú', exact: true }).click();
     assert.equal((await saved).status(), 422); // Backend continues to reject new past reminders.
@@ -86,7 +85,7 @@ asyncio.run(run())`;
     const noteResponse = await saved; assert.equal(noteResponse.status(), 201, await noteResponse.text());
     const savedNote = await noteResponse.json(); assert.ok(savedNote.calendar_schedule.reminder_at); assert.ok(savedNote.calendar_schedule.starts_at.startsWith('1999-12-31'));
     await dialog.waitFor({ state: 'hidden' });
-    // Persisted Note with locked appointment dates must still allow removing its old reminder.
+    // Persisted Note with editable appointment dates still allows removing its old reminder.
     await page.locator('.notes-widget .note-title').filter({ hasText: 'Expired note QA' }).click();
     dialog = page.getByRole('dialog', { name: 'Ghi chú', exact: true });
     assert.ok(await dialog.getByLabel('Ngày bắt đầu', { exact: true }).isDisabled());
@@ -95,7 +94,7 @@ asyncio.run(run())`;
     await dialog.getByRole('button', { name: 'Lưu ghi chú', exact: true }).click(); assert.equal((await saved).status(), 200);
     await dialog.waitFor({ state: 'hidden' });
     // The same recovery applies to expired Task and Event detail forms.
-    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'Công việc',exact:true}).click();
+    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('link',{name:'DT Task',exact:true}).click();
     await page.getByRole('button', { name: 'Sửa Expired task QA', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Chi tiết công việc', exact: true });
     await editElapsed(dialog);
@@ -103,7 +102,7 @@ asyncio.run(run())`;
     await dialog.getByRole('button', { name: 'Lưu công việc', exact: true }).click(); assert.equal((await saved).status(), 200);
     await dialog.waitFor({ state: 'hidden' });
     await page.locator('.notification-bell').click();
-    await page.getByRole('button', { name: 'Nhắc sự kiện: Expired event QA', exact: true }).click();
+    await page.getByRole('button', { name: 'Thông báo sự kiện: Expired event QA', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Chi tiết sự kiện', exact: true });
     await editElapsed(dialog);
     saved = waitResponse(r => r.request().method() === 'PUT' && /\/api\/calendar\/events\//.test(r.url()));
@@ -115,15 +114,15 @@ asyncio.run(run())`;
       title: 'Move reminder QA', due_date: '2099-01-01', due_time: '09:00', reminder_minutes: 30,
     } });
     assert.equal(created.status(), 201);
-    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'Công việc',exact:true}).click();
+    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('link',{name:'DT Task',exact:true}).click();
     await page.getByRole('button', { name: 'Sửa Move reminder QA', exact: true }).click();
     const taskDialog = page.getByRole('dialog', { name: 'Chi tiết công việc', exact: true });
-    await taskDialog.getByRole('button', { name: 'Dời lịch', exact: true }).click();
-    dialog = page.getByRole('dialog', { name: 'Dời lịch', exact: true });
+    await taskDialog.getByRole('button', { name: 'Dời lịch / Thông báo', exact: true }).click();
+    dialog = page.getByRole('dialog', { name: 'Dời lịch / Thông báo', exact: true });
     await dialog.getByLabel('Ngày đến hạn mới', { exact: true }).fill('01/01/2000');
     await editElapsed(dialog);
     saved = waitResponse(r => r.request().method() === 'POST' && /\/api\/schedule-changes\/task\//.test(r.url()));
-    await dialog.locator('footer').getByRole('button', { name: 'Dời lịch', exact: true }).click(); assert.equal((await saved).status(), 200);
+    await dialog.locator('footer').getByRole('button', { name: 'Dời lịch / Thông báo', exact: true }).click(); assert.equal((await saved).status(), 200);
     await dialog.waitFor({ state: 'hidden' });
     await taskDialog.getByRole('button', { name: 'Đóng công việc', exact: true }).click();
     assert.deepEqual(errors, []);

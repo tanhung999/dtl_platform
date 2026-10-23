@@ -51,7 +51,7 @@ const assert = require('node:assert/strict');
     await note.getByRole('button',{name:'Lưu ghi chú',exact:true}).click();
     assert.equal((await response).status(),201);
     await page.locator('.note-card').filter({hasText:'Picker clipping QA'}).click();
-    await note.getByRole('button',{name:'Dời lịch',exact:true}).click();
+    await note.getByRole('button',{name:'Dời lịch / Thông báo',exact:true}).click();
     const move = page.locator('.reschedule-dialog');
     await check(move);
     await move.getByRole('button',{name:'Đóng dời lịch',exact:true}).click();

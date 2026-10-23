@@ -1,12 +1,12 @@
 """Paged note previews, pinned first and newest creation first."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import exists, func, select, and_, true, false
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.text_search import fold_text
-from app.db.models import Note, User
+from app.db.models import Note, User, utcnow
 from app.db.calendar import CalendarEvent
 from app.db.note_scheduling import NoteCalendarSchedule as Schedule
 from app.modules.auth.dependencies import get_current_user
@@ -19,10 +19,23 @@ def utc(value):
 async def schedule_summaries(db, user_id, ids):
     if not ids:
         return {}
-    rows = await db.execute(select(Schedule.note_id, CalendarEvent.id, CalendarEvent.title, CalendarEvent.starts_at, CalendarEvent.ends_at, CalendarEvent.is_all_day)
+    rows = await db.execute(select(Schedule.note_id, CalendarEvent.id, CalendarEvent.title, CalendarEvent.starts_at, CalendarEvent.ends_at, CalendarEvent.is_all_day, CalendarEvent.recurrence, CalendarEvent.recurrence_until)
         .join(CalendarEvent, Schedule.event_id == CalendarEvent.id).where(Schedule.note_id.in_(ids), CalendarEvent.user_id == user_id))
-    return {row.note_id: {key: utc(row._mapping[key]) if key in ("starts_at", "ends_at") else row._mapping[key]
-            for key in ("id", "title", "starts_at", "ends_at", "is_all_day")} for row in rows}
+    from app.modules.calendar.recurrence import iter_occurrences
+    result, now = {}, utcnow()
+    source_rows = [dict(row._mapping) for row in rows]
+    from app.modules.calendar.recurrence import attach_exclusions
+    source_rows = await attach_exclusions(db, source_rows, now, now + timedelta(days=8))
+    for row in source_rows:
+        summary = {key: utc(row[key]) if key in ('starts_at', 'ends_at') else row[key]
+                   for key in ('id', 'title', 'starts_at', 'ends_at', 'is_all_day', 'recurrence', 'recurrence_until')}
+        if row['recurrence'] != 'NONE':
+            summary['_excluded'] = row.get('_excluded', ())
+            summary = next(iter_occurrences(summary, now, now + timedelta(days=8)), summary)
+        summary.pop('_excluded', None)
+        result[row['note_id']] = summary
+    return result
+
 
 @router.get("/page")
 async def note_page(

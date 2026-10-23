@@ -17,11 +17,11 @@ test('all-day span matches the compact example and excludes next midnight',()=>{
  assert.equal(eventTooltip(span,new Date('2026-10-26T00:00:00+07:00')),'bbb\nCả ngày · 14/10 – 25/10 (12 ngày)\n● Đã kết thúc');
 });
 test('single-day upcoming note/event is concise without progress or repeated dates',()=>{
- assert.equal(eventTooltip({...span,starts_at:'2026-10-24T00:00:00+07:00',ends_at:'2026-10-25T00:00:00+07:00'},now),'bbb\nCả ngày · 24/10\n● Sắp diễn ra');
+ assert.equal(eventTooltip({...span,starts_at:'2026-10-24T00:00:00+07:00',ends_at:'2026-10-25T00:00:00+07:00'},now),'bbb\nCả ngày · 24/10\n● Sắp tới');
 });
 test('timed interval keeps the actual hours, including overnight midnight',()=>{
  assert.equal(eventTooltip({...span,is_all_day:false,starts_at:'2026-10-21T09:00:00+07:00',ends_at:'2026-10-21T14:00:00+07:00'},now),'bbb\n21/10 · 09:00 – 14:00\n● Đang diễn ra');
- assert.equal(eventTooltip({...span,is_all_day:false,starts_at:'2026-10-21T23:00:00+07:00',ends_at:'2026-10-22T00:00:00+07:00'},now),'bbb\n21/10 · 23:00 – 22/10 · 00:00\n● Sắp diễn ra');
+ assert.equal(eventTooltip({...span,is_all_day:false,starts_at:'2026-10-21T23:00:00+07:00',ends_at:'2026-10-22T00:00:00+07:00'},now),'bbb\n21/10 · 23:00 – 22/10 · 00:00\n● Sắp tới');
 });
 test('cross-year spans show both years and progress uses Vietnam midnight',()=>{
  const event={...span,starts_at:'2026-12-31T00:00:00+07:00',ends_at:'2027-01-03T00:00:00+07:00'};

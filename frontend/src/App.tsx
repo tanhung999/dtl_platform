@@ -1,13 +1,19 @@
 import { ContentTooltip } from './components/ContentTooltip';
 import { authApi } from './features/auth/api';
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { LoginPage } from './features/auth/LoginPage';
-import { DashboardPage } from './features/dashboard/DashboardPage';
 import { getStoredToken, getStoredUser, clearSession } from './services/api';
 import { User, AuthSession } from './types';
 import { ThemeProvider } from './context/ThemeContext';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { loginDestination } from './features/dashboard/navigation';
+import { PageBranding } from './components/PageBranding';
+import { PageLoading, PageLoadBoundary } from './components/PageLoading';
+
+const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage').then(module => ({ default: module.DashboardPage })));
 
 export function AppContent() {
+  const location = useLocation(), navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<User | null>(getStoredUser());
   const [hasToken, setHasToken] = useState<boolean>(Boolean(getStoredToken()));
 
@@ -41,6 +47,7 @@ export function AppContent() {
     clearSession();
     setCurrentUser(null);
     setHasToken(false);
+    navigate('/login', { replace: true, state: null });
   };
 
   const handleUserUpdated = (updatedUser: User) => {
@@ -48,15 +55,19 @@ export function AppContent() {
   };
 
   if (!hasToken || !currentUser) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+    return <><PageBranding /><Routes>
+      <Route path="/login" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} />
+      <Route path="*" element={<Navigate to="/login" replace state={{ from: location.pathname + location.search + location.hash }} />} />
+    </Routes></>;
   }
 
   return (
-    <DashboardPage
+    <Routes><Route path="/login" element={<Navigate to={loginDestination(location.state?.from)} replace />} />
+    <Route path="/*" element={<PageLoadBoundary><Suspense fallback={<PageLoading startup />}><DashboardPage
       user={currentUser}
       onUserUpdated={handleUserUpdated}
       onLogout={handleLogout}
-    />
+    /></Suspense></PageLoadBoundary>} /></Routes>
   );
 }
 

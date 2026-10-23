@@ -3,8 +3,8 @@ import asyncio
 import logging
 import random
 from contextlib import asynccontextmanager
-from datetime import datetime
-from sqlalchemy import select, update, or_
+from datetime import datetime, timedelta
+from sqlalchemy import select, update, or_, tuple_
 from sqlalchemy.orm import load_only
 from fastapi import HTTPException
 from app.core.database import async_session_maker
@@ -12,10 +12,11 @@ from app.core.realtime import prepare_changes, broadcast, mark_changed
 from app.db.models import Task, Note, User, utcnow
 from app.db.access import CalendarShare as Grant
 from app.db.calendar import CalendarEvent
+from app.db.calendar_exceptions import CalendarException
 from app.db.note_scheduling import NoteCalendarSchedule
 from app.db.notifications import Notification, NotificationJob as Job, NotificationPreference as Preference
 from app.modules.tasks.deadlines import VN, deadline_at
-from .scheduling import reminder_time
+from .scheduling import reminder_time, recurring_period, valid_recurring_stamp, plan
 from .sharing import active_grants
 from .service import insert_unique, fingerprint, utc
 
@@ -54,7 +55,7 @@ async def deliver_batch(db, now=None, limit=100):
         .where(Task.id.in_(task_ids), Task.user_id.in_(user_ids)).order_by(Task.id).with_for_update(skip_locked=True))).all() if task_ids else []
     events = (await db.scalars(select(CalendarEvent).options(load_only(CalendarEvent.id, CalendarEvent.user_id, CalendarEvent.title,
         CalendarEvent.starts_at, CalendarEvent.ends_at, CalendarEvent.is_all_day, CalendarEvent.reminder_minutes, CalendarEvent.reminder_at,
-        CalendarEvent.reminder_version, CalendarEvent.is_private, raiseload=True)).where(CalendarEvent.id.in_(event_ids), CalendarEvent.user_id.in_(user_ids)).order_by(CalendarEvent.id).with_for_update(skip_locked=True))).all() if event_ids else []
+        CalendarEvent.reminder_version, CalendarEvent.is_private, CalendarEvent.recurrence, CalendarEvent.recurrence_until, raiseload=True)).where(CalendarEvent.id.in_(event_ids), CalendarEvent.user_id.in_(user_ids)).order_by(CalendarEvent.id).with_for_update(skip_locked=True))).all() if event_ids else []
     direct_notes = (await db.scalars(select(Note).options(load_only(Note.id, Note.user_id, Note.title, Note.is_archived, Note.is_private,
         Note.reminder_at, Note.reminder_version, raiseload=True)).where(Note.id.in_(note_ids), Note.user_id.in_(user_ids))
         .order_by(Note.id).with_for_update(skip_locked=True))).all() if note_ids else []
@@ -75,6 +76,11 @@ async def deliver_batch(db, now=None, limit=100):
     preferences = (await db.scalars(select(Preference).where(Preference.user_id.in_(users)))).all()
     muted = {row.user_id for row in preferences if not row.task_reminders}
     rows = []
+    occurrences = {(job.event_id, utc(job.scheduled_at) + timedelta(minutes=event_map[job.event_id].reminder_minutes)
+                    if recurring_period(event_map[job.event_id]) and event_map[job.event_id].reminder_minutes is not None
+                    else utc(event_map[job.event_id].starts_at)) for job in jobs if job.event_id in event_map}
+    excluded = set((await db.execute(select(CalendarException.event_id, CalendarException.occurrence_at).where(
+        tuple_(CalendarException.event_id, CalendarException.occurrence_at).in_(occurrences)))).all()) if occurrences else set()
     for job in jobs:
         row = task_map.get(job.task_id) if job.task_id else direct_map.get(job.note_id) if job.note_id else event_map.get(job.event_id)
         note = direct_map.get(job.note_id) if job.note_id else note_map.get(job.event_id)
@@ -83,18 +89,24 @@ async def deliver_batch(db, now=None, limit=100):
         if valid:
             try:
                 stamp = reminder_time(row, 'task' if job.task_id else 'note' if job.note_id else 'event', now)
-                valid = stamp is not None and (job.kind == 'snooze' or stamp == utc(job.scheduled_at))
+                valid = stamp is not None and (job.kind == 'snooze' or (valid_recurring_stamp(row, utc(job.scheduled_at)) if job.event_id and recurring_period(row) and row.reminder_minutes is not None else stamp == utc(job.scheduled_at)))
             except HTTPException:
                 valid = False
         if not valid:
             continue
         kind = 'task' if job.task_id else 'note' if note else 'event'
         due = deadline_at(row) if job.task_id else None if job.note_id else utc(row.starts_at)
-        label = {'task':'Nhắc công việc', 'event':'Nhắc sự kiện', 'note':'Nhắc ghi chú'}[kind]
+        if job.event_id and recurring_period(row) and row.reminder_minutes is not None:
+            due = utc(job.scheduled_at) + timedelta(minutes=row.reminder_minutes)
+            if job.kind != 'snooze':
+                await insert_unique(db, Job, plan(row, max(now, utc(job.scheduled_at)) + timedelta(microseconds=1), 'event'), ['event_key'])
+        if job.event_id and row.reminder_minutes is not None and (job.event_id, due) in excluded:
+            continue
+        label = {'task':'Thông báo công việc', 'event':'Thông báo sự kiện', 'note':'Thông báo ghi chú'}[kind]
         when = utc(job.scheduled_at).astimezone(VN).strftime('%d/%m/%Y %H:%M') if due is None else (datetime.fromisoformat(row.due_date).strftime('%d/%m/%Y') + ' (cả ngày)') if job.task_id and not row.due_time else due.astimezone(VN).strftime('%d/%m/%Y' + (' (cả ngày)' if not job.task_id and row.is_all_day else ' %H:%M'))
         delivery = dict(user_id=row.user_id, calendar_owner_id=None, source='platform', event_key=job.event_key, fingerprint=fingerprint({'job':job.event_key}),
             kind=kind+'.'+('snooze' if job.kind == 'snooze' else 'reminder'), title=f'{label}: {row.title}'[:255],
-            body=f'{"Nhắc lúc" if due is None else "Hạn" if kind == "task" else "Bắt đầu"} {when}', resource_type=kind, resource_id=note.id if note else row.id,
+            body=f'{"Thông báo lúc" if due is None else "Hạn" if kind == "task" else "Bắt đầu"} {when}', resource_type=kind, resource_id=note.id if note else row.id,
             task_id=job.task_id, event_id=job.event_id, note_id=job.note_id, deadline_version=job.deadline_version if job.task_id else None,
             reminder_version=job.reminder_version, due_at=due, occurred_at=job.scheduled_at, created_at=now)
         if row.user_id not in muted:

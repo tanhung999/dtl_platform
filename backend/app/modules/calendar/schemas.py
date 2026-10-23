@@ -1,6 +1,7 @@
 from app.modules.notifications.reminder_fields import ReminderFields
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -11,6 +12,7 @@ CALENDAR_TIMEZONE = timezone(timedelta(hours=7))
 class EventWrite(ReminderFields):
     model_config = ConfigDict(extra="forbid")
 
+    recurrence: Literal["NONE", "DAILY", "WEEKLY"] = "NONE"
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=10000)
     location: str = Field(default="", max_length=255)
@@ -36,6 +38,8 @@ class EventWrite(ReminderFields):
     def validate_range(self):
         if self.ends_at <= self.starts_at:
             raise ValueError("Thời gian kết thúc phải sau thời gian bắt đầu.")
+        if not self.is_all_day and self.recurrence != 'NONE' and self.ends_at - self.starts_at > timedelta(days=1):
+            raise ValueError('Mỗi lần lặp chỉ được kéo dài tối đa một ngày. Hãy chọn lại giờ kết thúc.')
         if self.is_all_day:
             for value in (self.starts_at, self.ends_at):
                 local = value.astimezone(CALENDAR_TIMEZONE)
@@ -45,6 +49,11 @@ class EventWrite(ReminderFields):
 
 
 class EventResponse(BaseModel):
+    recurrence: Literal["NONE", "DAILY", "WEEKLY"] = "NONE"
+    series_id: str | None = None
+    series_recurrence: Literal["DAILY", "WEEKLY"] | None = None
+    deletion_includes_series: bool = False
+    recurrence_until: datetime | None = None
     reminder_minutes: int | None = None
     reminder_at: datetime | None = None
     scheduled_note_id: str | None = None

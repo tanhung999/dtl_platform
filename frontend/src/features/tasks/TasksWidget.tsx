@@ -1,3 +1,4 @@
+import { useWindowScrollMemory } from '../../services/viewMemory';
 import { PrioritySelect } from './components/PrioritySelect';
 import { FeatureIcon } from '../../components/FeatureIcon';
 import { taskTooltip } from '../calendar/itemTooltip';
@@ -31,6 +32,7 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
   const createAttempt = useRef<CreateAttempt<TaskInput>>();
+  const submitting = useRef(false);
   useEffect(() => {
     if (!data.overdueRequest) return;
     setFilter('OVERDUE');
@@ -39,18 +41,20 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
   }, [data.overdueRequest]);
   const pending = data.counts.PENDING;
   const filtered = data.tasks;
+  useWindowScrollMemory(`tasks/${fullPage}/${data.filter}/${data.query}/${data.page?.offset ?? 0}`, !data.loading && !!data.page);
   const create = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || saving) return;
+    if (!title.trim() || submitting.current) return;
+    submitting.current = true;
     setSaving(true); setActionError('');
     const payload = { title: title.trim(), priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, ...reminder };
     createAttempt.current ??= { requestId: crypto.randomUUID(), original: payload };
     try { await data.create(payload, createAttempt.current); createAttempt.current = undefined; setTitle(''); setIsPrivate(false); setDueDate(''); setDueTime(''); setReminder(noReminder()); }
     catch (reason) { if (reason instanceof ApiError && [400, 404, 422].includes(reason.status)) createAttempt.current = undefined; setActionError(reason instanceof Error ? reason.message : 'Không thể tạo công việc.'); }
-    finally { setSaving(false); }
+    finally { submitting.current = false; setSaving(false); }
   };
   return <div ref={panel} tabIndex={-1} className={`glass-panel widget-box tasks-widget ${fullPage ? 'tasks-full-collection' : ''}`}>
-    <div className="widget-header"><div className="widget-title"><FeatureIcon name="tasks" /><span>Công việc</span></div><span className="task-pending-badge"><AnimatedCount value={pending} /> việc chưa xong</span></div>
+    <div className="widget-header"><div className="widget-title"><FeatureIcon name="tasks" /><span>DT Task</span></div><span className="task-pending-badge"><AnimatedCount value={pending} /> việc chưa xong</span></div>
     {data.counts.OVERDUE > 0 && <button type="button" className="task-overdue-badge" onClick={() => setFilter('OVERDUE')}><AnimatedCount value={data.counts.OVERDUE} /> việc quá hạn</button>}
     <form onSubmit={create} className="task-quick-form">
       <div className="quick-input-bar"><input placeholder="Nhập công việc, nhấn Enter để tạo" aria-label="Tên việc mới" value={title} maxLength={255} onChange={e => setTitle(e.target.value)} disabled={saving} required />
@@ -78,7 +82,7 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
         </div>
         <button type="button" className="task-icon-button" aria-label={`Sửa ${task.title}`} onClick={() => data.edit(task)}><Pencil size={13} /></button>
         <button type="button" className="task-icon-button" aria-label={`Xóa ${task.title}`} disabled={data.busyIds.includes(task.id)} onClick={async () => {
-          if (!window.confirm(`Xóa công việc “${task.title}”? Hạn trên lịch và lời nhắc cũng sẽ được xóa.`)) return;
+          if (!window.confirm(`Xóa công việc “${task.title}”? Hạn trên lịch và thông báo cũng sẽ được xóa.`)) return;
           try { await data.remove(task.id, task.version); } catch (reason) {
             if (reason instanceof ApiError && reason.status === 409 && reason.current && window.confirm(`Công việc vừa được cập nhật: “${reason.current.title}”. Vẫn xóa bản mới?`)) {
               try { await data.remove(task.id, reason.current.version); } catch (error) { setActionError(error instanceof Error ? error.message : 'Không thể xóa công việc.'); }

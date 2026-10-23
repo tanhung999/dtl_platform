@@ -9,7 +9,7 @@ export function permitted(item: SharedItem, scope: Scope) {
   return item.kind === 'note' ? scope.share_notes : item.kind === 'task' ? scope.share_tasks : scope.share_events;
 }
 export function sharedEvent(item: SharedItem): CalendarEvent {
-  return { id: item.id, user_id: '', title: item.title, starts_at: item.starts_at!, ends_at: item.ends_at!,
+  return { id: item.id, series_id: item.series_id, recurrence: item.recurrence, user_id: '', title: item.title, starts_at: item.starts_at!, ends_at: item.ends_at!,
     is_all_day: !!item.is_all_day, description: '', location: '', color: '#2563eb', scheduled_note_id: item.note_id,
     created_at: item.starts_at!, updated_at: item.starts_at! };
 }

@@ -3,8 +3,8 @@ const labels: Record<string, string> = {
   password: 'Mật khẩu', current_password: 'Mật khẩu hiện tại', new_password: 'Mật khẩu mới', email: 'Email',
   phone: 'Số điện thoại', job_title: 'Chức danh', office_location: 'Địa điểm làm việc', bio: 'Giới thiệu',
   url: 'Liên kết', icon: 'Biểu tượng', category: 'Nhóm', due_date: 'Ngày đến hạn', due_time: 'Giờ đến hạn',
-  starts_at: 'Thời điểm bắt đầu', ends_at: 'Thời điểm kết thúc', reminder_at: 'Thời điểm nhắc hạn',
-  reminder_minutes: 'Thời gian nhắc hạn', reason: 'Lý do dời lịch', priority: 'Mức ưu tiên', color: 'Màu sắc',
+  starts_at: 'Thời điểm bắt đầu', ends_at: 'Thời điểm kết thúc', reminder_at: 'Thời điểm thông báo',
+  reminder_minutes: 'Thời gian thông báo', reason: 'Lý do dời lịch', priority: 'Mức ưu tiên', color: 'Màu sắc',
 };
 interface Issue { type?: string; loc?: unknown[]; msg?: string; ctx?: Record<string, unknown> }
 const hasVietnamese = (text: string) => /[À-ỹĐđ]/.test(text);

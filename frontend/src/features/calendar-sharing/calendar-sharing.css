@@ -49,8 +49,8 @@
 .shared-month-grid section.is-outside { background:var(--bg-subtle); } .shared-month-grid section.is-today { background:var(--primary-light); }
 @media(max-width:768px) {
   .calendar-page.has-sharing .calendar-sidebar,.shared-calendar-page .calendar-sidebar { display:block; padding:12px; border-right:0; border-bottom:1px solid var(--border); }
-  .calendar-page.has-sharing .calendar-sidebar > :not(.calendar-sharing-navigation),.shared-calendar-page .sharing-readonly-info,.shared-calendar-page .calendar-event-legend-section { display:none; }
-  .calendar-sharing-navigation { margin-top:0; padding-top:0; border:0; flex-direction:row; flex-wrap:wrap; gap:7px; max-height:190px; overflow:auto; }
+  .calendar-page.has-sharing .calendar-sidebar > :not(.calendar-sidebar-scroll),.calendar-page.has-sharing .calendar-sidebar-scroll > :not(.calendar-sharing-navigation),.shared-calendar-page .sharing-readonly-info,.shared-calendar-page .calendar-event-legend-section { display:none; }
+  .calendar-sharing-navigation { margin-top:0; padding-top:0; border:0; flex-direction:row; flex-wrap:wrap; gap:7px; max-height:none; overflow:visible; }
   .calendar-sharing-navigation .calendar-eyebrow { width:100%; margin-top:5px; }
   .sharing-calendar-choice { padding:7px 9px; } .shared-calendar-page .sharing-scope-chips { margin-top:9px; }
 }

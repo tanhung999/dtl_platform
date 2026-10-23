@@ -13,7 +13,7 @@ function LoadingNoteDialog({ error, onClose, onRetry }: { error: string; onClose
   </dialog>;
 }
 
-export function CalendarNoteModal({ noteId, onClose }: { noteId: string; onClose: () => void }) {
+export function CalendarNoteModal({ noteId, occurrenceAt, onClose }: { noteId: string; occurrenceAt?: string; onClose: () => void }) {
   const [note, setNote] = useState<Note>(), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   useEffect(() => {
     const controller = new AbortController(); setError('');
@@ -22,7 +22,7 @@ export function CalendarNoteModal({ noteId, onClose }: { noteId: string; onClose
     return () => controller.abort();
   }, [noteId, retry]);
   if (!note) return <LoadingNoteDialog error={error} onClose={onClose} onRetry={() => setRetry(value => value + 1)} />;
-  return <NoteModal note={note} isOpen onClose={onClose}
+  return <NoteModal occurrenceAt={occurrenceAt} note={note} isOpen onClose={onClose}
     onSave={async payload => { await notesApi.updateNote(note.id, { ...payload, expected_version: payload.expected_version ?? note.version }); notifyNotesChanged(); }}
     onArchive={async (id, expectedVersion, payload) => { await notesApi.updateNote(id, { ...payload, is_archived: true, expected_version: expectedVersion }); notifyNotesChanged(); }}
     onDelete={async (id, verifyOnly, expectedVersion) => { await deleteNoteWithRecovery(id, verifyOnly, expectedVersion); notifyNotesChanged(); }} />;

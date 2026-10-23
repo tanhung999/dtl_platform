@@ -1,20 +1,20 @@
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, delete, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.realtime import mark_changed
 from app.db.calendar import CalendarEvent
-from app.db.note_scheduling import NoteCalendarSchedule
 from app.db.models import User
 from app.modules.auth.dependencies import get_current_user
 from app.modules.calendar.schemas import EventResponse, EventCreate, EventUpdate
 from app.modules.creation import create_once
 
 from .ownership import find_owned_event
+from .recurrence import occurrence_page, overlaps, attach_exclusions
 
 router = APIRouter(prefix="/api/calendar/events", tags=["Personal Calendar"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
@@ -38,12 +38,15 @@ async def list_events(
         select(CalendarEvent)
         .where(
             CalendarEvent.user_id == user.id,
-            CalendarEvent.starts_at < end,
-            CalendarEvent.ends_at > start,
+            *overlaps(CalendarEvent, start, end),
+            CalendarEvent.recurrence == "NONE",
         )
-        .order_by(CalendarEvent.starts_at, CalendarEvent.ends_at, CalendarEvent.id).limit(500)
+        .order_by(CalendarEvent.starts_at, CalendarEvent.id).limit(500)
     )
-    return result.scalars().all()
+    recurring = (await db.scalars(select(CalendarEvent).where(CalendarEvent.user_id == user.id,
+        CalendarEvent.recurrence != 'NONE', *overlaps(CalendarEvent, start, end)))).all()
+    rows = [EventResponse.model_validate(event).model_dump() for event in [*result.scalars().all(), *recurring]]
+    return occurrence_page(await attach_exclusions(db, rows, start, end), start, end, 500)
 
 
 @router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
@@ -71,7 +74,14 @@ async def get_event(event_id: str, user: CurrentUser, db: Database):
     event = await db.scalar(select(CalendarEvent).where(CalendarEvent.id == event_id, CalendarEvent.user_id == user.id))
     if event is None:
         raise HTTPException(404, "Không tìm thấy sự kiện.")
-    return event
+    from .deletion import recurrence_parent
+    from app.db.calendar_exceptions import CalendarException
+    parent_id = await recurrence_parent(db, event.id, user.id)
+    has_edits = await db.scalar(select(CalendarException.replacement_id).where(
+        CalendarException.event_id == event.id, CalendarException.replacement_id.is_not(None)).limit(1))
+    value = EventResponse.model_validate(event)
+    from .scopes import series_rule
+    return value.model_copy(update={'series_recurrence':await series_rule(db,event.id,event.recurrence), 'deletion_includes_series': event.recurrence != 'NONE' or bool(parent_id or has_edits)})
 
 
 @router.put("/{event_id}", response_model=EventResponse)
@@ -81,7 +91,8 @@ async def update_event(event_id: str, payload: EventUpdate, user: CurrentUser, d
 
 
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_event(event_id: str, user: CurrentUser, db: Database, expected_updated_at: datetime):
+async def delete_event(event_id: str, user: CurrentUser, db: Database, expected_updated_at: datetime, scope: Literal["ALL", "FOLLOWING", "THIS"] = "ALL", occurrence_at: datetime | None = None):
+    await db.execute(select(User.id).where(User.id == user.id).with_for_update())
     # Capture the association while the event exists, before deleting its mapping.
     event, has_note = await find_owned_event(event_id, user, db)
     modified = event.updated_at if event.updated_at.tzinfo else event.updated_at.replace(tzinfo=timezone.utc)
@@ -89,11 +100,12 @@ async def delete_event(event_id: str, user: CurrentUser, db: Database, expected_
         raise HTTPException(422, "Phiên bản sự kiện phải kèm múi giờ.")
     if modified != expected_updated_at.astimezone(timezone.utc):
         raise HTTPException(409, {"message": "Sự kiện vừa được cập nhật. Hãy xem bản mới và xác nhận xóa lại.", "current": EventResponse.model_validate(event).model_dump(mode="json")})
-    await db.execute(delete(NoteCalendarSchedule).where(NoteCalendarSchedule.event_id == event.id))
-    from app.db.notifications import NotificationJob, Notification
-    await db.execute(delete(NotificationJob).where(NotificationJob.event_id == event.id))
-    await db.execute(update(Notification).where(Notification.event_id == event.id).values(event_id=None))
-    await db.delete(event)
+    if scope != 'ALL':
+        from .scopes import scoped_delete
+        await scoped_delete(db, event, scope, occurrence_at)
+        return
+    from .deletion import delete_series
+    has_note = await delete_series(db, event.id, user.id) or has_note
     mark_changed(db, user.id, "notifications")
     mark_changed(db, user.id, "calendar")
     if has_note: mark_changed(db, user.id, "notes")

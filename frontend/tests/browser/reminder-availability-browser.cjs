@@ -11,14 +11,14 @@ await api('tasks',{title:'Expired reminder task',due_date:'2020-10-20',due_time:
 const note=await api('notes',{title:'Expired reminder note',calendar_schedule:{starts_at:'2020-10-20T00:00:00+07:00',ends_at:'2020-10-21T00:00:00+07:00',is_all_day:true}});
 await page.reload({waitUntil:'domcontentloaded'});await page.locator('.calendar-widget').waitFor();
 await page.clock.install({time:new Date('2099-10-21T12:00:00+07:00')});
-const choice=dialog=>dialog.getByLabel('Thời gian nhắc nhở',{exact:true});
+const choice=dialog=>dialog.getByLabel('Thời gian thông báo',{exact:true});
 const locked=async(dialog,expected)=>assert.equal(await choice(dialog).isDisabled(),expected);
 await page.getByRole('button',{name:'Sửa Expired reminder task',exact:true}).click();let dialog=page.getByRole('dialog',{name:'Chi tiết công việc',exact:true});await locked(dialog,false);
-await dialog.getByRole('button',{name:'Dời lịch',exact:true}).click();dialog=page.locator('.reschedule-dialog');
+await dialog.getByRole('button',{name:'Dời lịch / Thông báo',exact:true}).click();dialog=page.locator('.reschedule-dialog');
 await dialog.getByLabel('Ngày đến hạn mới',{exact:true}).fill('21/10/2099');await locked(dialog,false);
 await dialog.getByLabel('Giờ đến hạn mới',{exact:true}).fill('13:00');await locked(dialog,false);
-await choice(dialog).selectOption('custom');assert.ok(Date.parse(await dialog.getByLabel('Ngày nhắc hạn',{exact:true}).inputValue().then(d=>d.split('/').reverse().join('-'))+'T'+await dialog.getByLabel('Giờ nhắc hạn',{exact:true}).inputValue()+':00+07:00')>Date.parse('2099-10-21T12:00:00+07:00'));
-await dialog.getByLabel('Ngày đến hạn mới',{exact:true}).fill('20/10/2099');await locked(dialog,false);assert.ok(await dialog.getByLabel('Ngày nhắc hạn',{exact:true}).isEnabled());assert.ok(await dialog.getByLabel('Giờ nhắc hạn',{exact:true}).isEnabled());await choice(dialog).selectOption('none');await locked(dialog,false);
+await choice(dialog).selectOption('custom');assert.ok(Date.parse(await dialog.getByLabel('Ngày thông báo',{exact:true}).inputValue().then(d=>d.split('/').reverse().join('-'))+'T'+await dialog.getByLabel('Giờ thông báo',{exact:true}).inputValue()+':00+07:00')>Date.parse('2099-10-21T12:00:00+07:00'));
+await dialog.getByLabel('Ngày đến hạn mới',{exact:true}).fill('20/10/2099');await locked(dialog,false);assert.ok(await dialog.getByLabel('Ngày thông báo',{exact:true}).isEnabled());assert.ok(await dialog.getByLabel('Giờ thông báo',{exact:true}).isEnabled());await choice(dialog).selectOption('none');await locked(dialog,false);
 await dialog.getByRole('button',{name:'Đóng dời lịch',exact:true}).click();await page.getByRole('dialog',{name:'Chi tiết công việc',exact:true}).getByRole('button',{name:'Đóng công việc',exact:true}).click();
 await page.locator('.calendar-widget').getByRole('button',{name:'Tạo sự kiện',exact:true}).click();dialog=page.getByRole('dialog',{name:'Tạo sự kiện mới',exact:true});await locked(dialog,false);
 await dialog.getByLabel('Ngày bắt đầu',{exact:true}).fill('21/10/2099');await dialog.getByLabel('Ngày kết thúc',{exact:true}).fill('21/10/2099');await dialog.getByLabel('Giờ bắt đầu',{exact:true}).fill('11:00');await dialog.getByLabel('Giờ kết thúc',{exact:true}).fill('14:00');await locked(dialog,false);
@@ -26,7 +26,7 @@ await dialog.getByLabel('Giờ bắt đầu',{exact:true}).fill('13:00');await l
 await dialog.getByLabel('Giờ bắt đầu',{exact:true}).fill('');await locked(dialog,true);
 await dialog.getByRole('button',{name:'Đóng',exact:true}).click();
 await page.locator(`[data-note-id="${note.id}"] .note-title`).click();dialog=page.getByRole('dialog',{name:'Ghi chú',exact:true});await dialog.locator('.note-schedule-fields').waitFor();await locked(dialog,false);
-await dialog.getByRole('button',{name:'Dời lịch',exact:true}).click();dialog=page.locator('.reschedule-dialog');
+await dialog.getByRole('button',{name:'Dời lịch / Thông báo',exact:true}).click();dialog=page.locator('.reschedule-dialog');
 await dialog.getByLabel('Ngày bắt đầu mới',{exact:true}).fill('21/10/2099');await locked(dialog,false); // All-day range still has future hours.
 await dialog.getByLabel('Cả ngày',{exact:true}).uncheck();await dialog.getByLabel('Giờ bắt đầu mới',{exact:true}).fill('11:00');await dialog.getByLabel('Giờ kết thúc mới',{exact:true}).fill('11:30');await dialog.getByLabel('Ngày kết thúc mới',{exact:true}).fill('21/10/2099');await locked(dialog,false);
 await dialog.getByLabel('Giờ kết thúc mới',{exact:true}).fill('12:30');await locked(dialog,false);

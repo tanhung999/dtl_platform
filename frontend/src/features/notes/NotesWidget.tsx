@@ -1,3 +1,4 @@
+import { useViewMemory, useWindowScrollMemory, isText, isOffset } from '../../services/viewMemory';
 import { notesApi, notifyNotesChanged } from './api';
 import { useEffect, useRef, useState } from 'react';
 import { Archive, ArrowUpRight, Plus } from 'lucide-react';
@@ -17,10 +18,13 @@ import './notes.css';
 interface Props { fullPage?: boolean; initialFilter?: NoteFilter; onOpenAll?: (filter: NoteFilter) => void }
 export function NotesWidget({ fullPage = false, initialFilter = 'all', onOpenAll }: Props) {
   const { now } = useTasks();
-  const [archived, setArchived] = useState(false), [filter, setFilter] = useState<NoteFilter>(initialFilter);
-  const [query, setQuery] = useState(''), [offset, setOffset] = useState(0);
+  const [archived, setArchived] = useViewMemory(`notes/${fullPage}/archived`, () => false, value => typeof value === 'boolean');
+  const [filter, setFilter] = useViewMemory<NoteFilter>(`notes/${fullPage}/filter`, () => initialFilter, value => ['all', 'scheduled', 'pinned'].includes(String(value)));
+  const [query, setQuery] = useViewMemory(`notes/${fullPage}/query`, () => '', isText);
+  const [offset, setOffset] = useViewMemory(`notes/${fullPage}/offset`, () => 0, isOffset);
   const collection = useNotesCollection({ archived, filter, query, fullPage, offset });
   const data = collection.data, loading = collection.loading;
+  useWindowScrollMemory(`notes/${fullPage}/${filter}/${archived}/${query}/${offset}`, !!data && !loading);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null), [isModalOpen, setIsModalOpen] = useState(false);
   const [actionError, setActionError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<NoteSummary | null>(null), [actionBusy, setActionBusy] = useState(false);
@@ -66,7 +70,7 @@ export function NotesWidget({ fullPage = false, initialFilter = 'all', onOpenAll
     finally { setActionBusy(false); }
   };
   return <div className={`glass-panel widget-box notes-widget ${fullPage ? 'notes-full-collection' : ''}`}>
-    <div className="widget-header"><div className="widget-title"><FeatureIcon name="notes" /><span>{fullPage ? 'Ghi chú' : 'Ghi chú nhanh'}</span></div>
+    <div className="widget-header"><div className="widget-title"><FeatureIcon name="notes" /><span>DT My Note</span></div>
       <button type="button" className="btn btn-secondary btn-sm" title="Tạo ghi chú mới" onClick={() => { if (archived) { setArchived(false); setFilter('all'); setOffset(0); } open(null); }}><Plus size={14} /><span>Thêm</span></button>
     </div>
     {fullPage && <div className="notes-page-tools"><label className="notes-search">Tìm ghi chú<input className="form-input" type="search" placeholder="Tìm theo tiêu đề hoặc nội dung…" value={query} maxLength={200} onChange={event => { setQuery(event.target.value); setOffset(0); }} /></label>
@@ -74,11 +78,11 @@ export function NotesWidget({ fullPage = false, initialFilter = 'all', onOpenAll
     {(hasScheduledNotes || fullPage) && <div className="notes-filters" role="group" aria-label="Lọc ghi chú">{([{ value: 'all', label: 'Tất cả' }, ...(hasScheduledNotes ? [{ value: 'scheduled', label: 'Có lịch' }] : []), { value: 'pinned', label: 'Ghim' }] as { value: NoteFilter; label: string }[]).map(option => <button key={option.value} type="button" aria-pressed={filter === option.value} className={filter === option.value ? 'is-active' : ''} onClick={() => { setFilter(option.value); setOffset(0); }}>{option.label}</button>)}</div>}
     {query.trim().length === 1 && <p className="notes-empty">Nhập ít nhất 2 ký tự để tìm kiếm.</p>}
     {(actionError || collection.error) && <div className="alert-error" role="alert">{actionError || collection.error}<button type="button" onClick={() => { collection.refresh(); }}>Thử lại</button></div>}
-    {loading && !notes.length ? <p className="notes-empty" role="status">Đang tải ghi chú…</p> : !notes.length ? <p className="notes-empty">{archived ? 'Chưa có ghi chú đã lưu trữ phù hợp.' : query || filter !== 'all' ? 'Không có ghi chú phù hợp.' : 'Chưa có ghi chú nào. Bấm Thêm để tạo ghi chú đầu tiên.'}</p> :
-      <div className="notes-grid">{notes.map(note => <NoteCard key={note.id} note={note} event={note.scheduled_event} now={now} disabled={actionBusy || loading}
+    {query.trim().length === 1 ? null : loading && !notes.length ? <p className="notes-empty" role="status">Đang tải ghi chú…</p> : !notes.length ? <p className="notes-empty">{archived ? 'Chưa có ghi chú đã lưu trữ phù hợp.' : query || filter !== 'all' ? 'Không có ghi chú phù hợp.' : 'Chưa có ghi chú nào. Bấm Thêm để tạo ghi chú đầu tiên.'}</p> :
+      <div className="notes-grid" aria-busy={loading}>{notes.map(note => <NoteCard key={note.id} note={note} event={note.scheduled_event} now={now} disabled={actionBusy || loading}
         onOpen={() => { void open(note); }} onPin={() => { void change(note, { is_pinned: !note.is_pinned }); }} onRestore={() => { void change(note, { is_archived: false }); }}
         onDelete={() => setDeleteTarget(note)} />)}</div>}
-    {fullPage && data && data.total > 0 && <div className="notes-pagination"><span>{data.offset + 1}–{data.offset + data.items.length} / {data.total} ghi chú</span><button type="button" className="btn btn-outline btn-sm" disabled={loading || data.offset === 0} onClick={() => setOffset(Math.max(0, data.offset - data.limit))}>Trang trước</button><button type="button" className="btn btn-outline btn-sm" disabled={loading || !data.has_more} onClick={() => setOffset(data.offset + data.limit)}>Trang sau</button></div>}
+    {fullPage && query.trim().length !== 1 && data && data.total > 0 && <div className="notes-pagination"><span>{data.offset + 1}–{data.offset + data.items.length} / {data.total} ghi chú</span><button type="button" className="btn btn-outline btn-sm" disabled={loading || data.offset === 0} onClick={() => setOffset(Math.max(0, data.offset - data.limit))}>Trang trước</button><button type="button" className="btn btn-outline btn-sm" disabled={loading || !data.has_more} onClick={() => setOffset(data.offset + data.limit)}>Trang sau</button></div>}
     {!fullPage && onOpenAll && (data?.pinned_total ?? 0) > 6 && <button type="button" className="notes-view-all" onClick={() => onOpenAll('pinned')}>Xem tất cả ghim ({data?.pinned_total})<ArrowUpRight size={14} /></button>}
     {!fullPage && onOpenAll && <button type="button" className="notes-view-all" onClick={() => onOpenAll(filter)}><span>Xem tất cả{(data?.hidden ?? 0) > 0 ? ` · còn ${data?.hidden} ghi chú` : ''}</span><ArrowUpRight size={14} /></button>}
     {deleteTarget && <DeleteNoteDialog note={deleteTarget} onClose={() => setDeleteTarget(null)} onDelete={(verifyOnly, expectedVersion) => deleteNote(deleteTarget.id, verifyOnly, expectedVersion)} />}

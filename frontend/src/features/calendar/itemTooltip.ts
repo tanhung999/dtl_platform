@@ -9,7 +9,7 @@ const heading = (title: string) => title.replace(/\s+/g, ' ').trim();
 const shortDate = (day: Date, year: boolean) => `${String(day.getUTCDate()).padStart(2, '0')}/${String(day.getUTCMonth()+1).padStart(2, '0')}${year ? '/'+day.getUTCFullYear() : ''}`;
 
 // Use the entire interval and current status, independent of the grid's visible slice.
-export function eventTooltip(event: Pick<CalendarEvent, 'title' | 'starts_at' | 'ends_at' | 'is_all_day'>, now: Date): string {
+export function eventTooltip(event: Pick<CalendarEvent, 'title' | 'starts_at' | 'ends_at' | 'is_all_day' | 'recurrence' | 'series_id'>, now: Date): string {
   const first = eventDate(event.starts_at), last = eventDate(new Date(Date.parse(event.ends_at)-1).toISOString());
   const current = eventDate(now.toISOString());
   const total = Math.round((last.getTime()-first.getTime())/DAY)+1;
@@ -21,6 +21,8 @@ export function eventTooltip(event: Pick<CalendarEvent, 'title' | 'starts_at' | 
     const endDay = eventDate(event.ends_at);
     range = `${start} · ${eventTime(event.starts_at)} – ${dateKey(first) === dateKey(endDay) ? '' : shortDate(endDay,year)+' · '}${eventTime(event.ends_at)}`;
   }
+  if (event.recurrence === 'DAILY') range += ' · Lặp hằng ngày';
+  if (event.recurrence === 'WEEKLY') range += ' · Lặp hằng tuần';
   const status = eventStatus(event, now, dateKey(current));
   const progress = status.key === 'ongoing' && total > 1 ? ` · ngày thứ ${Math.floor((current.getTime()-first.getTime())/DAY)+1}/${total}` : '';
   return `${heading(event.title)}\n${range}\n● ${status.label}${progress}`;

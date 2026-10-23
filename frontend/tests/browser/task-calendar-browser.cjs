@@ -41,10 +41,10 @@ async function main() {
   }, { id, value, calendar }, { timeout: 5000 });
   async function edit(page, id, change) {
     await todo(page, id).getByRole('button', { name: /^Sửa / }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Dời lịch', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Dời lịch / Thông báo', exact: true }).click();
     const move = page.locator('.reschedule-dialog');
     await change(move);
-    await move.getByRole('button', { name: 'Dời lịch', exact: true }).last().click();
+    await move.getByRole('button', { name: 'Dời lịch / Thông báo', exact: true }).last().click();
     await move.waitFor({ state: 'hidden' });
     await page.getByRole('button', { name: 'Lưu công việc', exact: true }).click();
     await page.getByRole('dialog').waitFor({ state: 'hidden' });
@@ -84,7 +84,7 @@ async function main() {
     const overdue = await api('POST', '/api/tasks', { title: marker + ' Quá hạn', due_date: day(-1), priority: 'URGENT' }); ids.push(overdue.id);
     await b.locator('.calendar-overdue-group').locator(`[data-deadline-id="${overdue.id}"]`).waitFor({ timeout: 5000 });
     await b.locator('.task-overdue-badge').waitFor();
-    const reminder = await api('POST', '/api/tasks', { title: marker + ' Nhắc hạn', due_date: today, priority: 'HIGH' }); ids.push(reminder.id);
+    const reminder = await api('POST', '/api/tasks', { title: marker + ' Thông báo', due_date: today, priority: 'HIGH' }); ids.push(reminder.id);
     const dismissName = 'Ẩn nhắc này: ' + reminder.title;
     for (const page of [a, b]) {
       const more = page.locator('.task-reminders-more').filter({ hasText: /^\+/ });

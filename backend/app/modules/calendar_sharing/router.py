@@ -1,5 +1,8 @@
+from app.modules.calendar.recurrence import iter_occurrences, occurrence_count, overlaps, attach_exclusions
 """Owner manages grants; viewers have exclusively read endpoints."""
 from datetime import datetime, time, timedelta, timezone
+from heapq import merge
+from itertools import islice
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -120,7 +123,7 @@ async def revoke(viewer_id: str, user: UserArg, db: DbArg, expected_version: int
     return Response(status_code=204)
 
 @router.get('/view/{owner_id}')
-async def collection(owner_id: str, user: UserArg, db: DbArg, start: datetime, end: datetime):
+async def collection(owner_id: str, user: UserArg, db: DbArg, start: datetime, end: datetime, offset: int = Query(0, ge=0)):
     grant = await grant_for(db, owner_id, user.id)
     if start.tzinfo is None or end.tzinfo is None or end <= start or end-start > timedelta(days=93):
         raise HTTPException(422, 'Khoảng xem phải kèm múi giờ và tối đa 93 ngày.')
@@ -128,21 +131,29 @@ async def collection(owner_id: str, user: UserArg, db: DbArg, start: datetime, e
     from app.modules.tasks.deadlines import VN
     first, last = start.astimezone(VN).date(), end.astimezone(VN).date()
     scope = or_(Schedule.note_id.is_(None) if grant.share_events else False, Schedule.note_id.is_not(None) if grant.share_notes else False)
-    conditions = (Event.user_id == owner_id, Event.is_private.is_(False), Event.starts_at < end, Event.ends_at > start, scope,
+    conditions = (Event.user_id == owner_id, Event.is_private.is_(False), *overlaps(Event, start, end), scope,
                   or_(Schedule.note_id.is_(None), Note.is_private.is_(False)))
-    fields = [Event.id, Event.title, Event.starts_at, Event.ends_at, Event.is_all_day, Schedule.note_id,
+    fields = [Event.id, Event.title, Event.starts_at, Event.ends_at, Event.is_all_day, Event.recurrence, Event.recurrence_until, Schedule.note_id,
               Note.color.label('note_color'), func.count().over().label('_total')]
     rows = []
     if grant.share_events or grant.share_notes:
         rows = (await db.execute(select(*fields).outerjoin(Schedule, Schedule.event_id == Event.id).outerjoin(Note, Note.id == Schedule.note_id)
-            .where(*conditions).order_by(Event.starts_at, Event.id).limit(500))).mappings().all()
+            .where(*conditions, Event.recurrence == 'NONE').order_by(Event.starts_at, Event.id).limit(offset + 500))).mappings().all()
     total_events = rows[0]['_total'] if rows else 0
     items = [{**{key: value for key, value in row.items() if key != '_total'}, 'kind': 'note' if row['note_id'] else 'event'} for row in rows]
+    recurring = (await db.execute(select(*fields)
+        .outerjoin(Schedule, Schedule.event_id == Event.id).outerjoin(Note, Note.id == Schedule.note_id)
+        .where(*conditions, Event.recurrence != 'NONE'))).mappings().all() if grant.share_events or grant.share_notes else []
+    recurring = await attach_exclusions(db, recurring, start, end)
+    streams = []
+    for row in recurring:
+        total_events += occurrence_count(row, start, end)
+        streams.append(iter_occurrences({**{key: value for key, value in row.items() if key != '_total'}, 'kind': 'note' if row['note_id'] else 'event'}, start, end))
     total_tasks = 0
     if grant.share_tasks:
         where = (Task.user_id == owner_id, Task.is_private.is_(False), Task.due_date >= first, Task.due_date < last)
         tasks = (await db.execute(select(Task.id, Task.title, Task.due_date, Task.due_time, Task.priority, Task.is_completed, func.count().over().label('_total'))
-            .where(*where).order_by(Task.due_date, Task.due_time.asc().nulls_first(), Task.id).limit(500))).mappings().all()
+            .where(*where).order_by(Task.due_date, func.coalesce(Task.due_time, time.min), Task.id).limit(offset + 500))).mappings().all()
         total_tasks = tasks[0]['_total'] if tasks else 0
         items.extend({**{key: value for key, value in row.items() if key != '_total'}, 'kind': 'task'} for row in tasks)
     # Bounded payloads, no descriptions or note bodies in the grid, no per-item queries.
@@ -155,10 +166,11 @@ async def collection(owner_id: str, user: UserArg, db: DbArg, start: datetime, e
             stamp = stamp.replace(tzinfo=timezone.utc)
         return (stamp.timestamp(), row['id'], row['kind'])
     items.sort(key=sort_key)
-    return {'items': [utc_mapping(item) for item in items[:500]], 'total': total, 'truncated': total > min(len(items), 500), **flags(grant)}
+    page = list(islice(merge(iter(items), *streams, key=sort_key), offset, offset + 500))
+    return {'items': [utc_mapping(item) for item in page], 'total': total, 'offset': offset, 'truncated': total > offset + len(page), **flags(grant)}
 
 @router.get('/view/{owner_id}/{kind}/{item_id}')
-async def detail(owner_id: str, kind: str, item_id: str, user: UserArg, db: DbArg):
+async def detail(owner_id: str, kind: str, item_id: str, user: UserArg, db: DbArg, occurrence_at: datetime | None = None):
     grant = await grant_for(db, owner_id, user.id)
     if kind == 'task' and grant.share_tasks:
         row = await db.scalar(select(Task).where(Task.id == item_id, Task.user_id == owner_id, Task.is_private.is_(False), Task.due_date.is_not(None)))
@@ -170,9 +182,16 @@ async def detail(owner_id: str, kind: str, item_id: str, user: UserArg, db: DbAr
         result = (await db.execute(query)).first()
         if result:
             event, note_id = result
+            if occurrence_at is not None:
+                from app.db.calendar_exceptions import CalendarException
+                from app.modules.calendar.recurrence import valid_occurrence
+                if occurrence_at.tzinfo is None: raise HTTPException(422, 'Thời gian phải kèm múi giờ.')
+                occurrence_at = occurrence_at.astimezone(timezone.utc)
+                if not valid_occurrence({'starts_at': event.starts_at, 'recurrence': event.recurrence, 'recurrence_until': event.recurrence_until}, occurrence_at) or await db.get(CalendarException, (event.id, occurrence_at)):
+                    raise HTTPException(404, 'Lần lặp đã được bỏ qua, chỉnh riêng hoặc thay đổi.')
             note = await db.scalar(select(Note).where(Note.id == note_id, Note.user_id == owner_id, Note.is_private.is_(False))) if note_id else None
             if note_id and not note: raise HTTPException(404, 'Không tìm thấy ghi chú.')
             return utc_mapping({'kind': kind, 'id': event.id, 'title': note.title if note else event.title,
                     'content': note.content if note else event.description, 'location': event.location if not note else '',
-                    'color': note.color if note else None, 'starts_at': event.starts_at, 'ends_at': event.ends_at, 'is_all_day': event.is_all_day})
+                    'color': note.color if note else None, 'starts_at': event.starts_at, 'ends_at': event.ends_at, 'is_all_day': event.is_all_day, 'recurrence': event.recurrence, 'recurrence_until': event.recurrence_until})
     raise HTTPException(404, 'Mục không tồn tại hoặc không được chia sẻ.')

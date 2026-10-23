@@ -10,6 +10,7 @@ from app.db import schedule_changes
 from .sharing_reliability import migrate_sharing_reliability
 from .calendar_sharing import migrate_calendar_privacy, migrate_access_catalog
 from app.db import notifications
+from app.db import calendar_exceptions
 from .notifications import migrate_notifications
 from .task_deadlines import migrate_task_deadlines
 from .note_versions import migrate_note_versions
@@ -50,8 +51,13 @@ async def upgrade(conn):
     await migrate_task_deadlines(conn)
     await migrate_calendar_privacy(conn)
     await conn.run_sync(Base.metadata.create_all)
+    from .calendar_recurrence import migrate_calendar_recurrence
+    await migrate_calendar_recurrence(conn)
     # workspace_versions is additive; existing accounts begin at zero until their next write.
     await conn.execute(text('CREATE TABLE IF NOT EXISTS schema_migrations (version VARCHAR(80) PRIMARY KEY, applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)'))
+    await conn.execute(text("INSERT INTO schema_migrations (version) VALUES ('calendar_001_recurrence') ON CONFLICT (version) DO NOTHING"))
+    await conn.execute(text("INSERT INTO schema_migrations (version) VALUES ('calendar_003_occurrence_exceptions') ON CONFLICT (version) DO NOTHING"))
+    await conn.execute(text("INSERT INTO schema_migrations (version) VALUES ('calendar_004_scoped_recurrence') ON CONFLICT (version) DO NOTHING"))
     version = 'task_calendar_001_native_deadlines'
     applied = await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version})
     if not applied:

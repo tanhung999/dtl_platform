@@ -1,6 +1,8 @@
+import { TaskStatusLegend } from './components/TaskStatusLegend';
+import { useViewMemory, isDay } from '../../services/viewMemory';
 import { AnimatedCount } from '../../components/AnimatedCount';
 import { useLatestRequest } from '../../services/useLatestRequest';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react';
 import { addDays, addMonths, dateKey, formatDate, monthDays, parseDate, startOfWeek, today, toTimestamp, viewRange } from './dateUtils';
 import { CalendarEvent, CalendarView, EventDraft } from './types';
@@ -18,18 +20,18 @@ import './calendar.css';
 import { EventStatusLegend } from './components/EventStatusBadge';
 import { calendarApi } from './api';
 import { useCalendarDays } from './hooks/useCalendarDays';
-import { FeatureIcon } from '../../components/FeatureIcon';
 
-interface Props { initialDate?: Date; userName: string; userId: string; sharingControls?: ReactNode }
+interface Props { initialDate?: Date; onDateChange?: (date: Date) => void; userName: string; userId: string; sharingControls?: ReactNode }
 
-export function CalendarPage({ initialDate, userName, userId, sharingControls }: Props) {
+export function CalendarPage({ initialDate, onDateChange, userName, userId, sharingControls }: Props) {
   const tasksData = useTasks();
-  const [anchor, setAnchor] = useState(initialDate ?? today);
-  const [miniMonth, setMiniMonth] = useState(anchor);
+  const [remembered, remember] = useViewMemory('calendar', () => ({ day: dateKey(today()), month: dateKey(today()), view: window.matchMedia('(max-width: 768px)').matches ? 'agenda' : 'week', night: false }), value => !!value && typeof value === 'object' && isDay((value as any).day) && isDay((value as any).month) && ['week', 'month', 'agenda'].includes((value as any).view) && typeof (value as any).night === 'boolean');
+  const [anchor, setAnchor] = useState(initialDate ?? parseDate(remembered.day));
+  const [miniMonth, setMiniMonth] = useState(initialDate ?? parseDate(remembered.month));
   useEffect(() => {
     if (initialDate) { setAnchor(initialDate); setMiniMonth(initialDate); }
   }, [initialDate]);
-  const [view, setView] = useState<CalendarView>(() => window.matchMedia('(max-width: 768px)').matches ? 'agenda' : 'week');
+  const [view, setView] = useState<CalendarView>(remembered.view as CalendarView);
   const [selected, setSelected] = useState<CalendarEvent>();
   const [draft, setDraft] = useState<EventDraft>();
   const tasksPreferenceKey = `dtl_calendar_show_tasks:${userId}`;
@@ -39,7 +41,8 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
   const notesPreferenceKey = `dtl_calendar_show_notes:${userId}`;
   const [showNotes, setShowNotes] = useState(() => localStorage.getItem(notesPreferenceKey) !== 'false');
   useEffect(() => { localStorage.setItem(notesPreferenceKey, String(showNotes)); }, [showNotes, notesPreferenceKey]);
-  const [showEarlyHours, setShowEarlyHours] = useState(false);
+  const [showEarlyHours, setShowEarlyHours] = useState(remembered.night);
+  useEffect(() => { remember({ day: dateKey(anchor), month: dateKey(miniMonth), view, night: showEarlyHours }); }, [anchor, miniMonth, view, showEarlyHours, remember]);
   useEffect(() => { localStorage.setItem(tasksPreferenceKey, String(showTasks)); }, [showTasks, tasksPreferenceKey]);
   useEffect(() => { localStorage.setItem(eventsPreferenceKey, String(showEvents)); }, [showEvents, eventsPreferenceKey]);
   const ownerName = userName.replace(/^quản trị viên(?=\s|$)/iu, 'Quản trị viên');
@@ -51,11 +54,11 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
   const [openError, setOpenError] = useState('');
   const todayKey = vietnamDay(tasksData.now);
   const deadlineCount = deadlineData.total;
-  const visibleTasks = showTasks ? deadlineData.tasks : [];
+  const visibleTasks = useMemo(() => showTasks ? deadlineData.tasks : [], [showTasks, deadlineData.tasks]);
   const inCurrentPeriod = view === 'week' ? dateKey(startOfWeek(anchor)) === dateKey(startOfWeek(today()))
     : view === 'month' ? dateKey(anchor).slice(0, 7) === todayKey.slice(0, 7) : dateKey(anchor) === todayKey;
 
-  const selectDate = (date: Date) => { setAnchor(date); setMiniMonth(date); };
+  const selectDate = (date: Date) => { setAnchor(date); setMiniMonth(date); onDateChange?.(date); };
   const navigate = (direction: number) => {
     selectDate(view === 'month' ? addMonths(anchor, direction) : addDays(anchor, direction * (view === 'week' ? 7 : 30)));
   };
@@ -64,7 +67,7 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
   const onSelect = async (event: CalendarEvent, day?: string) => {
     const controller = opening.start();
     setOpenError('');
-    try { const value = await calendarApi.get(event.id, controller.signal); if (!controller.signal.aborted) { setSelected(value); setDraft({ date: day ? parseDate(day) : anchor }); } }
+    try { const value = await calendarApi.get(event.series_id ?? event.id, controller.signal); if (!controller.signal.aborted) { setSelected(value); setDraft({ date: day ? parseDate(day) : anchor, occurrenceAt: event.starts_at }); } }
     catch (reason) { if (!controller.signal.aborted) setOpenError(reason instanceof Error ? reason.message : 'Không tải được sự kiện.'); }
   };
   const close = () => { opening.cancel(); setSelected(undefined); setDraft(undefined); };
@@ -74,17 +77,19 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
     : view === 'agenda'
       ? `${formatDate(anchor)} – ${formatDate(addDays(anchor, 29))}`
       : formatDate(anchor, { month: 'long', year: 'numeric' });
-  const viewProps = { anchor, events: data.events.filter(event => event.scheduled_note_id ? showNotes : showEvents), tasks: visibleTasks, onCreate, onSelect };
+  const visibleEvents = useMemo(() => data.events.filter(event => event.scheduled_note_id ? showNotes : showEvents), [data.events, showNotes, showEvents]);
+  const viewProps = { anchor, events: visibleEvents, tasks: visibleTasks, onCreate, onSelect };
 
   return <div className={`calendar-page ${sharingControls ? 'has-sharing' : ''}`}>
-    <div className="calendar-page-heading"><div className="calendar-page-heading-icon"><FeatureIcon name="calendar" size={34} /></div><div><h1>Lịch làm việc</h1></div></div>
     <div className="calendar-shell">
       <aside className="calendar-sidebar">
         <button type="button" className="calendar-create-button" onClick={() => onCreate({ date: anchor })}><Plus size={25} /><span>Tạo sự kiện</span></button>
+        <div className="calendar-sidebar-scroll" tabIndex={0} role="region" aria-label="Danh sách và bộ lọc lịch">
         <MiniCalendar month={miniMonth} selected={anchor} onMonthChange={setMiniMonth} onSelect={selectDate} events={[]} tasks={[]} counts={miniData.days} showEvents={showEvents} showNotes={showNotes} showTasks={showTasks} highlightWeek={view === 'week'} />
-        <div className="calendar-sidebar-section"><span className="calendar-eyebrow">LỊCH CỦA TÔI</span><h3 className="calendar-owner-name">{ownerName}</h3><label className="calendar-task-toggle calendar-event-toggle"><input type="checkbox" aria-label="Hiện sự kiện" checked={showEvents} onChange={event => setShowEvents(event.target.checked)} /><span>Sự kiện</span><span className="calendar-toggle-count" title="Số sự kiện trong khoảng đang xem"><AnimatedCount value={data.eventTotal} /></span></label><label className="calendar-task-toggle calendar-deadline-toggle"><input type="checkbox" aria-label="Hiện công việc" checked={showTasks} onChange={event => setShowTasks(event.target.checked)} /><span>Công việc</span><span className="calendar-toggle-count" title="Số công việc trong khoảng đang xem"><AnimatedCount value={deadlineCount} /></span></label><label className="calendar-task-toggle calendar-note-toggle"><input type="checkbox" aria-label="Hiện ghi chú" checked={showNotes} onChange={event => setShowNotes(event.target.checked)} /><span>Ghi chú</span><span className="calendar-toggle-count" title="Số ghi chú đã đặt lịch trong khoảng đang xem"><AnimatedCount value={data.noteTotal} /></span></label><div className="calendar-event-legend-section"><h4>Trạng thái sự kiện và ghi chú</h4><EventStatusLegend /></div></div>
+        <div className="calendar-sidebar-section"><span className="calendar-eyebrow">LỊCH CỦA TÔI</span><h3 className="calendar-owner-name">{ownerName}</h3><label className="calendar-task-toggle calendar-event-toggle"><input type="checkbox" aria-label="Hiện sự kiện" checked={showEvents} onChange={event => setShowEvents(event.target.checked)} /><span>Sự kiện</span><span className="calendar-toggle-count" title="Số sự kiện trong khoảng đang xem"><AnimatedCount value={data.eventTotal} /></span></label><label className="calendar-task-toggle calendar-deadline-toggle"><input type="checkbox" aria-label="Hiện công việc" checked={showTasks} onChange={event => setShowTasks(event.target.checked)} /><span>Công việc</span><span className="calendar-toggle-count" title="Số công việc trong khoảng đang xem"><AnimatedCount value={deadlineCount} /></span></label><label className="calendar-task-toggle calendar-note-toggle"><input type="checkbox" aria-label="Hiện ghi chú" checked={showNotes} onChange={event => setShowNotes(event.target.checked)} /><span>Ghi chú</span><span className="calendar-toggle-count" title="Số ghi chú đã đặt lịch trong khoảng đang xem"><AnimatedCount value={data.noteTotal} /></span></label><div className="calendar-event-legend-section"><h4>Trạng thái sự kiện và ghi chú</h4><EventStatusLegend /></div>{showTasks && <TaskStatusLegend />}</div>
         {sharingControls}
         <div className="calendar-sidebar-note"><CalendarDays size={18} /><p>Lịch riêng của bạn.<br />Hiển thị theo giờ Việt Nam (UTC+7).</p></div>
+        </div>
       </aside>
       <section className="calendar-main" aria-label="Lịch cá nhân">
         <div className="calendar-toolbar">
@@ -100,17 +105,21 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
           </div>
         </div>
         <div className="calendar-status" aria-live="polite"><button type="button" className={`calendar-count-chip ${showEvents ? 'is-active' : ''}`} aria-label="Bật/tắt sự kiện" aria-pressed={showEvents} title="Bật/tắt hiển thị sự kiện" onClick={() => setShowEvents(value => !value)}><AnimatedCount value={data.eventTotal} /> sự kiện</button><button type="button" className={`calendar-count-chip ${showNotes ? 'is-active' : ''}`} aria-label="Bật/tắt ghi chú" aria-pressed={showNotes} title="Bật/tắt hiển thị ghi chú" onClick={() => setShowNotes(value => !value)}><AnimatedCount value={data.noteTotal} /> ghi chú</button><button type="button" className={`calendar-count-chip ${showTasks ? 'is-active' : ''}`} aria-label="Bật/tắt công việc" aria-pressed={showTasks} title="Bật/tắt hiển thị công việc" onClick={() => setShowTasks(value => !value)}><AnimatedCount value={deadlineCount} /> công việc</button>{(data.loading || deadlineData.loading || tasksData.loading) && <span>Đang tải lịch…</span>}</div>
-        {(data.truncated || deadlineData.truncated) && <p className="calendar-error-state" role="status">Chỉ hiển thị tối đa 500 mục lịch và 500 hạn công việc. Còn nhiều mục; hãy thu hẹp khoảng xem.</p>}
+        {(data.truncated || deadlineData.truncated) && <div className="calendar-load-more" role="status">
+          <span>Đã tải {data.events.length}/{data.total} sự kiện và ghi chú · {deadlineData.tasks.length}/{deadlineData.total} công việc.</span>
+          {data.truncated && <button type="button" className="btn btn-outline btn-sm" disabled={data.loading} onClick={() => { void data.loadMore(); }}>Tải thêm sự kiện và ghi chú</button>}
+          {deadlineData.truncated && <button type="button" className="btn btn-outline btn-sm" disabled={deadlineData.loading} onClick={() => { void deadlineData.loadMore(); }}>Tải thêm công việc</button>}
+        </div>}
         {(openError || miniData.error) && <p className="calendar-error-state" role="alert">{openError || miniData.error}</p>}
         {deadlineData.error && <p className="calendar-error-state" role="alert">{deadlineData.error}</p>}
         {tasksData.error && <p className="calendar-error-state" role="alert">{tasksData.error}</p>}
         {showTasks && <OverdueGroup compact />}
-        {data.error ? <div className="calendar-error-state" role="alert"><p>{data.error}</p><button type="button" className="btn btn-outline btn-sm" onClick={data.refresh}>Thử lại</button></div>
-          : <div className="calendar-view-content" aria-busy={data.loading}>
+        {data.error && <div className="calendar-error-state" role="alert"><p>{data.error}</p><button type="button" className="btn btn-outline btn-sm" onClick={data.refresh}>Thử lại</button></div>}
+          <div className="calendar-view-content" aria-busy={data.loading || deadlineData.loading}>
             {view === 'week' && <WeekView {...viewProps} showEarlyHours={showEarlyHours} onShowDay={date => { selectDate(date); setView('agenda'); }} />}
             {view === 'month' && <MonthView {...viewProps} onShowDay={date => { selectDate(date); setView('agenda'); }} />}
-            {view === 'agenda' && !data.loading && <AgendaView {...viewProps} />}
-          </div>}
+            {view === 'agenda' && ((!data.loading && !deadlineData.loading && !data.error && !deadlineData.error) || data.events.length > 0 || visibleTasks.length > 0) && <AgendaView {...viewProps} />}
+          </div>
       </section>
     </div>
     {draft && <CalendarItemModal event={selected} draft={draft} onClose={close} onSave={data.save} onDelete={data.remove} />}

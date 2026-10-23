@@ -8,16 +8,16 @@ import { deadlineLabel, overdueLabel, vietnamDay } from '../../tasks/deadlineUti
 
 export function OverdueGroup({ compact = false, items, title = 'Quá hạn' }: { compact?: boolean; items?: Task[]; title?: string }) {
   const data = useTasks();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const tasks = items ?? data.overdue;
   const count = items ? items.length : data.counts.OVERDUE;
   const label = items ? 'Công việc quá hạn trong ngày' : 'Công việc quá hạn hôm nay';
   if (!count) return null;
-  if (compact) return <section className={`calendar-overdue-group calendar-overdue-compact ${count === 1 ? 'is-single' : ''}`} aria-label={label}>
-    <div className="calendar-overdue-compact-heading"><AlertCircle size={15} /><strong>{title}</strong>{count > 1 && <><span className="calendar-overdue-count">{count} việc</span><button type="button" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? 'Thu gọn' : 'Mở rộng'}{expanded ? <ChevronUp size={13} aria-hidden="true" /> : <ChevronDown size={13} aria-hidden="true" />}</button></>}</div>
-    {(count === 1 || expanded) && <div className="calendar-overdue-list">{tasks.map(task => {
+  if (compact) return <section className="calendar-overdue-group calendar-overdue-compact" aria-label={label}>
+    <div className="calendar-overdue-compact-heading"><span className="calendar-overdue-label"><AlertCircle size={15} /><strong>{title}</strong><span className="calendar-overdue-count">{count} việc</span></span><button type="button" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? 'Thu gọn' : 'Mở rộng'}{expanded ? <ChevronUp size={13} aria-hidden="true" /> : <ChevronDown size={13} aria-hidden="true" />}</button></div>
+    {expanded && <div className="calendar-overdue-list">{tasks.map(task => {
       const when = task.due_date === vietnamDay(data.now) ? `${task.due_time || 'Hết ngày'} hôm nay` : deadlineLabel(task, true).replace(/^Hạn /, '');
-      return <div key={task.id} data-deadline-id={task.id} className="calendar-overdue-task"><button type="button" data-tooltip={taskTooltip(task, data.now)} onClick={() => data.edit(task)}>{task.title}</button><span className="calendar-overdue-when">{when}</span><span className="calendar-overdue-separator" aria-hidden="true">·</span><span className="calendar-overdue-age">{overdueLabel(task, data.now)}</span><input type="checkbox" aria-label={`Đánh dấu ${task.title}`} checked={task.is_completed} disabled={data.busyIds.includes(task.id)} onChange={() => { data.toggle(task).catch(() => {}); }} /></div>;
+      return <div key={task.id} data-deadline-id={task.id} className="calendar-overdue-task"><button type="button" data-tooltip={taskTooltip(task, data.now)} onClick={() => data.edit(task)}><span className="calendar-overdue-title">{task.title}</span><span className="calendar-overdue-when">{when}</span></button><span className="calendar-overdue-age">{overdueLabel(task, data.now)}</span><input type="checkbox" aria-label={`Đánh dấu ${task.title}`} checked={task.is_completed} disabled={data.busyIds.includes(task.id)} onChange={() => { data.toggle(task).catch(() => {}); }} /></div>;
     })}{items === undefined && <OverduePages />}</div>}
   </section>;
   return <section className="calendar-overdue-group" aria-label={label}><div className="calendar-overdue-heading"><AlertCircle size={15} /><strong>{title}</strong><span>{count} việc cần xử lý{items === undefined ? ' hôm nay' : ''}</span></div>

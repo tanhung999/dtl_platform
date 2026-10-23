@@ -1,6 +1,7 @@
 import './bookmarks.css';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { Bookmark as BookmarkIcon, Plus, Trash2, Globe } from 'lucide-react';
+import { Plus, Trash2, Globe } from 'lucide-react';
+import { FeatureIcon } from '../../components/FeatureIcon';
 import { bookmarksApi } from './api';
 import { bookmarkUrl } from './bookmarkUrl';
 import { Bookmark } from '../../types';
@@ -59,7 +60,7 @@ export function BookmarksWidget() {
   const busy = saving || !!deleting;
   const visibleError = error || loadError;
   return <div className="glass-panel widget-box bookmarks-widget">
-    <div className="widget-header"><div className="widget-title"><BookmarkIcon size={18} className="widget-title-icon" /><span>Liên kết nhanh</span></div>
+    <div className="widget-header"><div className="widget-title"><FeatureIcon name="link" /><span>DT Link</span></div>
       <button type="button" className="btn btn-secondary btn-sm" aria-expanded={showAdd} disabled={busy} onClick={() => setShowAdd(!showAdd)} title="Thêm liên kết"><Plus size={14} /><span>{showAdd ? 'Đóng' : 'Thêm'}</span></button>
     </div>
     {visibleError && <div className="alert-error" role="alert">{visibleError}<button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => { setError(''); void fetchBookmarks(); }}>Tải lại danh sách</button></div>}

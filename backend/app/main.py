@@ -22,6 +22,7 @@ from app.modules.rescheduling.router import router as rescheduling_router
 from app.modules.bookmarks.router import router as bookmarks_router
 from app.modules.calendar.router import router as calendar_router
 from app.modules.calendar.collection import router as calendar_collection_router
+from app.modules.calendar.reminders import router as calendar_reminders_router
 from app.modules.realtime.router import router as realtime_router
 from app.core.realtime import listen
 from app.modules.notifications.router import router as notifications_router
@@ -156,6 +157,7 @@ app.include_router(notification_integrations_router)
 app.include_router(notification_access_router)
 app.include_router(sso_router)
 app.include_router(calendar_collection_router)
+app.include_router(calendar_reminders_router)
 app.include_router(notes_collection_router)
 app.include_router(task_collection_router)
 app.include_router(notes_router)

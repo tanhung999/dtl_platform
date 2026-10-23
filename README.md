@@ -4,7 +4,7 @@ Cổng làm việc tập trung cho cán bộ nhân viên **Đông Tây Land**, k
 
 ## Kiến trúc và công nghệ
 
-- Giao diện: React 18, TypeScript, Vite, biểu tượng Lucide React; CSS hỗ trợ sáng/tối và nhiều kích thước màn hình. Kéo thả dùng dnd-kit.
+- Giao diện: React 18, TypeScript, Vite, biểu tượng Lucide React; CSS hỗ trợ sáng/tối và nhiều kích thước màn hình. Điều hướng trang dùng React Router.
 - Máy chủ: FastAPI, Python, SQLAlchemy bất đồng bộ.
 - Cơ sở dữ liệu: SQLite cho phát triển cục bộ; PostgreSQL cho môi trường vận hành. PostgreSQL LISTEN/NOTIFY kết hợp SSE chuyển cập nhật giữa các phiên và tiến trình.
 - Phiên đăng nhập/vé SSO dùng JWT với PyJWT. Mật khẩu được băm PBKDF2-HMAC-SHA256.
@@ -75,21 +75,47 @@ Các mục dưới đây là phần việc tại hệ thống bên ngoài, khôn
 - Booking Reports: bổ sung POST `/api/auth/sso-login`, xác thực vé, tìm tài khoản theo email/tên đăng nhập và cấp phiên bằng luồng hiện có; trang `/sso-callback` nhận vé, gọi API rồi chuyển vào ứng dụng. Các hàm cấp phiên như `issue_refresh_token` và `auth_response` cần đối chiếu với dự án đích.
 - Workflows: bổ sung API nhận vé, tìm tài khoản theo thông tin đã xác thực, tạo phiên theo `auth_sessions`/`TokenResponse` của hệ thống; trang `/sso-callback` gọi API đăng nhập.
 - Asset Manager: bổ sung API nhận vé, ánh xạ tài khoản và tạo phiên theo cơ chế của ứng dụng; trang `/sso-callback` chuyển vào màn hình chính.
-- Thông báo: Platform đã có API tiếp nhận có chữ ký riêng cho từng nguồn. Phía ứng dụng cần gửi sự kiện và ánh xạ đúng ID người nhận. Xem [tài liệu Thông báo](docs/notifications.md). Hiện chưa xác nhận kết nối thực tế hoặc mở thẳng vào hồ sơ của ba ứng dụng.
+- Thông báo: Platform đã có API tiếp nhận có chữ ký riêng cho từng nguồn. Phía ứng dụng cần gửi sự kiện và ánh xạ đúng ID người nhận. Hiện chưa xác nhận kết nối thực tế hoặc mở thẳng vào hồ sơ của ba ứng dụng.
 
-## Chức năng và tài liệu
+## Chức năng chính
 
-- [Lịch cá nhân](docs/calendar.md): xem tuần/tháng/danh sách, tạo/sửa/xóa sự kiện, kéo dời và co giãn.
-- [Đồng bộ công việc với lịch](docs/task-deadlines.md): hạn, hoàn thành hai chiều và hiển thị quá hạn.
-- [Đặt lịch cho ghi chú](docs/note-scheduling.md): lịch hẹn riêng, ngày giờ dùng chung, lưu nguyên tử và cập nhật tức thời.
-- [Thông báo](docs/notifications.md): chuông, lịch sử, đọc/ẩn, nhắc hạn ở máy chủ và hợp đồng tích hợp.
-- [Bố cục tiện ích](docs/dashboard-widget-layout.md) và [sắp xếp các mục](docs/workspace-drag-and-events.md).
-- [Phản hồi khi kéo thả](docs/drag-feedback.md).
-- [Phân trang và phục hồi kết nối](docs/calendar-tasks-notes-scaling.md).
-- [Đo tải 300 tài khoản, 200 phiên](docs/collections-capacity-300.md).
-- [Quy ước cấu trúc mã nguồn](docs/project-structure.md).
+- **Trang chủ:** tổng quan công việc, lịch, ghi chú và liên kết nhanh DT Link.
+- **DT Platform:** truy cập các ứng dụng doanh nghiệp qua SSO.
+- **DT Calendar:** xem tuần/tháng/danh sách, sự kiện có giờ hoặc cả ngày, lịch lặp và chia sẻ lịch theo quyền.
+- **DT Task:** quản lý công việc, độ ưu tiên, hạn hoàn thành và đồng bộ với lịch.
+- **DT My Note:** quản lý ghi chú và gắn vào lịch, hỗ trợ lịch lặp và thông báo.
+- **Thông báo:** chuông, lịch sử, đánh dấu đã đọc và thông báo theo thời gian do máy chủ xử lý.
+- **Hồ sơ và quản trị:** thông tin tài khoản và các chức năng theo quyền người dùng.
 
-Ghi chú có định dạng phong phú và số đếm nghiệp vụ ngay trên từng thẻ ứng dụng là các hướng mở rộng riêng, không được coi là đã hoàn thành chỉ vì có mô-đun Thông báo.
+Lịch lặp hỗ trợ thao tác trên cả chuỗi, lần đang chọn hoặc lần đang chọn và các lần sau. Thay đổi ngày giờ và thông báo được thực hiện trong **Dời lịch / Thông báo**.
+
+## Điều hướng và triển khai giao diện
+
+Các đường dẫn chính: `/homepage`, `/platform`, `/calendar`, `/tasks`, `/notes`, `/profile`, `/admin`, `/notifications`, `/search` và `/login`. DT Link mở khu vực liên kết trên trang chủ.
+
+Build giao diện bằng:
+
+```sh
+cd frontend
+npm ci
+npm run build
+```
+
+Phục vụ thư mục `frontend/dist` bằng máy chủ web. Cấu hình SPA fallback để mở trực tiếp hoặc tải lại `/calendar` và các trang khác vẫn hoạt động. Ví dụ Nginx:
+
+```nginx
+location / {
+    try_files $uri $uri/ /index.html;
+}
+```
+
+Cấu hình proxy `/api/` đến FastAPI riêng; không trả `index.html` cho yêu cầu API. Docker Compose hiện chạy Vite dev server để phát triển, không phải máy chủ phục vụ bản build production.
+
+Trước khi triển khai, đặt khóa JWT/SSO, mật khẩu cơ sở dữ liệu và URL ứng dụng phù hợp với môi trường; không sử dụng giá trị mẫu trong Compose. Tham khảo `.env.example` và `backend/app/core/config.py` cho cấu hình. Sao lưu cơ sở dữ liệu trước khi nâng cấp. Máy chủ áp dụng các migration đã đăng ký khi khởi động.
+
+## Nội dung kho mã
+
+Kho mã giữ mã nguồn, tài nguyên giao diện, migration, cấu hình build/triển khai, file khóa thư viện và mã kiểm thử. Báo cáo rà soát, nhật ký sửa chữa, log và bản sao lưu chỉ lưu cục bộ; `docs/` và `.audit-backups/` được Git bỏ qua.
 
 ## Cấu trúc thư mục
 
@@ -115,7 +141,6 @@ dtl-platform/
 │   │   ├── App.tsx
 │   │   └── index.css      # Biến màu và kiểu giao diện chung
 │   └── tests/             # Kiểm thử đơn vị, trình duyệt, tích hợp, tải, tiện ích
-├── docs/                  # Tài liệu tiếng Việt
 ├── docker-compose.yml
 └── README.md
 ```
@@ -137,5 +162,3 @@ npm run test:notifications
 ```
 
 Các bộ kiểm thử trình duyệt yêu cầu Docker đang chạy. Chi tiết nhóm, điều kiện và lệnh tại [hướng dẫn kiểm thử giao diện](frontend/tests/README.md) và [hướng dẫn kiểm thử máy chủ](backend/tests/README.md).
-
-Cấp quyền chia sẻ và xem lịch cá nhân: [hướng dẫn chia sẻ lịch](docs/calendar-sharing.md).

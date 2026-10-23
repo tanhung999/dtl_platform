@@ -1,5 +1,8 @@
 .note-card { background-color: var(--note-color, #fef08a); }
 .note-card .note-footer button { color: inherit; }
+.note-open-button { display: flex; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.note-open-button:focus-visible { outline: 2px solid var(--accent-on-paper); outline-offset: 3px; border-radius: 3px; }
+.note-open-button:disabled, .note-event-summary:disabled { cursor: not-allowed; }
 .note-card .note-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 .note-card .note-footer .note-event-summary { display: flex; align-items: center; gap: 4px; justify-self: start; width: fit-content; max-width: 100%; min-width: 0; margin: 0; padding: 4px 6px; border: 1px solid color-mix(in srgb, var(--accent-on-paper) 25%, transparent); border-radius: 999px; background: rgb(255 255 255 / 75%); color: var(--accent-on-paper); font: 500 11px var(--font-family); text-align: left; cursor: pointer; }
 .note-card .note-footer .note-event-summary:hover { background: color-mix(in srgb, var(--accent-on-paper) 8%, white); }

@@ -38,7 +38,7 @@ async def list_reminders(user: CurrentUser):
 @router.post("/{task_id}/reminders/{kind}/dismiss", deprecated=True)
 @router.post("/{task_id}/reminders/{kind}/snooze", deprecated=True)
 async def retired_reminder(task_id: str, kind: str, user: CurrentUser):
-    raise HTTPException(410, "Nhắc tự động đã ngừng. Hãy chọn thời gian nhắc trong công việc.")
+    raise HTTPException(410, "Thông báo tự động đã ngừng. Hãy chọn thời gian thông báo trong công việc.")
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
