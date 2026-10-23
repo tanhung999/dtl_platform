@@ -63,7 +63,17 @@ class CalendarScopeTests(ApiTestCase):
                     path='/api/schedule-changes/'+kind+'/'+row['id']
                     code,change=await self.request('POST',path,payload=payload)
                     self.assertEqual(code,200,change)
-                    self.assertEqual((await self.request('POST',path,payload=payload))[1]['id'],change['id'])
+                    editor = change['editor']
+                    self.assertEqual(editor['kind'], kind)
+                    target_id = change['guard']['scoped']['child_note_id'] if note else change['guard']['scoped']['child_id']
+                    self.assertEqual(editor['resource']['id'], target_id)
+                    self.assertNotEqual(target_id, row['id'])
+                    actual = editor['resource']['calendar_schedule'] if note else editor['resource']
+                    self.assertEqual(datetime.fromisoformat(actual['starts_at'].replace('Z', '+00:00')).hour, 4)
+                    self.assertEqual(actual['recurrence'], 'NONE' if scope == 'THIS' else 'DAILY')
+                    replay = (await self.request('POST',path,payload=payload))[1]
+                    self.assertEqual(replay['id'], change['id'])
+                    self.assertEqual(replay['editor'], editor)
                     page=await self.page()
                     self.assertEqual(page['total'],5)
                     hours=[datetime.fromisoformat(item['starts_at'].replace('Z','+00:00')).hour for item in page['items']]
@@ -74,6 +84,8 @@ class CalendarScopeTests(ApiTestCase):
                         self.assertTrue(all(item['content']=='Preserve content' for item in notes))
                     code,undone=await self.request('POST','/api/schedule-changes/records/'+change['id']+'/undo')
                     self.assertEqual(code,200,undone)
+                    self.assertEqual(undone['editor']['resource']['id'], row['id'])
+                    self.assertEqual(datetime.fromisoformat(undone['editor']['occurrence_at']).hour, 2)
                     self.assertEqual((await self.page())['total'],5)
                     self.assertEqual((await self.request('DELETE', '/api/notes/'+row['id'] if note else '/api/calendar/events/'+event_id))[0],204)
 

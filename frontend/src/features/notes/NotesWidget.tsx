@@ -52,8 +52,8 @@ export function NotesWidget({ fullPage = false, initialFilter = 'all', onOpenAll
     finally { if (opening.current.generation === generation) setActionBusy(false); }
   };
   const close = () => { opening.current.generation++; opening.current.controller?.abort(); setIsModalOpen(false); };
-  const saveNote = async (payload: NoteWrite, attempt?: NoteCreateAttempt) => {
-    if (selectedNote) await notesApi.updateNote(selectedNote.id, { ...payload, expected_version: payload.expected_version ?? selectedNote.version });
+  const saveNote = async (payload: NoteWrite, attempt?: NoteCreateAttempt, targetId?: string) => {
+    if (selectedNote) await notesApi.updateNote(targetId ?? selectedNote.id, { ...payload, expected_version: payload.expected_version ?? selectedNote.version });
     else { if (!attempt) throw new Error('Thiếu mã yêu cầu tạo ghi chú.'); await createNoteWithRetry(payload, attempt); }
     refresh();
   };

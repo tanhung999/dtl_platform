@@ -16,7 +16,7 @@ from app.modules.auth.dependencies import get_current_user
 from app.modules.calendar.schemas import EventWrite
 from app.core.datetime_utils import database_utc
 
-from .service import owned, snapshot, apply, response, record_change
+from .service import owned, snapshot, apply, response, record_change, write_response
 from app.modules.notifications.reminder_fields import ReminderFields, reminder_update
 
 router = APIRouter(prefix='/api/schedule-changes', tags=['Rescheduling'])
@@ -82,7 +82,7 @@ async def move(kind: Kind, resource_id: str, payload: Move, user: CurrentUser, d
         previous = await db.get(ScheduleChange, receipt.change_id)
         if previous is None:
             raise HTTPException(410, 'Lần đổi lịch này đã hết thời hạn lưu lịch sử. Yêu cầu cũ không được thực hiện lại.')
-        return response(previous)
+        return await write_response(db, user, previous)
     before, guard = await snapshot(db, row, kind)
     if kind == 'task':
         if payload.expected_version is None or payload.starts_at is not None or payload.ends_at is not None:
@@ -119,14 +119,14 @@ async def move(kind: Kind, resource_id: str, payload: Move, user: CurrentUser, d
             target['recurrence']='NONE'
             await apply(db,user,row,kind,target,guard)
             change=await record_change(db,user,kind,row,before,request_id=str(payload.request_id),fingerprint=fingerprint,reason=payload.reason)
-            return response(change)
+            return await write_response(db, user, change)
         from app.modules.calendar.scopes import move_edited_following
         family=await move_edited_following(db,scoped_event,payload.occurrence_at,target)
         change=await record_change(db,user,kind,row,before,request_id=str(payload.request_id),fingerprint=fingerprint,reason=payload.reason)
         if change is None: raise HTTPException(422,'Hãy thay đổi ngày giờ hoặc thông báo trước khi áp dụng.')
         change.guard={**change.guard,'family':family}
         await db.flush()
-        return response(change)
+        return await write_response(db, user, change)
     if payload.scope != 'ALL':
         if scoped_event is None: raise HTTPException(422, 'Mục này không có chuỗi lặp.')
         if kind == 'task': raise HTTPException(422, 'Công việc không hỗ trợ phạm vi lặp.')
@@ -148,7 +148,7 @@ async def move(kind: Kind, resource_id: str, payload: Move, user: CurrentUser, d
         await db.flush()
         db.add(ScheduleChangeReceipt(owner_id=user.id, request_id=str(payload.request_id), fingerprint=fingerprint, change_id=change.id))
         await db.flush()
-        return response(change)
+        return await write_response(db, user, change)
     if scoped_event is not None:
         from app.db.calendar import CalendarEvent
         from app.db.note_scheduling import NoteCalendarSchedule
@@ -161,10 +161,10 @@ async def move(kind: Kind, resource_id: str, payload: Move, user: CurrentUser, d
             if change is None: raise HTTPException(422,'Hãy thay đổi ngày giờ hoặc thông báo trước khi áp dụng.')
             change.guard = {**change.guard, 'family':family}
             await db.flush()
-            return response(change)
+            return await write_response(db, user, change)
     await apply(db, user, row, kind, target, guard)
     change = await record_change(db, user, kind, row, before, request_id=str(payload.request_id), fingerprint=fingerprint, reason=payload.reason)
-    return response(change)
+    return await write_response(db, user, change)
 
 
 @router.post('/records/{change_id}/undo')
@@ -176,14 +176,14 @@ async def undo(change_id: UUID, user: CurrentUser, db: Database):
     row = await owned(db, user, change.kind, change.resource_id)
     current, guard = await snapshot(db, row, change.kind)
     if change.undone_at is not None:
-        return {**response(change), 'current': current, 'current_guard': guard}
+        return await write_response(db, user, change, current=current, current_guard=guard)
     if change.guard.get('family'):
         from app.modules.calendar.scopes import undo_family
         await undo_family(db,user.id,change.guard['family'])
         change.undone_at=utcnow()
         await db.flush()
         current,guard=await snapshot(db,row,change.kind)
-        return {**response(change),'current':current,'current_guard':guard}
+        return await write_response(db, user, change, current=current, current_guard=guard)
     if change.guard.get('scoped'):
         from app.db.calendar import CalendarEvent
         from app.db.note_scheduling import NoteCalendarSchedule
@@ -196,7 +196,7 @@ async def undo(change_id: UUID, user: CurrentUser, db: Database):
         change.undone_at = utcnow()
         await db.flush()
         current, guard = await snapshot(db, row, change.kind)
-        return {**response(change), 'current':current, 'current_guard':guard}
+        return await write_response(db, user, change, current=current, current_guard=guard)
     expected_after = {'reminder_minutes': None, 'reminder_at': None, **change.after}
     if current != expected_after or guard != change.guard:
         raise HTTPException(409, 'Mục đã được sửa tiếp. Không thể hoàn tác; hãy mở lại bản mới.')
@@ -204,4 +204,4 @@ async def undo(change_id: UUID, user: CurrentUser, db: Database):
     change.undone_at = utcnow()
     await db.flush()
     current, guard = await snapshot(db, row, change.kind)
-    return {**response(change), 'current': current, 'current_guard': guard}
+    return await write_response(db, user, change, current=current, current_guard=guard)

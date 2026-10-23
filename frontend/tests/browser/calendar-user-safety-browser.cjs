@@ -90,9 +90,10 @@ const deferred = () => { let resolve; const promise = new Promise(done => { reso
     await move.getByLabel('Giờ bắt đầu mới', { exact: true }).fill('11:00');
     await move.getByLabel('Giờ kết thúc mới', { exact: true }).fill('12:00');
     await saveTwice(move, '/api/schedule-changes/event/' + event.id, 'POST', 'Đóng dời lịch');
-    assert.ok(await dialog.getByRole('button', { name: 'Xóa', exact: true }).isDisabled());
+    assert.ok(await dialog.getByRole('button', { name: 'Xóa', exact: true }).isEnabled());
+    assert.ok(await dialog.getByRole('button', { name: 'Dời lịch / Thông báo', exact: true }).isEnabled());
     await dialog.getByRole('button', { name: 'Đóng', exact: true }).click();
-    console.log('PASS: scoped move cannot silently switch the existing editor to whole-series deletion.');
+    console.log('PASS: scoped move hands the editor to the updated occurrence and keeps subsequent actions available.');
 
     const next = '2099-10-24';
     await item(event.id, next).click();
