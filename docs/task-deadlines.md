@@ -66,10 +66,9 @@ mới nhất. Gói duy trì kết nối không truy vấn lại dữ liệu. Ti�
 - Hạn cũ “Hôm nay”/“Ngày mai”/“Tuần này” quy về ngày tạo theo UTC+7; giữ nguyên
   nhãn gốc trong `legacy_due_date`. Nhãn không xác định được giữ lại để đặt hạn
   thủ công, không tự đoán. Bản nâng cấp cơ sở dữ liệu chạy lại an toàn, không xóa công việc.
-- `backend/app/db/task_reminders.py`: bảng `task_reminder_receipts` chỉ ghi việc
-  đã xem nhắc hạn; khóa duy nhất công việc/phiên bản/giai đoạn, xóa cùng công việc.
-- `db/migrations/task_reminder_snooze.py` thêm `snoozed_until` vào bảng này,
-  chạy lại an toàn và giữ các lần ẩn nhắc trước đó; không tạo thêm bảng.
+- `task_reminder_receipts` và model nhắc tự động cũ đã được bỏ bởi migration
+  `notifications_003_retire_implicit_receipts`. Lịch sử nhận/ẩn/đọc và nhắc lại hiện
+  nằm trong `notifications`; lịch nhắc do người dùng chọn dùng `notification_jobs`.
 - `backend/app/core/realtime.py` và `modules/realtime/`: phát thông báo và SSE.
 - `frontend/src/features/tasks/`: API, tiện ích, ngữ cảnh dùng chung và biểu mẫu. Phần nhắc hạn ở `features/notifications/`.
 - `frontend/src/features/realtime/`: kết nối SSE và tự kết nối lại.

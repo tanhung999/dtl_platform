@@ -77,3 +77,9 @@ Vùng bấm bộ chọn ngày/giờ: `node tests/browser/picker-hit-area-browser
 Ngày giờ đã lưu chỉ xem: `browser/rescheduling-browser.cjs` kiểm tra Task/Event/Notes khóa trường lịch, Sự kiện khóa cả lựa chọn cả ngày, sửa qua Dời lịch và Hoàn tác cập nhật lại trường bị khóa. `browser/editor-state-browser.cjs` kiểm tra tạo mới và gắn Notes vào lịch lần đầu vẫn chọn được ngày giờ; Task chưa có hạn dùng Dời lịch để đặt lịch. Các trường nhắc hạn được cấu hình riêng.
 
 Giới hạn nhắc hạn: `browser/reminder-limits-browser.cjs` kiểm tra Task được nhắc đúng hạn, Sự kiện/Notes đang diễn ra được nhắc trước khi kết thúc; ngày/giờ vượt giới hạn hiện cảnh báo và không gửi API ghi. Kiểm tra lại khi dời lịch, độ mờ và con trỏ cấm trên toàn bộ ô ngày/giờ bị khóa.
+
+Liên kết nhanh: `browser/bookmark-reliability-browser.cjs` kiểm tra lỗi tải có hiển thị và thử lại, chặn URL script trước API, mất phản hồi rồi thử lại cùng UUID, không nhân đôi thẻ khi realtime và xóa liên kết. `unit/bookmark-url.test.cjs` kiểm tra URL nội bộ, protocol, credentials và độ dài.
+
+Khả năng đọc của theme: `unit/theme-contrast.test.cjs` kiểm tra đủ 9 palette với chữ chính/phụ/gợi ý/liên kết, nút đặc/gradient, cảnh báo và trạng thái lịch. `browser/theme-reading-browser.cjs` kiểm tra chữ thực tế ở Login, Workspace, Profile, Notes đủ 6 màu giấy trong mọi theme.
+
+Thông báo nhập liệu tiếng Việt: `unit/vietnamese-validation.test.cjs` kiểm tra thông báo bắt buộc, email/URL/giới hạn và lỗi schema API. `browser/vietnamese-validation-browser.cjs` chạy trình duyệt en-US, kiểm tra Task/Event/Profile/mật khẩu, ô chỉ có dấu cách, trường tạo động, sửa lại sau lỗi và giữ nguyên lỗi nghiệp vụ ngày/giờ/nhắc hạn. Xử lý native dùng chung nằm ở `services/formValidation.ts`, cài một lần từ `main.tsx`; lỗi có sẵn từ bộ chọn ngày/giờ không bị ghi đè.

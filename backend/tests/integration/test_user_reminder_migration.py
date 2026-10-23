@@ -43,5 +43,6 @@ class ReminderMigrationTests(ApiTestCase):
             async with engine.begin() as conn:
                 await upgrade(conn); await upgrade(conn)
                 self.assertEqual(await conn.scalar(text('SELECT COUNT(*) FROM notification_jobs')),0)
+                self.assertIsNone(await conn.scalar(text("SELECT name FROM sqlite_master WHERE type='table' AND name='task_reminder_receipts'")))
                 self.assertEqual(await conn.scalar(text("SELECT COUNT(*) FROM schema_migrations WHERE version='notifications_002_user_selected_reminders'")),1)
         finally: await engine.dispose()

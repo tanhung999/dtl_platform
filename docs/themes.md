@@ -18,7 +18,7 @@ Bấm thẻ để áp dụng ngay, dấu tick chỉ lựa chọn hiện tại. B
 
 Lựa chọn lưu ở `localStorage.dtl_theme` trên trình duyệt, chưa đồng bộ theo tài khoản hoặc giữa các thiết bị. Giữ tương thích giá trị `light`/`dark` cũ. Không có lựa chọn hợp lệ thì dùng Sáng. Nếu không đọc/ghi được lựa chọn theme, bộ chọn vẫn đổi theme cho phiên hiện tại. Script khởi tạo do Vite sinh vào HTML áp dụng trước khi React hiển thị để hạn chế chớp nền sai khi tải lại.
 
-Nguồn khai báo duy nhất là `frontend/src/theme/catalog.json`: tên, mô tả, icon, chế độ sáng/tối, token chung và màu từng theme. Bộ chọn và preview đọc trực tiếp catalog; Vite sinh CSS token và script khởi tạo trong HTML từ cùng dữ liệu. `src/themes.css` chỉ giữ quy tắc hiệu ứng chung. Không thay màu ghi chú do người dùng chọn hoặc màu mang ý nghĩa ưu tiên/trạng thái. Theme không thay bố cục, không yêu cầu database và không gọi lại API dữ liệu. Hiệu ứng nền dùng CSS và SVG vector nhỏ trong `public/themes/`, không tải ảnh nền lớn; kính mờ áp dụng cho các khung chính và có nền dự phòng. Tôn trọng tùy chọn giảm chuyển động của hệ điều hành.
+Nguồn khai báo duy nhất là `frontend/src/theme/catalog.json`: tên, icon, chế độ sáng/tối, token chung và màu từng theme. Bộ chọn và preview đọc trực tiếp catalog; Vite sinh CSS token và script khởi tạo trong HTML từ cùng dữ liệu. `src/themes.css` chỉ giữ quy tắc hiệu ứng chung. Không thay màu ghi chú do người dùng chọn hoặc màu mang ý nghĩa ưu tiên/trạng thái. Theme không thay bố cục, không yêu cầu database và không gọi lại API dữ liệu. Hiệu ứng nền dùng CSS gradient, không tải ảnh nền lớn; kính mờ áp dụng cho các khung chính và có nền dự phòng. Tôn trọng tùy chọn giảm chuyển động của hệ điều hành.
 
 Kiểm tra TypeScript: `node node_modules/typescript/bin/tsc --noEmit` trong `frontend`. Kiểm tra thực tế: `node tests/browser/theme-picker-browser.cjs`, cần Docker và Playwright như hướng dẫn tại `frontend/tests/README.md`.
 
@@ -38,4 +38,12 @@ Chạy `THEME_PERF=1 node tests/browser/theme-picker-browser.cjs` từ frontend;
 
 Kết quả chẩn đoán ngày 19/10/2026 trên fixture nhẹ: p95 khoảng cách khung hình khoảng 16,8 ms ở cả ba theme, có và không blur. Có vài khung trên 32 ms, nhưng phép đo ngắn này chưa đủ chứng minh lợi ích đáng kể khi bỏ blur; do đó giữ nguyên hiệu ứng. Cần chạy thêm trên phần cứng/GPU yếu và dữ liệu dày nếu có phản ánh giật.
 
-Princess Pink và Fairy Purple giữ màu nền/nhấn/widget/viền theo bảng màu đã chọn. `--accent-text` cho chữ sắc đậm dễ đọc, độc lập với màu nhấn trang trí; bảy theme cũ mặc định dùng lại `--accent`. Họa tiết ở mép nền không nhận thao tác, SVG chỉ hoạt họa độ trong suốt của hai nhóm sao và dừng khi `prefers-reduced-motion: reduce`. Không thay bố cục, màu Notes hay màu trạng thái Lịch.
+## Độ tương phản và khả năng đọc
+
+Cả 9 theme có kiểm tra chữ chính, chữ phụ, gợi ý và liên kết trên nền thẻ, nền phụ, ô nhập và vùng chọn. Mục tiêu cho chữ thông thường là tỷ lệ tương phản tối thiểu 4,5:1. Kiểm tra cả màu nút đặc và từng điểm màu của gradient, cảnh báo/lỗi/thành công và chữ trạng thái lịch. Nút màu sáng của Midnight/Obsidian dùng chữ tối; phần còn lại dùng màu chữ phù hợp với nền nút.
+
+`--accent-text` tách màu chữ liên kết khỏi màu nhấn trang trí. `--error`, `--error-bg`, `--success-text`, `--success-bg`, `--warning-text` và `--status-*-text` cung cấp màu chữ/bề mặt theo mode. Profile và Login không dùng chữ tối cố định trên thẻ tối. Giữ sắc hồng/tím/xanh của từng theme, điều chỉnh sắc độ của chữ và nút để đọc rõ hơn.
+
+Notes có sáu màu giấy sáng độc lập với theme; editor dùng bộ màu chữ/ô nhập sáng riêng, kể cả khi chọn theme tối. Cảnh báo vẫn dùng chữ nâu đậm trên nền giấy, tránh màu vàng sáng chìm vào nền. Không thay màu giấy người dùng đã chọn. Sự kiện đã kết thúc không giảm opacity của cả thẻ làm mờ chữ; viền/chấm và nền xanh lá vẫn phân biệt trạng thái.
+
+Kiểm thử: `tests/unit/theme-contrast.test.cjs` bảo vệ tỷ lệ tương phản màu khai báo; `tests/browser/theme-reading-browser.cjs` kiểm tra màu chữ thực tế ở Login, Workspace, Profile và Notes với cả sáu màu giấy trên đủ chín theme. Các vùng tô gradient được kiểm tra theo từng điểm màu trong unit test; vùng không gradient được tính thêm các lớp nền trong trình duyệt. `theme-picker-browser.cjs` vẫn kiểm tra lưu lựa chọn, bàn phím, màn hình nhỏ và đổi theme không tải lại dữ liệu.

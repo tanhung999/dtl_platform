@@ -280,7 +280,7 @@ body {
 
 .btn-danger-outline {
   background: transparent;
-  color: #ef4444;
+  color: var(--error);
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
@@ -738,9 +738,9 @@ body {
 
 .alert-error {
   padding: 0.65rem 0.85rem;
-  background: rgba(239, 68, 68, 0.12);
+  background: var(--error-bg);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #ef4444;
+  color: var(--error);
   font-size: 0.825rem;
   border-radius: var(--radius-md);
 }
@@ -761,3 +761,5 @@ body {
   gap: 4px;
   transition: background-color 0.25s ease, border-color 0.25s ease;
 }
+
+.form-input::placeholder, .app-date-input input::placeholder, .app-time-input input::placeholder { color:var(--text-muted); opacity:1; }

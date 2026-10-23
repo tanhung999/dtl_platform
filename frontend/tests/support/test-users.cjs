@@ -6,7 +6,6 @@ const createScript = `import asyncio,json,sys
 from app.core.database import async_session_maker
 from app.core.security import hash_password
 from app.db.models import User
-from app.db.task_reminders import TaskReminderReceipt
 async def run():
     accounts=json.load(sys.stdin)
     async with async_session_maker() as session:
@@ -18,7 +17,6 @@ const removeScript = `import asyncio,json,sys
 from sqlalchemy import delete
 from app.core.database import async_session_maker
 from app.db.models import User
-from app.db.task_reminders import TaskReminderReceipt
 async def run():
     accounts=json.load(sys.stdin)
     async with async_session_maker() as session:

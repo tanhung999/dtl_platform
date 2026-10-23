@@ -53,3 +53,17 @@
 .note-delete-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 
 .note-editor-dialog .note-schedule-actions .btn, .note-editor-dialog .reschedule-open { background:var(--bg-card-solid); color:var(--accent-text); border-color:var(--border); }
+
+/* Sticky notes keep a light paper surface in every theme, including dark modes. */
+.note-editor-dialog {
+  --text-main:#1e293b; --text-secondary:#334155; --text-muted:#475569; --text-sub:#475569;
+  --input-bg:#ffffffc9; --input-disabled-bg:#ffffff80; --input-border:#64748b66;
+  --bg-card-solid:#fffdf8; --bg-surface:#ffffff55; --bg-subtle:#ffffff80;
+  --accent-text:#1e40af; --error:#991b1b; --warning-text:#854d0e;
+  color-scheme:light;
+}
+.note-card .note-footer { color:#475569; }
+.note-editor-dialog .btn-danger-outline { color:#991b1b; }
+
+.note-card { --bg-subtle:#ffffff99; }
+.note-editor-dialog input::placeholder, .note-editor-dialog textarea::placeholder { color:var(--text-muted); opacity:1; }

@@ -11,7 +11,7 @@ test('rose, lavender and forest palettes keep readable text and clean background
     return parts[0] * .2126 + parts[1] * .7152 + parts[2] * .0722;
   };
   const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + .05) / (Math.min(luminance(a), luminance(b)) + .05);
-  for (const [id, colors] of Object.entries({ 'princess-pink': ['#FBE2ED', '#E91E73', '#FFFFFF', '#E6B1C9'], 'fairy-purple': ['#E8DDF8', '#7138F5', '#FFFFFF', '#C9B4E8'], ivory: ['#E6EBDD', '#285B42', '#fffefa', '#C3D0B7'] })) {
+  for (const [id, colors] of Object.entries({ 'princess-pink': ['#FBE2ED', '#D71969', '#FFFFFF', '#E6B1C9'], 'fairy-purple': ['#E8DDF8', '#7138F5', '#FFFFFF', '#C9B4E8'], ivory: ['#E6EBDD', '#285B42', '#fffefa', '#C3D0B7'] })) {
     const tokens = catalog.themeTokens(id);
     assert.deepEqual(['--bg-main', '--accent', '--bg-card-solid', '--border'].map(key => tokens[key]), colors);
     const resolve = key => tokens[key].startsWith('var(') ? tokens[tokens[key].slice(4,-1)] : tokens[key];

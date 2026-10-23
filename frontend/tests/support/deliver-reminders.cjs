@@ -7,7 +7,6 @@ from sqlalchemy import event,select,func
 from sqlalchemy.orm import with_loader_criteria
 from app.core.database import async_session_maker
 from app.db.models import User
-from app.db.task_reminders import TaskReminderReceipt
 from app.db.notifications import NotificationJob as Job
 from app.modules.notifications.worker import deliver_batch
 from app.core.realtime import prepare_changes

@@ -6,10 +6,8 @@
 .reminder-custom > div { display:grid; gap:6px; font-size:12px; min-width:0; }
 .reminder-custom .app-date-picker,.reminder-custom .app-time-picker { width:100%; }
 .reminder-fields p { margin:0; font-size:12px; line-height:1.6; color:var(--text-muted); }
-.reminder-fields .reminder-warning { color:#b45309; }
-[data-color-mode="dark"] .reminder-fields .reminder-warning { color:#fcd34d; }
+.reminder-fields .reminder-warning { color:var(--warning-text); }
 .note-schedule-fields > .reminder-fields { display:grid; grid-column:1/-1; margin:0; background:#ffffff55; border-color:#0002; color:#334155; }
-.note-schedule-fields .reminder-fields p { color:#475569; }
 
 .reminder-fields.is-unavailable .reminder-choice,
 .reminder-fields.is-unavailable .reminder-custom { opacity:.55; }
