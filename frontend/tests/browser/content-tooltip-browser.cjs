@@ -1,0 +1,22 @@
+const {chromium}=require('../.browser-tools/node_modules/playwright');
+const {createTestUsers}=require('../support/test-users.cjs');
+const assert=require('node:assert/strict');
+(async()=>{const fixture=createTestUsers(1);let browser;try{
+ browser=await chromium.launch({channel:'msedge',headless:true});const page=await browser.newPage({viewport:{width:1500,height:1050}});
+ await page.route(/fonts\.(googleapis|gstatic)\.com/,route=>route.abort());await page.goto('http://127.0.0.1:5173');
+ await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);await page.getByLabel('Mật khẩu',{exact:true}).fill(fixture.accounts[0].password);await page.getByRole('button',{name:'Đăng nhập hệ thống'}).click();await page.locator('.workspace-home').waitFor();
+ const task=await page.evaluate(async()=>{const response=await fetch('/api/tasks',{method:'POST',headers:{Authorization:'Bearer '+localStorage.getItem('dtl_platform_token'),'Content-Type':'application/json'},body:JSON.stringify({title:'Tooltip timing QA'})});if(!response.ok)throw new Error(await response.text());return response.json();});
+ await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'Công việc',exact:true}).click();
+ const target=page.locator(`[data-task-id="${task.id}"] .task-title-button`);await target.waitFor();
+ await page.clock.install();await page.clock.pauseAt(new Date(Date.now()+100));
+ await target.hover();await page.clock.runFor(249);assert.equal(await page.getByRole('tooltip').count(),0);
+ await page.clock.runFor(1);const tooltip=page.getByRole('tooltip');assert.equal(await tooltip.count(),1);assert.match(await tooltip.innerText(),/Tooltip timing QA/);assert.equal(await target.getAttribute('title'),null);assert.equal(await target.getAttribute('aria-describedby'),await tooltip.getAttribute('id'));
+ const box=await tooltip.boundingBox();assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=1500&&box.y+box.height<=1050);
+ await tooltip.hover();await page.clock.runFor(150);assert.equal(await tooltip.count(),1,'tooltip can be hovered for reading');
+ await page.keyboard.press('Escape');assert.equal(await tooltip.count(),0);assert.equal(await target.getAttribute('aria-describedby'),null);
+ await page.mouse.move(1,1);await target.hover();await page.clock.runFor(100);await page.mouse.move(1,1);await page.clock.runFor(20);await target.hover();await page.clock.runFor(250);assert.equal(await tooltip.count(),1,'returning quickly starts a fresh timer');await page.mouse.move(1,1);await page.clock.runFor(1000);assert.equal(await tooltip.count(),0,'leaving early cancels pending tooltip');
+ await target.hover();await page.clock.runFor(250);assert.equal(await tooltip.count(),1);await page.evaluate(()=>window.dispatchEvent(new Event('scroll')));assert.equal(await tooltip.count(),0,'scroll dismisses tooltip');
+ await page.keyboard.press('Tab');await target.focus();await page.clock.runFor(250);assert.equal(await tooltip.count(),1,'keyboard focus shows tooltip');await page.keyboard.press('Escape');assert.equal(await tooltip.count(),0);
+ await page.mouse.move(1,1);await target.hover();await page.clock.runFor(250);await target.evaluate(el=>el.dataset.tooltip='Updated live tooltip QA');await page.clock.runFor(1);assert.equal(await tooltip.innerText(),'Updated live tooltip QA');await target.evaluate(el=>{window.detachedTooltipTarget=el;el.remove();});await page.clock.runFor(1);assert.equal(await tooltip.count(),0);assert.equal(await page.evaluate(()=>window.detachedTooltipTarget.getAttribute('aria-describedby')),null,'removed targets leave no stale description');
+ console.log('PASS tooltip appears at 250ms, never at 249ms; pointer exit cancels, tooltip stays hoverable, Escape/scroll dismiss and keyboard descriptions work.');
+}finally{if(browser)await browser.close();fixture.cleanup();}})().catch(error=>{console.error(error);process.exitCode=1;});

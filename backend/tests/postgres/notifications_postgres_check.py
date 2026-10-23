@@ -19,6 +19,8 @@ from app.core.config import settings
 from app.core.database import Base
 from app.db.models import User, Task
 from app.db.calendar import CalendarEvent
+from app.db.access import UserRole, CalendarShare
+from app.modules.access.service import seed_catalog
 from app.db.notifications import Notification, NotificationJob
 from app.modules.notifications.scheduling import plan
 from app.modules.notifications.worker import deliver_batch
@@ -38,11 +40,15 @@ async def run():
             await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        owner = str(uuid.uuid4())
+        owner, viewer = str(uuid.uuid4()), str(uuid.uuid4())
         created = datetime(2028, 1, 1, tzinfo=timezone.utc)
         before = datetime(2028, 1, 3, 8, 30, tzinfo=timezone.utc)
         async with sessions() as db:
             db.add(User(id=owner, username='isolated_qa', email='qa@example.com', full_name='QA', password_hash='unused', allowed_apps='workflows'))
+            db.add(User(id=viewer, username='isolated_viewer', email='viewer@example.com', full_name='Viewer', password_hash='unused'))
+            await seed_catalog(db)
+            db.add(UserRole(user_id=owner, role_id='calendar_sharer'))
+            db.add(CalendarShare(owner_id=owner, viewer_id=viewer, share_events=True, share_tasks=True, share_notes=True))
             tasks = [Task(user_id=owner, title='Batch '+str(i), due_date='2028-01-03', due_time='16:00', reminder_minutes=30) for i in range(80)]
             db.add_all(tasks)
             await db.flush()
@@ -69,9 +75,14 @@ async def run():
             await writer.execute(select(User.id).where(User.id == owner).with_for_update())
             assert await asyncio.wait_for(tick(), 2) == 0, 'Skip an owner currently edited; avoid owner/resource FK deadlocks'
             await writer.rollback()
+        async with sessions() as writer:
+            await writer.execute(select(User.id).where(User.id == viewer).with_for_update())
+            assert await asyncio.wait_for(tick(), 2) == 0, 'Retry the whole owner when a viewer is busy; never lose a recipient or deadlock'
+            await writer.rollback()
         await asyncio.gather(tick(), tick(), tick())
         async with sessions() as db:
-            assert await db.scalar(select(func.count()).select_from(Notification)) == 90
+            assert await db.scalar(select(func.count()).select_from(Notification)) == 180
+            assert await db.scalar(select(func.count()).select_from(Notification).where(Notification.user_id == viewer, Notification.calendar_owner_id == owner)) == 90
         secret = 'isolated-notification-test-secret-32-characters'
         payload = json.dumps(dict(external_id='same-message', recipient_user_id=owner, title='Concurrent ingress')).encode()
         timestamp = str(int(time.time()))
@@ -88,7 +99,7 @@ async def run():
             results = await asyncio.gather(*(ingress() for _ in range(20)))
         assert len({result['id'] for result in results}) == 1
         assert sum(not result['duplicate'] for result in results) == 1
-        print(f'PASS: PostgreSQL rollback, 3 concurrent delivery workers, 20 concurrent signed ingestions; 90-job delivery uses {query_count} SQL statements.')
+        print(f'PASS: PostgreSQL rollback, 3 concurrent delivery workers, 20 concurrent signed ingestions; 90-job delivery to owner and viewer uses {query_count} SQL statements.')
     finally:
         await engine.dispose()
         async with admin.begin() as conn:

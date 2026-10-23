@@ -16,6 +16,8 @@ class Notification(Base):
     )
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    # Only shared deliveries carry an owner; NULL preserves existing personal history.
+    calendar_owner_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=True, index=True)
     source = Column(String(20), nullable=False)
     event_key = Column(String(200), nullable=False)
     fingerprint = Column(String(64), nullable=False)
@@ -25,6 +27,7 @@ class Notification(Base):
     resource_type = Column(String(40), nullable=False, default='')
     resource_id = Column(String(128), nullable=False, default='')
     action_path = Column(String(500), nullable=False, default='')
+    note_id = Column(String(36), ForeignKey('notes.id', ondelete='SET NULL'), nullable=True, index=True)
     task_id = Column(String(36), ForeignKey('tasks.id', ondelete='SET NULL'), nullable=True, index=True)
     event_id = Column(String(36), ForeignKey('calendar_events.id', ondelete='SET NULL'), nullable=True, index=True)
     reminder_version = Column(Integer, nullable=True)
@@ -44,6 +47,7 @@ class NotificationJob(Base):
         Index('ix_notification_jobs_retention', 'processed_at', 'id', postgresql_where=text('processed_at IS NOT NULL'), sqlite_where=text('processed_at IS NOT NULL')),
     )
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    note_id = Column(String(36), ForeignKey('notes.id', ondelete='CASCADE'), nullable=True, index=True)
     task_id = Column(String(36), ForeignKey('tasks.id', ondelete='CASCADE'), nullable=True, index=True)
     event_id = Column(String(36), ForeignKey('calendar_events.id', ondelete='CASCADE'), nullable=True, index=True)
     reminder_version = Column(Integer, nullable=True)

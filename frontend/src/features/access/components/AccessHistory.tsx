@@ -5,7 +5,7 @@ const labels:Record<string,string>={sharing_capability_granted:'Cấp quyền ch
 function scope(value:unknown) {
   if(!value||typeof value!=='object')return '';
   const flags=value as Record<string,boolean>;
-  return [flags.share_events?'Sự kiện':'',flags.share_tasks?'Việc cần làm':'',flags.share_notes?'Ghi chú':''].filter(Boolean).join(', ');
+  return [flags.share_events?'Sự kiện':'',flags.share_tasks?'Công việc':'',flags.share_notes?'Ghi chú':''].filter(Boolean).join(', ');
 }
 export function AccessHistory({ targetId, revision }: {targetId?:string;revision:number}) {
   const [cursors,setCursors]=useState<(string|undefined)[]>([undefined]),[index,setIndex]=useState(0),[data,setData]=useState<AuditPage>(),[error,setError]=useState(''),[pending,setPending]=useState(false),[retry,setRetry]=useState(0);

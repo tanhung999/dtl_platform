@@ -66,7 +66,7 @@ export function NotesWidget({ fullPage = false, initialFilter = 'all', onOpenAll
     finally { setActionBusy(false); }
   };
   return <div className={`glass-panel widget-box notes-widget ${fullPage ? 'notes-full-collection' : ''}`}>
-    <div className="widget-header"><div className="widget-title"><FeatureIcon name="notes" /><span>{fullPage ? 'Ghi chú (Notes)' : 'Ghi Chú Nhanh (Notes)'}</span></div>
+    <div className="widget-header"><div className="widget-title"><FeatureIcon name="notes" /><span>{fullPage ? 'Ghi chú' : 'Ghi chú nhanh'}</span></div>
       <button type="button" className="btn btn-secondary btn-sm" title="Tạo ghi chú mới" onClick={() => { if (archived) { setArchived(false); setFilter('all'); setOffset(0); } open(null); }}><Plus size={14} /><span>Thêm</span></button>
     </div>
     {fullPage && <div className="notes-page-tools"><label className="notes-search">Tìm ghi chú<input className="form-input" type="search" placeholder="Tìm theo tiêu đề hoặc nội dung…" value={query} maxLength={200} onChange={event => { setQuery(event.target.value); setOffset(0); }} /></label>

@@ -99,7 +99,7 @@ class CalendarSharingTests(ApiTestCase):
         async with self.sessions() as db:
             mark_changed(db,'alice','calendar'); mark_changed(db,'alice','notes')
             changes=await prepare_changes(db)
-            self.assertEqual(changes['bob'],{'shared-calendar'})
+            self.assertEqual(changes['bob'],{'shared-calendar','notifications'})
 
     async def test_scope_validation_and_interval_limit(self):
         await self.enable()
@@ -176,7 +176,7 @@ class CalendarSharingTests(ApiTestCase):
         await self.enable();row=await self.share()
         async with self.sessions() as db:
             mark_changed(db,'alice','tasks');self.assertNotIn('bob',await prepare_changes(db))
-            mark_changed(db,'alice','calendar-privacy');self.assertEqual((await prepare_changes(db))['bob'],{'shared-calendar','calendar-sharing'})
+            mark_changed(db,'alice','calendar-privacy');self.assertEqual((await prepare_changes(db))['bob'],{'shared-calendar','calendar-sharing','notifications'})
         await self.request('DELETE','/api/calendar-sharing/mine/bob',query={'expected_version':row['version'],'expected_id':row['id']})
         async with self.sessions() as db:
             mark_changed(db,'alice','calendar');self.assertNotIn('bob',await prepare_changes(db))

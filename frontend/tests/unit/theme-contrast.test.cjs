@@ -47,3 +47,14 @@ test('error, success, warning and event status text remain readable in both mode
   }
  }
 });
+
+test('themed note actions remain readable on every light paper color',()=>{
+ for(const [id,theme]of Object.entries(catalog.themes)){
+  const color=colors(theme);
+  assert.ok(ratio(color('--note-pin-color'),rgba('#ffffff'))>=4.5,id+' pin button');
+  for(const paper of ['#fef08a','#bbf7d0','#bfdbfe','#fbcfe8','#e9d5ff','#ffffff']){
+   const surface=over([1,1,1,.75],rgba(paper));
+   assert.ok(ratio(color('--accent-on-paper'),surface)>=4.5,id+' note action on '+paper);
+  }
+ }
+});

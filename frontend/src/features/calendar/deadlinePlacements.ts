@@ -3,7 +3,7 @@ import { CalendarEvent } from './types';
 import { arrangeTimedLanes, dateKey, timedPlacements } from './dateUtils';
 
 export const DEADLINE_MARKER_HEIGHT = 24;
-interface Position { start: number; end: number; lane: number; lanes: number; minimumHeight?: number; }
+interface Position { start: number; end: number; lane: number; lanes: number; laneSpan?: number; minimumHeight?: number; }
 export type WeekTimedItem = Position & ({ kind: 'event'; event: CalendarEvent } | { kind: 'deadline'; task: Task });
 
 export function weekTimedPlacements(events: CalendarEvent[], tasks: Task[], date: Date, startMinute = 0): WeekTimedItem[] {

@@ -1,8 +1,9 @@
+import { PrioritySelect } from './PrioritySelect';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Trash2, X } from 'lucide-react';
-import { Task, TaskPriority } from '../../../types';
+import { Task } from '../../../types';
 import { TaskInput } from '../types';
-import { PRIORITY_LABELS } from '../deadlineUtils';
+
 import { DatePicker } from '../../../components/date-time/DatePicker';
 import { TimePicker } from '../../../components/date-time/TimePicker';
 import { ApiError } from '../../../services/api';
@@ -73,7 +74,7 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
       <header className="task-dialog-header"><h2 id="task-dialog-title">Chi tiết công việc</h2><button type="button" className="task-icon-button" aria-label="Đóng công việc" onClick={onClose}><X size={18} /></button></header>
       <fieldset disabled={busy} className="task-dialog-fields">
         <label>Tên công việc<input className="form-input" value={title} required maxLength={255} autoFocus onChange={e => setTitle(e.target.value)} /></label>
-        <label>Ưu tiên<select className="form-input" value={priority} onChange={e => setPriority(e.target.value as TaskPriority)}>{Object.entries(PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <div className="task-priority-field"><span>Ưu tiên</span><PrioritySelect label="Ưu tiên" value={priority} disabled={busy} onChange={setPriority} /></div>
         <div className="task-form-row"><div className="task-date-field"><span>Ngày đến hạn</span><DatePicker label="Ngày đến hạn" value={dueDate} disabled onChange={setDueDate} /></div><div className="task-date-field"><span>Giờ đến hạn</span><TimePicker label="Giờ đến hạn" value={dueTime} disabled onChange={setDueTime} /></div></div>
         <RescheduleControl kind="task" id={task.id} title={task.title} current={{ ...savedDeadline, ...savedReminder }} version={version} disabled={busy} onMoved={change => {
           setReminder(reminderValue(change.after)); setSavedReminder(reminderValue(change.after));
@@ -83,7 +84,7 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
         }}/>
         <label>Mô tả công việc<textarea className="form-input" rows={3} maxLength={10000} value={description} onChange={e => setDescription(e.target.value)} /></label>
         <PrivacyToggle label="Công việc riêng tư" value={isPrivate} onChange={setIsPrivate} />
-        <ReminderFields value={reminder} onChange={setReminder} anchor={dueDate || dueTime ? toTimestamp(parseDate(dueDate || dateKey(eventDate(task.created_at))), dueTime || '00:00') : null} allDay={!dueTime} disabled={busy} />
+        <ReminderFields allowUnscheduled value={reminder} onChange={setReminder} anchor={dueDate || dueTime ? toTimestamp(parseDate(dueDate || dateKey(eventDate(task.created_at))), dueTime || '00:00') : null} allDay={!dueTime} disabled={busy} />
       </fieldset>
       {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
       {error && <p className="alert-error task-dialog-error" role="alert">{error}</p>}

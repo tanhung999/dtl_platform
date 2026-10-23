@@ -159,3 +159,12 @@ Từ `backend`: `python -m unittest tests.integration.test_notification_api_acce
 Kiểm tra ba ứng dụng, HMAC, hết hạn, gia hạn không mở rộng phiên/quyền, giới hạn token, khóa/thu hồi quyền, cô lập tài khoản, số truy vấn cố định, phân trang và trạng thái chung. Không có migration hay database mới. Module phía Platform đã sẵn sàng; cần tích hợp callback SSO, proxy backend và chuông tại ba source ứng dụng con để hiển thị tại đó.
 
 Chạy lại 9 ca trên PostgreSQL: `docker compose exec -T -e PYTHONPATH=/app platform-backend python tests/postgres/notification_api_check.py`. Kịch bản tạo schema UUID riêng cho từng ca và tự dọn, không sửa dữ liệu người dùng.
+
+
+### Nhắc hạn từ lịch được chia sẻ
+
+Các API GET/PATCH vẫn giữ nguyên URL. Danh sách và summary tự áp dụng quyền chia sẻ lịch của tài khoản đăng nhập, gồm phạm vi Task/Notes/sự kiện và trạng thái riêng tư hiện tại. Thông báo chia sẻ mất quyền sẽ bị loại khỏi cả danh sách, nhóm đã ẩn và số chưa đọc; không giữ nội dung như lịch sử nguồn ứng dụng doanh nghiệp.
+
+Mỗi item có thêm `calendar_owner_id` (null với mục của chính mình/nguồn doanh nghiệp) và `ownership_label` (null để không vẽ nhãn, hoặc `Của bạn`, `Của [chức danh]`; thiếu chức danh dùng họ tên). Ứng dụng con nên dùng `ownership_label` cho nguồn `platform`, không tự gán chữ Cá nhân. Summary có `has_shared_calendars` cho biết tài khoản có lịch nhận chia sẻ đang còn hiệu lực. Mở nhắc được chia sẻ trả `calendar_owner_id` từ `/destination`, để điều hướng sang lịch chỉ xem; không mở form chỉnh sửa tài nguyên của người khác.
+
+Việc đọc/ẩn trong ba ứng dụng và Platform vẫn đồng bộ **trong cùng tài khoản**. Chủ lịch và người nhận chia sẻ có trạng thái đọc/ẩn riêng. Migration của tính năng này được ghi tại [notifications.md](notifications.md#nhắc-hạn-từ-lịch-được-chia-sẻ).

@@ -45,14 +45,15 @@ async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db:
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=timezone.utc)
         date_value = data["due_date"] = created_at.astimezone(VN).date().isoformat()
-    if not date_value:
-        data.update(reminder_minutes=None, reminder_at=None)
+    if not date_value and task.due_date and 'reminder_minutes' not in payload.model_fields_set:
+        data['reminder_minutes'] = None  # An absolute reminder survives clearing the deadline.
     data = {key: value for key, value in data.items()
             if ((task.description or '') != (value or '') if key == 'description' else getattr(task, key) != value)}
     if not data:
         return task
     if (date_value, time_value) != (task.due_date, task.due_time):
         task.deadline_version += 1
+        task.legacy_due_date = None
     for key, value in data.items():
         setattr(task, key, value)
     task.version += 1

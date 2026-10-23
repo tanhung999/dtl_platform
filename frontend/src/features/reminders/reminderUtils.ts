@@ -18,14 +18,28 @@ export function reminderCutoff(anchor: string | null | undefined, allDay: boolea
 }
 
 export function reminderAvailable(anchor: string | null | undefined, allDay: boolean, now: number, endsAt?: string | null): boolean {
+  if (!anchor && !endsAt) return true; // Absolute reminders need no deadline.
   const cutoff = reminderCutoff(anchor, allDay, endsAt);
-  return cutoff !== null && cutoff > now;
+  return cutoff !== null && Number.isFinite(now); // Elapsed items still allow a future absolute reminder.
 }
 
 // Appointments must remind strictly before the end; timed tasks allow the exact deadline.
-export function reminderBeyondLimit(stamp: string | null | undefined, anchor: string | null | undefined, allDay: boolean, endsAt?: string | null): boolean {
+export function reminderBeyondLimit(stamp: string | null | undefined, anchor: string | null | undefined, allDay: boolean, endsAt?: string | null, now = Date.now()): boolean {
   const cutoff = reminderCutoff(anchor, allDay, endsAt);
-  if (!stamp || cutoff === null) return false;
+  if (!stamp || cutoff === null || cutoff <= now) return false;
   const time = Date.parse(stamp);
   return time > cutoff || (!!endsAt || allDay) && time === cutoff;
+}
+
+
+// Date/time controls accept whole minutes. Never suggest a past minute when an
+// exclusive appointment end leaves less than one selectable minute remaining.
+export function nextReminderMinute(preferred: number, now: number, cutoff: number | null, exclusive: boolean): number | null {
+  if (!Number.isFinite(preferred) || !Number.isFinite(now)) return null;
+  const minute = 60000;
+  const earliest = Math.floor(now / minute) * minute + minute;
+  const latest = cutoff === null || cutoff <= now ? Infinity
+    : (exclusive ? Math.ceil(cutoff / minute) - 1 : Math.floor(cutoff / minute)) * minute;
+  if (latest < earliest) return null;
+  return Math.min(latest, Math.max(earliest, Math.ceil(preferred / minute) * minute));
 }

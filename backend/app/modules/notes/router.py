@@ -101,6 +101,10 @@ async def delete_note(
         mark_changed(db, user.id, 'calendar-privacy')
     await db.execute(delete(NoteCalendarSchedule).where(NoteCalendarSchedule.note_id == note.id))
     await db.execute(update(NoteCreateRequest).where(NoteCreateRequest.note_id == note.id).values(note_id=None))
+    from app.db.notifications import NotificationJob, Notification
+    await db.execute(delete(NotificationJob).where(NotificationJob.note_id == note.id))
+    await db.execute(update(Notification).where(Notification.note_id == note.id).values(note_id=None))
+    mark_changed(db, user.id, 'notifications')
     await db.delete(note)
     mark_changed(db, user.id, "notes")
     mark_changed(db, user.id, "calendar")

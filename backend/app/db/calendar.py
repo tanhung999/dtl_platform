@@ -2,13 +2,13 @@
 
 import uuid
 
-from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, Text, select
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, Text, select, event, inspect
 
 from app.db.types import UTCDateTime
 from app.core.database import Base
 from app.db.models import utcnow
 from app.db.note_scheduling import NoteCalendarSchedule
-from sqlalchemy.orm import column_property
+from sqlalchemy.orm import column_property, deferred
 
 
 class CalendarEvent(Base):
@@ -27,6 +27,7 @@ class CalendarEvent(Base):
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=False, default="")
+    search_text = deferred(Column(Text, nullable=False, default="", server_default=""))
     location = Column(String(255), nullable=False, default="")
     starts_at = Column(UTCDateTime(), nullable=False)
     ends_at = Column(UTCDateTime(), nullable=False)
@@ -38,3 +39,12 @@ class CalendarEvent(Base):
     reminder_version = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(UTCDateTime(), nullable=False, default=utcnow)
     updated_at = Column(UTCDateTime(), nullable=False, default=utcnow, onupdate=utcnow)
+
+
+@event.listens_for(CalendarEvent, "before_insert")
+@event.listens_for(CalendarEvent, "before_update")
+def event_search_text(mapper, connection, item):
+    from app.core.text_search import fold_text
+    state = inspect(item)
+    if state.pending or any(state.attrs[key].history.has_changes() for key in ("title", "description", "location")):
+        item.search_text = fold_text(f"{item.title or ''}\n{item.description or ''}\n{item.location or ''}")

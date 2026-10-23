@@ -39,7 +39,7 @@ const assert = require('node:assert/strict');
   await editor.getByRole('button',{name:'Lưu trữ',exact:true}).click(); await editor.waitFor({state:'hidden'});
   const archived=await page.evaluate(async id=>(await fetch('/api/notes/'+id,{headers:{Authorization:'Bearer '+localStorage.getItem('dtl_platform_token')}})).json(),note.id);
   assert.equal(archived.is_archived,true); assert.match(archived.calendar_schedule.starts_at,/T04:00:00/);
-  await checkbox('Hiện ghi chú').uncheck(); await checkbox('Hiện việc cần làm').uncheck();
+  await checkbox('Hiện ghi chú').uncheck(); await checkbox('Hiện công việc').uncheck();
   await page.waitForFunction(()=>!document.querySelector('.calendar-view-content button[data-event-id]')&&!document.querySelector('.calendar-mini-day-dot'));
   const allDayNote=await api('notes',{title:'Ghi chú cả ngày riêng',calendar_schedule:{starts_at:'2026-10-18T00:00:00+07:00',ends_at:'2026-10-19T00:00:00+07:00',is_all_day:true}});
   await page.getByRole('button',{name:'Workspace',exact:true}).click();

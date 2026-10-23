@@ -24,6 +24,7 @@ export interface AuthSession {
 }
 
 export interface Note {
+  reminder_at?: string | null;
   is_private: boolean;
   calendar_schedule?: import("../features/note-scheduling/types").NoteSchedule | null;
   version: number;
@@ -72,7 +73,5 @@ export interface SubAppInfo {
   shortName: string;
   description: string;
   category: string;
-  badge?: string;
-  themeColor: string;
   iconUrl: string;
 }

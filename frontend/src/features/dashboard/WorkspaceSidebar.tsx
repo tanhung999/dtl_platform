@@ -1,0 +1,28 @@
+import { Bookmark, CalendarDays, CheckSquare, ChevronLeft, ChevronRight, Home, LayoutGrid, ShieldCheck, StickyNote, UserRound } from 'lucide-react';
+import { WorkspacePage } from './navigation';
+
+const items = [
+  { page: 'dashboard', label: 'Trang chủ', icon: Home },
+  { page: 'apps', label: 'Ứng dụng', icon: LayoutGrid },
+  { page: 'calendar', label: 'Lịch', icon: CalendarDays },
+  { page: 'tasks', label: 'Công việc', icon: CheckSquare },
+  { page: 'notes', label: 'Ghi chú', icon: StickyNote },
+  { page: 'bookmarks', label: 'Liên kết nhanh', icon: Bookmark },
+  { page: 'profile', label: 'Hồ sơ', icon: UserRound },
+] as const;
+
+export function WorkspaceSidebar({ page, onNavigate, canManage, collapsed, onToggle }: {
+  page: WorkspacePage; onNavigate: (page: WorkspacePage) => void; canManage: boolean; collapsed: boolean; onToggle: () => void;
+}) {
+  return <aside className="workspace-sidebar" aria-label="Thanh điều hướng">
+    <nav aria-label="Điều hướng chính">
+      {items.map(item => <button key={item.page} type="button" className={`workspace-nav-item${page === item.page ? ' is-active' : ''}`} aria-current={page === item.page ? 'page' : undefined}
+        title={item.label} onClick={() => onNavigate(item.page)}><item.icon size={21} /><span>{item.label}</span></button>)}
+      {canManage && <button type="button" className={`workspace-nav-item${page === 'admin' ? ' is-active' : ''}`} aria-current={page === 'admin' ? 'page' : undefined}
+        title="Quản trị" onClick={() => onNavigate('admin')}><ShieldCheck size={21} /><span>Quản trị</span></button>}
+    </nav>
+    <button type="button" className="workspace-collapse" onClick={onToggle} aria-label={collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'} aria-expanded={!collapsed}>
+      {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}<span>{collapsed ? 'Mở rộng' : 'Thu gọn'}</span>
+    </button>
+  </aside>;
+}

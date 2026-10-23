@@ -1,6 +1,6 @@
 # Gỡ chức năng kéo thả
 
-Workspace dùng ba cột cố định: Ứng dụng và Bookmarks bên trái, To-Do ở giữa, Lịch phía trên Notes bên phải. Trên điện thoại, các cột xếp dọc. Notes hiển thị ghim trước, sau đó ngày tạo mới nhất và ID để ổn định phân trang. Đổi ghim bằng nút ghim, đổi ngày giờ bằng biểu mẫu.
+Trang chủ dùng bố cục cố định: banner, ứng dụng doanh nghiệp, truy cập nhanh và liên kết nhanh bên trái; lịch cá nhân bên phải. Công việc và ghi chú mở ở trang riêng qua sidebar hoặc ô truy cập nhanh, không có danh sách xem trước trên trang chủ. Trên điện thoại, các phần xếp dọc. Notes hiển thị ghim trước, sau đó ngày tạo mới nhất và ID để ổn định phân trang. Đổi ghim bằng nút ghim, đổi ngày giờ bằng biểu mẫu.
 
 Đã gỡ toàn bộ dnd-kit, provider, tay cầm, vùng thả, ghost, co giãn sự kiện, cuộn/chuyển tuần khi kéo, thông báo/hoàn tác kéo thả và API lưu thứ tự/bố cục. API PATCH lịch `/api/calendar/events/{id}/schedule` chỉ phục vụ kéo thả đã bỏ; lưu biểu mẫu vẫn dùng PUT có kiểm tra phiên bản. API nhắc hạn `/api/tasks/reminders/schedule` là chức năng khác và không bị xóa.
 

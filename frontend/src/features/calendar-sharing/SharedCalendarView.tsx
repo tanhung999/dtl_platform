@@ -41,7 +41,7 @@ export function SharedCalendarView({ share, revision, accessEpoch, accessPending
     <div className="calendar-page-heading"><div className="calendar-page-heading-icon"><Eye size={25}/></div><div><h1>Lịch của {share.name}</h1><p>Chỉ xem · Giờ Việt Nam (UTC+7)</p></div></div>
     <div className="calendar-shell"><aside className="calendar-sidebar">{navigation}
       <div className="sharing-readonly-info"><Eye size={18}/><p>Bạn chỉ xem các mục được chia sẻ. Sự kiện, công việc và ghi chú riêng tư được ẩn hoàn toàn.</p></div>
-      <div className="sharing-scope-chips">{share.share_events&&<span>Sự kiện</span>}{share.share_tasks&&<span>Việc cần làm</span>}{share.share_notes&&<span>Ghi chú</span>}</div>
+      <div className="sharing-scope-chips">{share.share_events&&<span>Sự kiện</span>}{share.share_tasks&&<span>Công việc</span>}{share.share_notes&&<span>Ghi chú</span>}</div>
       {(share.share_events||share.share_notes)&&<div className="calendar-event-legend-section"><h4>Trạng thái sự kiện và ghi chú</h4><EventStatusLegend/></div>}
     </aside><section className="calendar-main" aria-label={`Lịch được chia sẻ của ${share.name}`}>
       <div className="calendar-toolbar"><div className="calendar-toolbar-navigation"><button type="button" className="btn btn-outline btn-sm" disabled={current} onClick={()=>setAnchor(today())}>Hôm nay</button><button type="button" className="calendar-icon-button" aria-label="Khoảng trước" onClick={()=>move(-1)}><ChevronLeft size={19}/></button><button type="button" className="calendar-icon-button" aria-label="Khoảng sau" onClick={()=>move(1)}><ChevronRight size={19}/></button><h2>{view==='month'?formatDate(anchor,{month:'long',year:'numeric'}):`${formatDate(range.start)} – ${formatDate(addDays(range.end,-1))}`}</h2></div>

@@ -40,9 +40,9 @@ vẫn tạo/sửa/xóa độc lập.
   chưa xong quá hạn hoặc Gấp, xanh khi bình thường. Dữ liệu sự kiện lấy theo
   tuần, danh sách lọc ngày đang chọn. Nhắc hạn chỉ tổng hợp hôm nay/ngày mai
   ở tiêu đề; số quá hạn giữ trong nhãn dẫn tới To-Do để tránh lặp thông tin.
-- Nhãn ưu tiên có ký hiệu ngoài màu: ⚑ Gấp, ▲ Cao, ● Vừa, ▼ Thấp. Gấp dùng nền
+- Nhãn ưu tiên có ký hiệu ngoài màu: Gấp (tam giác cảnh báo có dấu chấm than màu đỏ), Trung bình (chấm tròn màu cam), Thấp (tam giác xuống màu xanh dương). Gấp dùng nền
   đỏ đậm chữ trắng để phân biệt trạng thái quá hạn nền hồng/viền đỏ. Chế độ sáng/tối
-  có bảng màu riêng; Vừa dùng chữ nâu vàng ở chế độ sáng. Việc đã xong dùng nhãn
+  có bảng màu riêng; Trung bình dùng chữ nâu cam ở chế độ sáng. Việc đã xong dùng nhãn
   trung tính với độ đậm 0.85, không làm mờ cả dòng để giữ khả năng đọc.
 - Nhắc hạn hiện thuộc mô-đun Thông báo, mở từ biểu tượng chuông; không còn khung nhắc hạn riêng trên trang. Máy chủ tạo thông báo lúc 08:00 ngày trước và ngày hạn; nếu hạn trước 08:30 thì nhắc trước hạn 30 phút. Có thêm thông báo khi quá hạn.
 - Thông báo lưu theo tài khoản; đóng thẻ trình duyệt hoặc tắt máy vẫn nhận được nếu máy chủ đang chạy. Đọc/ẩn thông báo không đánh dấu hoàn thành. Có thể nhắc lại sau một giờ nếu trước hạn còn hơn một giờ.

@@ -20,10 +20,16 @@ async def update_note_service(note_id: str, payload: NoteUpdate, user: User, db:
 
     if payload.expected_version != note.version:
         raise HTTPException(409, "Ghi chú đã được cập nhật ở nơi khác. Bản nháp của bạn vẫn được giữ.")
+    from .reminders import validate_standalone, sync_note_reminder
+    from app.modules.notifications.scheduling import signature
+    validate_standalone(payload)
+    reminder_before = signature(note, 'note')
+    if payload.reminder_at is not None and await db.get(NoteCalendarSchedule, note.id):
+        raise HTTPException(422, 'Ghi chú đã gắn lịch: hãy đặt nhắc hạn trong phần lịch hẹn.')
     before = None
     was_archived = note.is_archived
-    update_data = payload.model_dump(exclude_unset=True, exclude={"expected_version", "calendar_schedule"})
-    if any(value is None for value in update_data.values()):
+    update_data = payload.model_dump(exclude_unset=True, exclude={"expected_version", "calendar_schedule", "reminder_minutes"})
+    if any(value is None for key, value in update_data.items() if key != 'reminder_at'):
         raise HTTPException(422, "Thông tin ghi chú không được để null.")
     from app.modules.access.privacy import require_privacy_change
     private_changed = 'is_private' in update_data and update_data['is_private'] != note.is_private
@@ -49,6 +55,7 @@ async def update_note_service(note_id: str, payload: NoteUpdate, user: User, db:
         await db.execute(update(CalendarEvent).where(CalendarEvent.id.in_(event_id), CalendarEvent.user_id == user.id)
             .values(title=note.title or 'Ghi chú không có tiêu đề', updated_at=utcnow()))
     note.is_archived = target_archived
+    await sync_note_reminder(db, note, before=reminder_before, allow_elapsed=allow_elapsed or (was_archived != target_archived and signature(note, 'note')[:2] == reminder_before[:2]))
     if was_archived != target_archived:
         from app.modules.notifications.scheduling import signature, sync_event_jobs
         event = await db.scalar(select(CalendarEvent).join(NoteCalendarSchedule, NoteCalendarSchedule.event_id == CalendarEvent.id)
@@ -65,7 +72,7 @@ async def update_note_service(note_id: str, payload: NoteUpdate, user: User, db:
     await db.flush()
     mark_changed(db, user.id, "notes")
     mark_changed(db, user.id, "calendar")
-    if schedule_changed:
+    if schedule_changed or signature(note, 'note') != reminder_before:
         mark_changed(db, user.id, "notifications")
     if record_history and before is not None:
         from app.modules.rescheduling.service import record_change

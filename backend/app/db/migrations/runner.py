@@ -156,6 +156,36 @@ async def upgrade(conn):
         await migrate_retire_reminder_receipts(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
+    version = 'notifications_004_shared_calendar_reminders'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .shared_notifications import migrate_shared_notifications
+        await migrate_shared_notifications(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'notifications_005_standalone_note_reminders'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .standalone_reminders import migrate_standalone_reminders
+        await migrate_standalone_reminders(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'calendar_002_server_search'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .event_search import migrate_event_search
+        await migrate_event_search(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'tasks_003_three_priority_levels'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .task_priorities import migrate_task_priorities
+        await migrate_task_priorities(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'tasks_004_resolved_legacy_dates'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .resolved_legacy_dates import migrate_resolved_legacy_dates
+        await migrate_resolved_legacy_dates(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
 async def run():
     try:
         async with engine.begin() as conn:

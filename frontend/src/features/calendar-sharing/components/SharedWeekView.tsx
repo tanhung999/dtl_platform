@@ -1,4 +1,5 @@
 import { CSSProperties, useLayoutEffect, useRef } from 'react';
+import { EventContinuationMarker } from '../../calendar/components/EventContinuationMarker';
 import { CalendarItemTitle } from '../../calendar/components/CalendarItemTitle';
 import { allDayPlacements } from '../../calendar/allDayPlacements';
 import { DEADLINE_MARKER_HEIGHT, weekTimedPlacements } from '../../calendar/deadlinePlacements';
@@ -23,7 +24,7 @@ export function SharedWeekView({ anchor, items, now, showEarlyHours, onSelect, o
   useLayoutEffect(() => { if (scroll.current) scroll.current.scrollTop = showEarlyHours ? 0 : 120; }, [weekKey, showEarlyHours]);
   return <div className="calendar-week-scroll shared-week-scroll" ref={scroll}><div className="calendar-week">
     <div className="calendar-week-header"><span className="calendar-zone">GMT+7</span>{days.map((day, index) => <div className={`calendar-week-day ${dateKey(day) === todayKey ? 'is-today' : ''}`} key={dateKey(day)}><span>{WEEKDAYS[index]}</span><button type="button" aria-label={`Xem ngày ${formatDate(day)}`} onClick={() => onShowDay(day)}>{day.getUTCDate()}</button></div>)}</div>
-    <div className="calendar-week-all-day shared-week-all-day" style={{ gridTemplateRows: `repeat(${rows}, 32px) 26px`, rowGap:4 }}>
+    <div className="calendar-week-all-day shared-week-all-day" style={{ gridTemplateRows: `repeat(${rows}, 36px) 26px`, rowGap:4 }}>
       <span className="calendar-zone" style={{ gridColumn:1, gridRow:`1 / span ${rows+1}` }}>Cả ngày</span>
       {days.map((day, index) => <div key={dateKey(day)} className={`calendar-all-day-background ${dateKey(day) === todayKey ? 'is-today' : ''}`} style={{ gridColumn:index+2, gridRow:`1 / span ${rows+1}` }} />)}
       {allDay.filter(item => item.lane<4).map(placement => {
@@ -32,9 +33,9 @@ export function SharedWeekView({ anchor, items, now, showEarlyHours, onSelect, o
         const event=placement.event, item=lookup.get(event.id)!, covered=days.slice(placement.start, placement.end+1);
         const before=Date.parse(event.starts_at)<Date.parse(toTimestamp(weekStart)), after=Date.parse(event.ends_at)>Date.parse(toTimestamp(addDays(weekStart,7)));
         return <div key={event.id} className="calendar-all-day-event-frame shared-all-day-frame" style={style}><button type="button" data-shared-id={item.id} data-shared-kind={item.kind}
-          className={`calendar-event is-compact calendar-all-day-span shared-calendar-item ${item.kind === 'note' ? 'is-note' : ''}`} title={sharedItemTooltip(item, now)} onClick={() => onSelect(item)} style={{ '--event-color':eventStatus(event,now,dateKey(covered[0])).color } as CSSProperties}>
+          className={`calendar-event is-compact calendar-all-day-span shared-calendar-item ${item.kind === 'note' ? 'is-note' : ''}`} data-tooltip={sharedItemTooltip(item, now)} onClick={() => onSelect(item)} style={{ '--event-color':eventStatus(event,now,dateKey(covered[0])).color } as CSSProperties}>
           <span className="calendar-all-day-segments" aria-hidden="true">{covered.map(day => <span key={dateKey(day)} style={{ '--event-color':eventStatus(event,now,dateKey(day)).color } as CSSProperties} />)}</span>
-          {before && <span className="calendar-all-day-continuation" aria-label="Tiếp tục từ tuần trước">◂</span>}<span className="calendar-event-title"><CalendarItemTitle event={event} /></span><span className="calendar-event-time">Cả ngày</span>{after && <span className="calendar-all-day-continuation" aria-label="Tiếp tục sang tuần sau">▸</span>}
+          {before && <EventContinuationMarker inline direction="start" label="Tiếp tục từ tuần trước" />}<span className="calendar-all-day-content"><span className="calendar-event-title"><CalendarItemTitle event={event} /></span><span className="calendar-event-time">Cả ngày</span></span>{after && <EventContinuationMarker inline direction="end" label="Tiếp tục sang tuần sau" />}
         </button></div>;
       })}
       {days.map((day,index) => { const extra=allDay.filter(item=>item.lane>=4 && item.start<=index && item.end>=index).length;
@@ -48,7 +49,7 @@ export function SharedWeekView({ anchor, items, now, showEarlyHours, onSelect, o
         {weekTimedPlacements(events,tasks,day,startMinute).map(placement=>{
           const item=lookup.get(placement.kind==='event'?placement.event.id:placement.task.id)!;
           return <SharedItemCard key={item.id} item={item} day={dateKey(day)} now={now} onSelect={onSelect} startMinute={startMinute}
-            style={{position:'absolute',top:placement.start-startMinute,height:placement.kind==='deadline'?DEADLINE_MARKER_HEIGHT:Math.max(48,placement.end-placement.start),left:`calc(${placement.lane/placement.lanes*100}% + 2px)`,width:`calc(${100/placement.lanes}% - 4px)`}} />;
+            style={{position:'absolute',top:placement.start-startMinute,height:placement.kind==='deadline'?DEADLINE_MARKER_HEIGHT:Math.max(48,placement.end-placement.start),left:`calc(${placement.lane/placement.lanes*100}% + 2px)`,width:`calc(${100*(placement.laneSpan ?? 1)/placement.lanes}% - 4px)`}} />;
         })}
         {dateKey(day)===todayKey && currentMinute>=startMinute && <div className="calendar-now-line" style={{top:currentMinute-startMinute}}><span /></div>}
       </div>)}

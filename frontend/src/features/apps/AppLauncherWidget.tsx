@@ -1,7 +1,7 @@
 import { appsApi } from './api';
 import { featureIcons } from '../../assets/featureIcons';
-import React, { useState } from 'react';
-import { ExternalLink, Loader2, Sparkles } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ArrowUpRight, ExternalLink, LayoutGrid, Loader2 } from 'lucide-react';
 
 import { SubAppInfo } from '../../types';
 
@@ -12,109 +12,63 @@ const APPS: SubAppInfo[] = [
     shortName: 'Báo cáo Thu nhập & Bán hàng',
     description: 'Báo cáo thu nhập, doanh số bán hàng, bảng tính hoa hồng và theo dõi giỏ hàng bất động sản.',
     category: 'Tài Chính & Kinh Doanh',
-    // badge: 'FastAPI + React',
-    themeColor: '#eff6ff',
     iconUrl: featureIcons.income,
   },
   {
     id: 'workflows',
     name: 'Workflows',
-    shortName: 'Hệ thống Trình ký',
+    shortName: 'Hệ thống trình ký',
     description: 'Theo dõi luồng xử lý hồ sơ, phê duyệt chứng từ.',
     category: 'Vận Hành',
-    // badge: 'FastAPI + AntD',
-    themeColor: '#f5f3ff',
     iconUrl: featureIcons.workflow,
   },
   {
     id: 'itam',
     name: 'Asset Manager',
     shortName: 'Quản lý Tài sản',
-    description: 'Quản lý cấp phát thiết bị IT, tài sản hành chính, kiểm kê kho và thủ tục nhân sự onboarding.',
+    description: 'Quản lý cấp phát thiết bị IT, tài sản hành chính, kiểm kê kho và thủ tục tiếp nhận nhân sự.',
     category: 'Hành Chính & IT',
-    // badge: 'Flask + Vue 3',
-    themeColor: '#ecfdf5',
     iconUrl: featureIcons.assets,
   },
 ];
 
-export const AppLauncherWidget: React.FC = () => {
+export function AppLauncherWidget({ allowedApps, resultIds, detailed = false, onOpenAll }: {
+  allowedApps: string; resultIds?: string[]; detailed?: boolean; onOpenAll?: () => void;
+}) {
   const [launchingApp, setLaunchingApp] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
+  const launching = useRef(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [readyLink, setReadyLink] = useState<{ url: string; name: string }>();
+  const permissions = new Set(allowedApps.split(',').map(value => value.trim()));
+  const available = APPS.filter(app => permissions.has(app.id));
+  const filtered = resultIds ? available.filter(app => resultIds.includes(app.id)) : available;
   const handleLaunch = async (app: SubAppInfo) => {
-    setLaunchingApp(app.id);
-    setErrorMessage(null);
+    if (launching.current) return;
+    launching.current = true; setLaunchingApp(app.id); setErrorMessage(''); setReadyLink(undefined);
+    // Open during the click so normal popup protection does not block the SSO tab.
+    let tab: Window | null = null;
     try {
-      const result = await appsApi.launchSubApp(app.id);
-      if (result.launch_url) {
-        window.open(result.launch_url, '_blank', 'noopener,noreferrer');
-      }
-    } catch (err: any) {
-      setErrorMessage(`Không thể kết nối tới ${app.name}: ${err.message || 'Lỗi server'}`);
-    } finally {
-      setLaunchingApp(null);
-    }
+      tab = window.open('about:blank', '_blank');
+      if (tab) { tab.opener = null; tab.document.title = app.name; tab.document.body.textContent = 'Đang kết nối ứng dụng…'; }
+      const result = await appsApi.launchSubApp(app.id, 15000);
+      if (tab && !tab.closed) tab.location.replace(result.launch_url);
+      else setReadyLink({ url: result.launch_url, name: app.name });
+    } catch (reason) {
+      tab?.close(); setErrorMessage(`Không thể mở ${app.name}: ${reason instanceof Error ? reason.message : 'Vui lòng thử lại.'}`);
+    } finally { launching.current = false; setLaunchingApp(null); }
   };
-
-  return (
-    <div className="glass-panel widget-box">
-      <div className="widget-header">
-        <div className="widget-title">
-          <Sparkles size={18} className="widget-title-icon" />
-          <span>Ứng Dụng Doanh Nghiệp (Enterprise Apps)</span>
-        </div>
-      </div>
-
-      {errorMessage && (
-        <div className="alert-error" style={{ marginBottom: '0.5rem' }}>
-          {errorMessage}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-        {APPS.map((app) => {
-          const isLaunching = launchingApp === app.id;
-          return (
-            <div
-              key={app.id}
-              className="app-card"
-              onClick={() => handleLaunch(app)}
-            >
-              <div className="app-card-top">
-                <div
-                  className="app-card-icon-wrap"
-                  style={{ backgroundColor: app.themeColor }}
-                >
-                  <img
-                    src={app.iconUrl}
-                    alt={app.name}
-                    style={{ width: '36px', height: '36px', objectFit: 'contain' }}
-                  />
-                </div>
-                <span className="app-card-badge">{app.badge}</span>
-              </div>
-
-              <div>
-                <h4 className="app-card-title">{app.name}</h4>
-                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '2px' }}>
-                  {app.shortName}
-                </div>
-                <p className="app-card-desc">{app.description}</p>
-              </div>
-
-              <div className="app-card-footer">
-                <span>Vào ứng dụng</span>
-                {isLaunching ? (
-                  <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
-                ) : (
-                  <ExternalLink size={15} />
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+  return <section className={`glass-panel widget-box enterprise-apps${detailed ? ' is-detailed' : ''}`} aria-label="Ứng dụng doanh nghiệp">
+    <div className="widget-header"><div className="widget-title"><LayoutGrid size={19} className="widget-title-icon" /><span>Ứng dụng doanh nghiệp</span></div>
+      {onOpenAll && <button type="button" className="workspace-text-link" onClick={onOpenAll}>Xem tất cả <ArrowUpRight size={16} /></button>}
     </div>
-  );
-};
+    {errorMessage && <p className="alert-error" role="alert">{errorMessage}</p>}
+    {readyLink && <p role="status">Trình duyệt chưa mở tab mới. <a className="workspace-text-link" href={readyLink.url} target="_blank" rel="noopener noreferrer">Mở {readyLink.name} <ExternalLink size={14} /></a></p>}
+    {!filtered.length && <p className="workspace-empty">{!available.length ? 'Bạn chưa được cấp quyền truy cập ứng dụng doanh nghiệp.' : 'Không tìm thấy ứng dụng phù hợp.'}</p>}
+    <div className="enterprise-app-grid">{filtered.map(app => <button type="button" key={app.id} className="enterprise-app-card" aria-label={`Mở ${app.name}`} disabled={launchingApp !== null} onClick={() => { void handleLaunch(app); }}>
+      <img src={app.iconUrl} alt="" width={66} height={66} />
+      <strong>{app.name}</strong><span className="enterprise-app-subtitle">{app.shortName}</span>
+      {detailed && <span className="enterprise-app-description">{app.description}</span>}
+      {launchingApp === app.id ? <Loader2 size={16} className="enterprise-app-progress" aria-label="Đang kết nối" /> : <ArrowUpRight size={15} className="enterprise-app-arrow" aria-hidden="true" />}
+    </button>)}</div>
+  </section>;
+}

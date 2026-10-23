@@ -1,3 +1,4 @@
+import './bookmarks.css';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Bookmark as BookmarkIcon, Plus, Trash2, Globe } from 'lucide-react';
 import { bookmarksApi } from './api';
@@ -58,22 +59,22 @@ export function BookmarksWidget() {
   const busy = saving || !!deleting;
   const visibleError = error || loadError;
   return <div className="glass-panel widget-box bookmarks-widget">
-    <div className="widget-header"><div className="widget-title"><BookmarkIcon size={18} className="widget-title-icon" /><span>Liên kết nhanh (Bookmarks)</span></div>
-      <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setShowAdd(!showAdd)} title="Thêm liên kết"><Plus size={14} /><span>{showAdd ? 'Đóng' : 'Thêm'}</span></button>
+    <div className="widget-header"><div className="widget-title"><BookmarkIcon size={18} className="widget-title-icon" /><span>Liên kết nhanh</span></div>
+      <button type="button" className="btn btn-secondary btn-sm" aria-expanded={showAdd} disabled={busy} onClick={() => setShowAdd(!showAdd)} title="Thêm liên kết"><Plus size={14} /><span>{showAdd ? 'Đóng' : 'Thêm'}</span></button>
     </div>
     {visibleError && <div className="alert-error" role="alert">{visibleError}<button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => { setError(''); void fetchBookmarks(); }}>Tải lại danh sách</button></div>}
     {showAdd && <form onSubmit={handleCreate} style={{ display:'grid', gap:8, background:'var(--bg-surface)', padding:10, borderRadius:8, border:'1px solid var(--border)' }}>
-      <input aria-label="Tên liên kết" placeholder="Tên liên kết (vd: Google Drive)..." maxLength={120} value={title} onChange={event => setTitle(event.target.value)} className="form-input" disabled={busy || !!attempt.current} required />
+      <input autoFocus aria-label="Tên liên kết" placeholder="Tên liên kết (vd: Google Drive)..." maxLength={120} value={title} onChange={event => setTitle(event.target.value)} className="form-input" disabled={busy || !!attempt.current} required />
       <input aria-label="Địa chỉ liên kết" placeholder="Địa chỉ URL (vd: drive.google.com)..." maxLength={500} value={url} onChange={event => setUrl(event.target.value)} className="form-input" disabled={busy || !!attempt.current} required />
       {attempt.current && !saving && <p role="status">Bấm Thử lại lưu để kiểm tra yêu cầu trước, tránh tạo trùng liên kết.</p>}
       <div style={{ display:'flex', justifyContent:'flex-end', gap:6 }}><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setShowAdd(false)}>Đóng</button><button type="submit" className="btn btn-primary btn-sm" disabled={busy || !title.trim() || !url.trim()}>{saving ? 'Đang lưu…' : attempt.current ? 'Thử lại lưu' : 'Lưu'}</button></div>
     </form>}
     {loading && !bookmarks.length && <p role="status">Đang tải liên kết…</p>}
     {!loading && !visibleError && !bookmarks.length && <p>Chưa có liên kết.</p>}
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(130px, 1fr))', gap:8 }}>
-      {bookmarks.map(bookmark => <div className="bookmark-card" key={bookmark.id} style={{ padding:'8px 10px', background:'var(--bg-card-solid)', border:'1px solid var(--border)', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
-        <a href={/^https?:\/\//i.test(bookmark.url) ? bookmark.url : undefined} target="_blank" rel="noopener noreferrer" title={bookmark.url} style={{ display:'flex', alignItems:'center', gap:6, color:'var(--text-main)', textDecoration:'none', fontSize:'0.8rem', fontWeight:600, overflow:'hidden', whiteSpace:'nowrap', flex:1 }}><Globe size={14} color="var(--accent)" style={{ flexShrink:0 }} /><span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>{bookmark.title}</span></a>
-        {!bookmark.is_global && <button type="button" disabled={busy} onClick={() => void handleDelete(bookmark.id)} title="Xóa liên kết" aria-label={`Xóa liên kết ${bookmark.title}`} style={{ background:'none', border:0, color:'var(--text-muted)', padding:2, cursor:busy ? 'not-allowed' : 'pointer' }}><Trash2 size={12} /></button>}
+    <div className="workspace-bookmark-grid">
+      {bookmarks.map(bookmark => <div className="bookmark-card" key={bookmark.id}>
+        <a href={/^https?:\/\//i.test(bookmark.url) ? bookmark.url : undefined} target="_blank" rel="noopener noreferrer" title={`${bookmark.title}\n${bookmark.url}`}><Globe size={15} aria-hidden="true" /><span>{bookmark.title}</span></a>
+        {!bookmark.is_global && <button type="button" className="bookmark-delete" disabled={busy} onClick={() => void handleDelete(bookmark.id)} title="Xóa liên kết" aria-label={`Xóa liên kết ${bookmark.title}`}><Trash2 size={14} /></button>}
       </div>)}
     </div>
   </div>;

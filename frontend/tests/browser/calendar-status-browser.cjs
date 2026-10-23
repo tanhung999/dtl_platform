@@ -25,7 +25,7 @@ async function main() {
     await page.locator('.calendar-widget-message').filter({ hasText: 'Đang tải lịch' }).waitFor({ state: 'hidden' });
     for (const card of await page.locator('.calendar-widget-event').all()) {
       const status = await card.getAttribute('data-event-status');
-      const expected = { upcoming: ['Sắp tới', '#EAB308'], ongoing: ['Đang diễn ra', '#2563EB'], ended: ['Đã kết thúc', '#16A34A'] }[status];
+      const expected = { upcoming: ['Sắp diễn ra', '#EAB308'], ongoing: ['Đang diễn ra', '#2563EB'], ended: ['Đã kết thúc', '#16A34A'] }[status];
       assert.ok(expected);
       assert.ok((await card.innerText()).includes(expected[0]));
       assert.equal(await card.evaluate(el => el.style.getPropertyValue('--event-color')), expected[1]);
@@ -52,7 +52,7 @@ async function main() {
       await row.waitFor();
       assert.equal(await row.getAttribute('data-event-status'), 'upcoming');
       // Short and compact cards omit the status label to preserve title/time space.
-      if (await row.locator('.calendar-event-status').count()) assert.ok((await row.innerText()).includes('Sắp tới'));
+      if (await row.locator('.calendar-event-status').count()) assert.ok((await row.innerText()).includes('Sắp diễn ra'));
       assert.equal(await row.evaluate(el => el.style.getPropertyValue('--event-color')), '#EAB308');
     }
     console.log('QA: all views have automatic yellow upcoming status; checking minute-clock transitions');
@@ -94,7 +94,7 @@ async function main() {
       await page.getByRole('button', { name: view, exact: true }).click();
       if (view === 'Tháng' && !await multiRow('ongoing').isVisible()) {
         assert.equal(await page.locator('.calendar-month-cell').filter({ has: page.locator('.calendar-day-number.is-today') }).getByRole('button', { name: /mục khác/ }).count(), 1);
-        await page.getByRole('button', { name: 'Bật/tắt hạn công việc' }).click();
+        await page.getByRole('button', { name: 'Bật/tắt công việc' }).click();
       }
       await multiRow('ongoing').waitFor(); await multiRow('upcoming').waitFor();
       if (view === 'Tháng') await multiRow('ended').waitFor();

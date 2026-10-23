@@ -68,7 +68,7 @@ body {
   transform: translateY(-5%);
 }
 
-.nav-brand-text h1 {
+.nav-brand-name {
   font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: -0.02em;

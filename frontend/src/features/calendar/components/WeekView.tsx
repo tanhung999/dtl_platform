@@ -40,9 +40,10 @@ export function WeekView({ anchor, events, tasks, onCreate, onSelect, onShowDay,
             {Array.from({ length: 24 - startMinute / 60 }, (_, i) => i + startMinute / 60).map(hour => <button type="button" key={hour} className="calendar-time-slot" aria-label={`Tạo lịch ${formatDate(day)} lúc ${hour}:00`} onClick={() => onCreate({ date: day, hour })} />)}
             {weekTimedPlacements(events, tasks, day, startMinute).map(item => {
               const height = item.kind === 'deadline' ? DEADLINE_MARKER_HEIGHT : Math.max(MIN_EVENT_HEIGHT, item.end - item.start);
-              const style = { position: 'absolute' as const, top: `${item.start - startMinute}px`, height: `${height}px`, left: `calc(${item.lane / item.lanes * 100}% + 2px)`, width: `calc(${100 / item.lanes}% - 4px)` };
+              const span = item.laneSpan ?? 1;
+              const style = { position: 'absolute' as const, top: `${item.start - startMinute}px`, height: `${height}px`, left: `calc(${item.lane / item.lanes * 100}% + 2px)`, width: `calc(${100 * span / item.lanes}% - 4px)` };
               return item.kind === 'event'
-                ? <EventButton key={`event-${item.event.id}`} event={item.event} day={dateKey(day)} onSelect={onSelect} style={style} startMinute={startMinute} narrow={item.lanes > 1} />
+                ? <EventButton key={`event-${item.event.id}`} event={item.event} day={dateKey(day)} onSelect={onSelect} style={style} startMinute={startMinute} narrow={span / item.lanes < .6} />
                 : <div key={`deadline-${item.task.id}`} className="calendar-timed-deadline" style={style}><DeadlineRow task={item.task} /></div>;
             })}
             {dateKey(day) === todayKey && currentMinute >= startMinute && <div className="calendar-now-line" style={{ top: currentMinute - startMinute }}><span /></div>}

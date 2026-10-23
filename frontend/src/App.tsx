@@ -1,3 +1,4 @@
+import { ContentTooltip } from './components/ContentTooltip';
 import { authApi } from './features/auth/api';
 import { useState, useEffect } from 'react';
 import { LoginPage } from './features/auth/LoginPage';
@@ -63,6 +64,7 @@ export function App() {
   return (
     <ThemeProvider>
       <AppContent />
+      <ContentTooltip />
     </ThemeProvider>
   );
 }

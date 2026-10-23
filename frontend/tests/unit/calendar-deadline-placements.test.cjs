@@ -44,3 +44,22 @@ test('hidden early hours clip overnight events and retain deadlines at the visib
   assert.equal(items.find(item => item.kind === 'event').start, 360);
   assert.equal(items.filter(item => item.kind === 'deadline').length, 1);
 });
+
+
+test('a note expands through free lanes instead of inheriting a later crowded hour', () => {
+  const event = (id, start, end) => ({ id, is_all_day: false, starts_at: `2026-10-13T${start}:00+07:00`, ends_at: `2026-10-13T${end}:00+07:00` });
+  const items = weekTimedPlacements([event('long', '08:00', '18:00'), { ...event('note', '11:00', '11:30'), scheduled_note_id: 'note-id' },
+    ...Array.from({ length: 8 }, (_, i) => event('busy-' + i, '12:00', '13:00'))], [], date);
+  const note = items.find(item => item.kind === 'event' && item.event.id === 'note');
+  assert.equal(note.lanes, 9);
+  assert.equal(note.laneSpan, 8);
+  assert.equal(note.lane, 1);
+  // No expanded rectangle may intersect another item in both time and horizontal space.
+  for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+    const a = items[i], b = items[j];
+    const overlapTime = a.start < Math.max(b.end, b.start + (b.minimumHeight ?? 48)) && b.start < Math.max(a.end, a.start + (a.minimumHeight ?? 48));
+    if (overlapTime) assert.ok(a.lane + a.laneSpan <= b.lane || b.lane + b.laneSpan <= a.lane);
+  }
+  const lone = weekTimedPlacements([event('only-note', '11:00', '11:30')], [], date)[0];
+  assert.equal(lone.laneSpan / lone.lanes, 1);
+});

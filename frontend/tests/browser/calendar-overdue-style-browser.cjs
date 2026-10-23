@@ -46,7 +46,8 @@ asyncio.run(run())`], { cwd: path.resolve(__dirname, '../../..'), input: JSON.st
     const dayDeadline = widget.locator(`[data-calendar-group="deadlines"] [data-deadline-id="${timed.id}"]`);
     await dayDeadline.waitFor();
     await page.clock.fastForward(120000);
-    await page.waitForFunction(id => document.querySelector(`.calendar-widget [data-calendar-group="deadlines"] [data-deadline-id="${id}"]`)?.classList.contains('is-overdue'), timed.id);
+    await widget.locator(`.calendar-overdue-group [data-deadline-id="${timed.id}"]`).waitFor();
+    assert.equal(await widget.locator(`[data-calendar-group="deadlines"] [data-deadline-id="${timed.id}"]`).count(),0);
     await widget.getByRole('button', { name: 'Ngày trước', exact: true }).click();
     await widget.locator(`[data-calendar-group="deadlines"] [data-deadline-id="${untimed.id}"]`).waitFor();
     await widget.getByRole('button', { name: 'Mở lịch đầy đủ', exact: true }).click();

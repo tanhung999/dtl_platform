@@ -9,6 +9,7 @@ from app.core.security import hash_password
 from app.db.models import User, Note, Task, Bookmark
 from app.db.migrations.runner import upgrade
 from app.modules.tasks.deadlines import VN
+from app.modules.search.router import router as search_router
 from app.modules.access.router import router as access_router
 from app.modules.calendar_sharing.router import router as sharing_router
 from app.modules.auth.router import router as auth_router
@@ -146,6 +147,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(search_router)
 app.include_router(access_router)
 app.include_router(sharing_router)
 app.include_router(auth_router)

@@ -1,0 +1,33 @@
+const {chromium}=require('../.browser-tools/node_modules/playwright');
+const {createTestUsers}=require('../support/test-users.cjs');
+const assert=require('node:assert/strict');
+const base=process.env.PLATFORM_BASE_URL||'http://127.0.0.1:5173';
+(async()=>{const fixture=createTestUsers(1);let browser;try{
+ browser=await chromium.launch({channel:'msedge',headless:true});const page=await browser.newPage({viewport:{width:1550,height:1000}});await page.route(/fonts\.(googleapis|gstatic)\.com/,r=>r.abort());const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(base);await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);await page.getByLabel('Mật khẩu',{exact:true}).fill(fixture.accounts[0].password);await page.getByRole('button',{name:'Đăng nhập hệ thống'}).click();const widget=page.locator('.calendar-widget');await widget.waitFor();
+ const token=await page.evaluate(()=>localStorage.getItem('dtl_platform_token'));const headers={Authorization:`Bearer ${token}`};
+ const write=async(method,url,data)=>{const r=await page.request[method](base+url,{headers,data});assert.ok(r.ok(),await r.text());return r.status()===204?null:r.json();};
+ const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());const day=n=>new Date(Date.parse(today+'T00:00:00Z')+n*86400000).toISOString().slice(0,10);
+ const late=await write('post','/api/tasks',{title:'Today overdue QA',due_date:today,due_time:'00:00'});
+ const past=await write('post','/api/tasks',{title:'Yesterday overdue QA',due_date:day(-1)});
+ const future=await write('post','/api/tasks',{title:'Tomorrow pending QA',due_date:day(1)});
+ const pending=await write('post','/api/tasks',{title:'Today untimed QA',due_date:today});
+ const completed=await write('post','/api/tasks',{title:'Today completed QA',due_date:today});await write('patch','/api/tasks/'+completed.id,{is_completed:true,expected_version:completed.version});
+ const schedule=allDay=>({starts_at:today+(allDay?'T00:00:00+07:00':'T10:00:00+07:00'),ends_at:(allDay?day(1):today)+(allDay?'T00:00:00+07:00':'T11:00:00+07:00'),is_all_day:allDay});
+ await write('post','/api/calendar/events',{title:'All day event QA',...schedule(true)});await write('post','/api/calendar/events',{title:'Timed event QA',...schedule(false)});
+ await write('post','/api/notes',{title:'All day note QA',content:'QA',calendar_schedule:schedule(true)});const timedNote=await write('post','/api/notes',{title:'Timed note QA',content:'QA',calendar_schedule:schedule(false)});
+ await widget.locator(`[data-event-id="${timedNote.calendar_schedule.event_id}"]`).waitFor();await widget.locator('[data-calendar-group="completed"]').waitFor();
+ const completedStyle=await widget.locator(`[data-calendar-group="completed"] [data-deadline-id="${completed.id}"]`).evaluate(el=>{const summary=el.querySelector('.calendar-deadline-summary');return {strike:getComputedStyle(summary).textDecorationLine,label:summary.querySelector('.calendar-deadline-label')?.textContent ?? '',title:summary.querySelector('.calendar-deadline-title').textContent,background:getComputedStyle(el).backgroundColor};});
+ assert.equal(completedStyle.strike,'line-through');assert.equal(completedStyle.label,'');assert.equal(await widget.locator(`[data-calendar-group="completed"] [data-deadline-id="${completed.id}"] .task-priority-icon`).count(),1);assert.match(completedStyle.title,/Today completed QA/);assert.equal(completedStyle.background,'rgb(229, 231, 235)');
+ const order=await widget.locator('.calendar-widget-events > section').evaluateAll(nodes=>nodes.map(el=>el.classList.contains('calendar-overdue-group')?'overdue':el.dataset.calendarGroup));
+ assert.deepEqual(order,['overdue','deadlines','all-day','timed','notes-all-day','notes-timed','completed']);
+ assert.equal(await widget.locator(`[data-deadline-id="${late.id}"]`).count(),1);assert.equal(await widget.locator(`[data-calendar-group="deadlines"] [data-deadline-id="${late.id}"]`).count(),0);
+ assert.equal(await widget.locator(`[data-calendar-group="deadlines"] [data-deadline-id="${pending.id}"]`).count(),1);
+ // Moving between dates must not hide past work or leak today's overdue list into the future.
+ await widget.getByRole('button',{name:'Ngày trước',exact:true}).click();await widget.locator(`.calendar-overdue-group [data-deadline-id="${past.id}"]`).waitFor();assert.equal(await widget.locator(`[data-deadline-id="${late.id}"]`).count(),0);assert.equal(await widget.locator('[data-calendar-group="deadlines"]').count(),0);
+ await widget.getByRole('button',{name:'Ngày sau',exact:true}).click();await widget.getByRole('button',{name:'Ngày sau',exact:true}).click();await widget.locator(`[data-calendar-group="deadlines"] [data-deadline-id="${future.id}"]`).waitFor();assert.equal(await widget.locator('.calendar-overdue-group').count(),0);
+ await widget.getByRole('button',{name:'Về hôm nay',exact:true}).click();await widget.locator(`.calendar-overdue-group [data-deadline-id="${late.id}"]`).waitFor();
+ await widget.locator(`.calendar-overdue-group [data-deadline-id="${late.id}"] input`).click();await widget.locator(`[data-calendar-group="completed"] [data-deadline-id="${late.id}"]`).waitFor();assert.equal(await widget.locator(`[data-deadline-id="${late.id}"]`).count(),1);
+ await widget.locator(`[data-calendar-group="completed"] [data-deadline-id="${late.id}"] input`).click();await widget.locator(`.calendar-overdue-group [data-deadline-id="${late.id}"]`).waitFor();assert.equal(await widget.locator(`[data-calendar-group="deadlines"] [data-deadline-id="${late.id}"]`).count(),0);
+ assert.deepEqual(errors,[]);console.log('PASS 7 widget groups ordered; overdue never duplicated; all-day pending retained; past/future dates scoped; complete/reopen moves work to the correct group');
+}finally{await browser?.close();fixture.cleanup();}})().catch(e=>{console.error(e);process.exitCode=1;});

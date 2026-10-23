@@ -1,3 +1,4 @@
+import { EventContinuationMarker } from './EventContinuationMarker';
 import { eventTooltip } from '../itemTooltip';
 import { CalendarItemTitle } from './CalendarItemTitle';
 import { CSSProperties } from 'react';
@@ -20,15 +21,20 @@ interface Props {
 export function EventButton({ event, day, onSelect, compact = false, narrow = false, startMinute = 0, style }: Props) {
   const { now } = useTasks();
   const status = eventStatus(event, now, day);
+  const continuation = eventContinuation(event, day, startMinute);
+  const timeline = !compact && style?.height !== undefined;
+  const continues = timeline && eventContinuesNextDay(event, day);
+  const startsBefore = timeline && Boolean(continuation);
   const short = !compact && style?.height !== undefined && parseFloat(String(style.height)) < 72;
   return (
-    <div className="calendar-event-frame" style={style}><button type="button" data-event-id={event.id} data-event-status={status.key} className={`calendar-event ${compact ? 'is-compact' : ''} ${short ? 'is-short' : ''} ${event.is_all_day ? 'is-all-day' : ''} ${event.scheduled_note_id ? 'is-note' : ''}`}
+    <div className="calendar-event-frame" style={style}><button type="button" data-event-id={event.id} data-event-status={status.key} className={`calendar-event ${compact ? 'is-compact' : ''} ${short ? 'is-short' : ''} ${event.is_all_day ? 'is-all-day' : ''} ${event.scheduled_note_id ? 'is-note' : ''} ${startsBefore || continues ? 'has-continuation' : ''} ${startsBefore ? 'has-continuation-start' : ''} ${continues ? 'has-continuation-end' : ''}`}
       style={{ '--event-color': status.color } as CSSProperties}
-      onClick={() => onSelect(event, day)} title={eventTooltip(event, now)}>
-      <span className="calendar-event-title"><CalendarItemTitle event={event} continuation={eventContinuation(event, day, startMinute)} /></span>
+      onClick={() => onSelect(event, day)} data-tooltip={eventTooltip(event, now)} aria-label={eventTooltip(event, now)}>
+      {startsBefore && <EventContinuationMarker direction="start" label={continuation!} />}
+      <span className="calendar-event-title"><CalendarItemTitle event={event} continuation={timeline ? undefined : continuation} /></span>
       {!narrow && !short && <EventStatusBadge status={status} />}
       <span className="calendar-event-time">{eventDayLabel(event, day, narrow || compact)}</span>
-      {!compact && style?.height !== undefined && eventContinuesNextDay(event, day) && <span className="calendar-event-continues-next" role="img" aria-label="Tiếp tục sang ngày sau" title="Tiếp tục sang ngày sau">↓</span>}
+      {continues && <EventContinuationMarker direction="end" label="Tiếp tục sang ngày sau" />}
     </button></div>
   );
 }

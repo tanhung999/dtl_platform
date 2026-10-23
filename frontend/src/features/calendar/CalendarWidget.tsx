@@ -19,6 +19,7 @@ import { eventStatus } from './eventStatus';
 import { EventStatusBadge } from './components/EventStatusBadge';
 import { calendarApi } from './api';
 import { useCalendarDays } from './hooks/useCalendarDays';
+import { Task } from '../../types';
 import { FeatureIcon } from '../../components/FeatureIcon';
 
 interface Props { onOpenCalendar: (date: Date) => void }
@@ -43,28 +44,29 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const todayKey = vietnamDay(tasksData.now);
   const isToday = dateKey(date) === todayKey;
-  const overdueIds = new Set(isToday ? tasksData.overdue.map(task => task.id) : []);
   const deadlines = sortTasks(deadlineData.tasks.filter(task => task.due_date === dateKey(date)));
+  const overdueTasks = deadlines.filter(task => isOverdue(task, tasksData.now));
+  const pendingTasks = deadlines.filter(task => !task.is_completed && !isOverdue(task, tasksData.now));
+  const completedTasks = deadlines.filter(task => task.is_completed);
+  const hasOverdue = isToday ? tasksData.counts.OVERDUE > 0 : overdueTasks.length > 0;
   const events = eventsOnDay(data.events, date);
   const renderEvent = (event: CalendarEvent) => {
     const status = eventStatus(event, tasksData.now, dateKey(date));
-    return <button type="button" key={event.id} data-event-id={event.id} data-event-status={status.key} className={`calendar-widget-event ${event.scheduled_note_id ? 'is-note' : ''}`} title={eventTooltip(event, tasksData.now)} style={{ '--event-color': status.color } as CSSProperties}
+    return <button type="button" key={event.id} data-event-id={event.id} data-event-status={status.key} className={`calendar-widget-event ${event.scheduled_note_id ? 'is-note' : ''}`} data-tooltip={eventTooltip(event, tasksData.now)} style={{ '--event-color': status.color } as CSSProperties}
       onClick={() => { void openEvent(event); }}><span className="calendar-widget-event-marker" /><span><strong><CalendarItemTitle event={event} /></strong><EventStatusBadge status={status} /><span className="calendar-widget-event-time">{eventDayLabel(event, dateKey(date))}</span>{event.location && <span className="calendar-widget-event-location"><MapPin size={11} />{event.location}</span>}</span></button>;
   };
   const eventGroups = [
-    { key: 'all-day', title: 'Cả ngày', items: events.filter(event => event.is_all_day && !event.scheduled_note_id) },
-    { key: 'notes-all-day', title: 'Ghi chú cả ngày', items: events.filter(event => event.is_all_day && event.scheduled_note_id) },
+    { key: 'all-day', title: 'Sự kiện cả ngày', items: events.filter(event => event.is_all_day && !event.scheduled_note_id) },
     { key: 'timed', title: 'Sự kiện theo giờ', items: events.filter(event => !event.is_all_day && !event.scheduled_note_id) },
+    { key: 'notes-all-day', title: 'Ghi chú cả ngày', items: events.filter(event => event.is_all_day && event.scheduled_note_id) },
     { key: 'notes-timed', title: 'Ghi chú theo giờ', items: events.filter(event => !event.is_all_day && event.scheduled_note_id) },
   ];
-  const taskGroups = [
-    { key: 'deadlines', title: 'Việc đến hạn', items: deadlines.filter(task => !task.is_completed) },
-    { key: 'completed', title: 'Việc đã xong', items: deadlines.filter(task => task.is_completed) },
-  ];
+  const renderTasks = (key: string, title: string, items: Task[]) => items.length > 0 &&
+    <section className="calendar-widget-group" data-calendar-group={key} aria-label={title}><h4>{title}<span><AnimatedCount value={items.length} /></span></h4>{items.map(task => <DeadlineRow key={task.id} task={task} />)}</section>;
   const close = () => { opening.cancel(); setSelected(undefined); setDraft(undefined); };
 
   return <div className="glass-panel widget-box calendar-widget">
-    <div className="widget-header"><div className="widget-title"><FeatureIcon name="calendar" /><span>Lịch Cá Nhân (My Calendar)</span></div>
+    <div className="widget-header"><div className="widget-title"><FeatureIcon name="calendar" /><span>Lịch cá nhân</span></div>
       <button type="button" className="btn btn-secondary btn-sm" aria-label="Tạo sự kiện" title="Tạo sự kiện" onClick={() => { opening.cancel(); setOpenError(''); setSelected(undefined); setDraft({ date }); }}><Plus size={14} /><span>Thêm</span></button>
     </div>
     <div className="calendar-widget-date"><div><span className="calendar-eyebrow">{dateKey(date) === todayKey ? 'HÔM NAY' : 'LỊCH TRONG NGÀY'}</span><h3>{formatDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</h3></div>
@@ -82,12 +84,13 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
     <div className="calendar-widget-events" aria-live="polite" tabIndex={0} role="region" aria-label="Lịch và công việc trong ngày">
       {deadlineData.error && <p role="alert" className="calendar-error-state">{deadlineData.error}<button type="button" className="calendar-text-button" onClick={tasksData.refresh}>Thử lại</button></p>}
       {tasksData.error && <p role="alert" className="calendar-error-state">{tasksData.error}</p>}
-      {isToday && <OverdueGroup />}
+      <OverdueGroup title="Việc quá hạn" items={isToday ? undefined : overdueTasks} />
+      {renderTasks('deadlines', 'Công việc', pendingTasks)}
       {data.loading || deadlineData.loading ? <p className="calendar-widget-message">Đang tải lịch…</p>
         : data.error ? <div role="alert" className="calendar-error-state"><p>{data.error}</p><button type="button" className="btn btn-outline btn-sm" onClick={data.refresh}>Thử lại</button></div>
         : eventGroups.map(group => group.items.length > 0 && <section key={group.key} className="calendar-widget-group" data-calendar-group={group.key} aria-label={group.title}><h4>{group.title}<span><AnimatedCount value={group.items.length} /></span></h4>{group.items.map(renderEvent)}</section>)}
-      {taskGroups.map(group => group.items.length > 0 && <section key={group.key} className="calendar-widget-group" data-calendar-group={group.key} aria-label={group.title}><h4>{group.title}<span><AnimatedCount value={group.items.length} /></span></h4>{group.items.map(task => <DeadlineRow key={task.id} task={task} />)}</section>)}
-      {!data.loading && !deadlineData.loading && !data.error && !deadlineData.error && !events.length && !deadlines.length && !overdueIds.size && <div className="calendar-widget-empty"><CalendarDays size={26} /><p>Chưa có sự kiện, ghi chú hoặc hạn công việc trong ngày</p><button type="button" className="calendar-text-button" onClick={() => setDraft({ date })}>+ Thêm lịch cho ngày này</button></div>}
+      {renderTasks('completed', 'Việc đã xong', completedTasks)}
+      {!data.loading && !deadlineData.loading && !data.error && !deadlineData.error && !events.length && !deadlines.length && !hasOverdue && <div className="calendar-widget-empty"><CalendarDays size={26} /><p>Chưa có sự kiện, ghi chú hoặc hạn công việc trong ngày</p><button type="button" className="calendar-text-button" onClick={() => setDraft({ date })}>+ Thêm lịch cho ngày này</button></div>}
     </div>
     <div className="calendar-widget-footer"><button type="button" className="calendar-text-button" onClick={() => setDate(today())}>Về hôm nay</button><button type="button" className="calendar-text-button" onClick={() => onOpenCalendar(date)}>Mở lịch đầy đủ <ArrowUpRight size={15} /></button></div>
     {draft && <CalendarItemModal event={selected} draft={draft} onClose={close} onSave={data.save} onDelete={data.remove} />}

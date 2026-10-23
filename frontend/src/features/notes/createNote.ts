@@ -1,10 +1,11 @@
+import { sameReminder } from '../reminders/reminderUtils';
 import { notesApi } from './api';
 
 import { Note } from '../../types';
 import { NoteWrite } from './types';
 export interface NoteCreateAttempt { requestId: string; original: NoteWrite }
-const sameSchedule = (note: Note, payload: NoteWrite) => !payload.calendar_schedule || (!!note.calendar_schedule && ['starts_at', 'ends_at'].every(key => Date.parse(note.calendar_schedule![key as 'starts_at' | 'ends_at']) === Date.parse(payload.calendar_schedule![key as 'starts_at' | 'ends_at'])) && note.calendar_schedule.is_all_day === payload.calendar_schedule.is_all_day);
-const sameContent = (note: Note, payload: NoteWrite) => note.title === payload.title && note.content === payload.content && note.color === payload.color && note.is_pinned === payload.is_pinned;
+const sameSchedule = (note: Note, payload: NoteWrite) => !payload.calendar_schedule || (!!note.calendar_schedule && ['starts_at', 'ends_at'].every(key => Date.parse(note.calendar_schedule![key as 'starts_at' | 'ends_at']) === Date.parse(payload.calendar_schedule![key as 'starts_at' | 'ends_at'])) && note.calendar_schedule.is_all_day === payload.calendar_schedule.is_all_day && sameReminder(note.calendar_schedule, payload.calendar_schedule));
+const sameContent = (note: Note, payload: NoteWrite) => note.title === payload.title && note.content === payload.content && note.color === payload.color && note.is_pinned === payload.is_pinned && note.is_private === payload.is_private && sameReminder(note, payload);
 export async function createNoteWithRetry(payload: NoteWrite, attempt: NoteCreateAttempt) {
   // Recover the original create first, even if the user edited the form after a lost response.
   const original = { ...attempt.original, request_id: attempt.requestId };

@@ -14,5 +14,5 @@
 .app-time-footer { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border); }
 .app-time-footer button { color: var(--accent-text); }
 
-.app-time-input:has(input:disabled) { opacity:.55; background:var(--bg-subtle); }
+.app-time-input:has(input:disabled) { opacity:1; background:var(--input-disabled-bg); }
 .app-time-input:has(input:disabled), .app-time-input:has(input:disabled) * { cursor:not-allowed; }

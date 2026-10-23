@@ -51,7 +51,7 @@ async function main() {
     await widget.locator(`[data-deadline-id="${completed.id}"].is-completed`).waitFor();
     assert.equal(await widget.locator(`[data-deadline-id="${overdue.id}"]`).count(), 1, 'Overdue deadline is never duplicated');
     assert.equal(await widget.locator(`.calendar-overdue-group [data-deadline-id="${overdue.id}"]`).count(), 1);
-    assert.deepEqual(await widget.locator('[data-calendar-group]').evaluateAll(groups => groups.map(g => g.dataset.calendarGroup)), ['all-day', 'timed', 'deadlines', 'completed']);
+    assert.deepEqual(await widget.locator('[data-calendar-group]').evaluateAll(groups => groups.map(g => g.dataset.calendarGroup)), ['deadlines', 'all-day', 'timed', 'completed']);
     assert.ok((await widget.locator(`[data-event-id="${allDay.id}"]`).innerText()).includes('Cả ngày'));
     const backgrounds = [];
     for (const task of due) backgrounds.push(await widget.locator(`[data-deadline-id="${task.id}"]`).evaluate(el => getComputedStyle(el).backgroundColor));

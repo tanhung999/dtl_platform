@@ -169,7 +169,7 @@ class NotificationApiAccessTests(ApiTestCase):
                 statements.clear()
                 code, feed = await self.delegated('GET', token=issued['access_token'], query={'limit': limit})
                 self.assertEqual(code, 200)
-                self.assertEqual(statements.count('SELECT'), 2)
+                self.assertEqual(statements.count('SELECT'), 3)  # Authentication, owner labels, one bounded feed query.
             path = '/api/notifications/' + feed['items'][0]['id']
             await self.delegated('PATCH', path, issued['access_token'], payload={'read': True})
             statements.clear()
