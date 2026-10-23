@@ -14,7 +14,7 @@ const { eventStatus } = compiled.exports;
 
 test('status switches exactly at start and exclusive end regardless of stored custom color', () => {
   const event = { starts_at: '2026-10-12T09:00:00+07:00', ends_at: '2026-10-12T10:00:00+07:00', color: '#be123c' };
-  assert.deepEqual(eventStatus(event, new Date('2026-10-12T01:59:59Z'), '2026-10-12'), { key: 'upcoming', label: 'Sắp diễn ra', color: '#EAB308' });
+  assert.deepEqual(eventStatus(event, new Date('2026-10-12T01:59:59Z'), '2026-10-12'), { key: 'upcoming', label: 'Sắp tới', color: '#EAB308' });
   assert.deepEqual(eventStatus(event, new Date('2026-10-12T02:00:00Z'), '2026-10-12'), { key: 'ongoing', label: 'Đang diễn ra', color: '#2563EB' });
   assert.deepEqual(eventStatus(event, new Date('2026-10-12T03:00:00Z'), '2026-10-12'), { key: 'ended', label: 'Đã kết thúc', color: '#16A34A' });
 });
@@ -27,4 +27,19 @@ test('same multi-day event has distinct colors for past, current and future Viet
   assert.equal(eventStatus(longer, now, '2026-10-14').key, 'upcoming');
   assert.equal(eventStatus(event, new Date('2026-10-13T16:59:59Z'), '2026-10-13').key, 'ongoing');
   assert.equal(eventStatus(event, new Date('2026-10-13T17:00:00Z'), '2026-10-13').key, 'ended');
+});
+
+test('recurring master details use the selected occurrence time instead of the first occurrence', () => {
+  const daily = { starts_at: '2026-10-12T09:00:00+07:00', ends_at: '2026-10-12T10:00:00+07:00', recurrence: 'DAILY' };
+  assert.equal(eventStatus(daily, new Date('2026-10-23T08:59:00+07:00'), '2026-10-23').key, 'upcoming');
+  assert.equal(eventStatus(daily, new Date('2026-10-23T09:30:00+07:00'), '2026-10-23').key, 'ongoing');
+  assert.equal(eventStatus(daily, new Date('2026-10-23T10:00:00+07:00'), '2026-10-23').key, 'ended');
+  const weekly = { ...daily, starts_at: '2026-10-16T09:00:00+07:00', ends_at: '2026-10-16T10:00:00+07:00', recurrence: 'WEEKLY' };
+  assert.equal(eventStatus(weekly, new Date('2026-10-23T09:30:00+07:00'), '2026-10-23').key, 'ongoing');
+  assert.equal(eventStatus(weekly, new Date('2026-10-23T09:30:00+07:00'), '2026-10-30').key, 'upcoming');
+});
+
+test('a projected occurrence keeps its own status after later instances start', () => {
+  const event = { starts_at: '2026-10-19T09:00:00+07:00', ends_at: '2026-10-19T10:00:00+07:00', recurrence: 'DAILY', series_id: 'master' };
+  assert.equal(eventStatus(event, new Date('2026-10-23T09:30:00+07:00'), '2026-10-23').key, 'ended');
 });

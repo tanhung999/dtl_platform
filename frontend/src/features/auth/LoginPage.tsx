@@ -4,6 +4,7 @@ import { User, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
 
 import { AuthSession } from '../../types';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { FeatureIcon } from '../../components/FeatureIcon';
 
 interface LoginPageProps {
   onLoginSuccess: (session: AuthSession) => void;
@@ -42,9 +43,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       </div>
       <div className="login-card">
         <div className="login-brand-header">
-          <img src="/logo.png" alt="Đông Tây Land" className="login-brand-logo" />
+          <FeatureIcon name="platform" size={88} />
           <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.5rem' }}>
-            ĐÔNG TÂY LAND PLATFORM
+            Đông Tây One
           </h2>
           <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
             Đăng nhập một lần để truy cập toàn bộ hệ thống

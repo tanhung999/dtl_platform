@@ -4,6 +4,6 @@ import { CalendarNoteModal } from '../../note-scheduling/CalendarNoteModal';
 
 export function CalendarItemModal(props: ComponentProps<typeof EventModal>) {
   return props.event?.scheduled_note_id
-    ? <CalendarNoteModal key={props.event.scheduled_note_id} noteId={props.event.scheduled_note_id} onClose={props.onClose} />
+    ? <CalendarNoteModal key={props.event.scheduled_note_id} noteId={props.event.scheduled_note_id} occurrenceAt={props.draft.occurrenceAt} onClose={props.onClose} />
     : <EventModal {...props} />;
 }

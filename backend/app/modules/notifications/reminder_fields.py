@@ -13,14 +13,14 @@ class ReminderFields(BaseModel):
     def aware_reminder(cls, value):
         if value is not None:
             if value.tzinfo is None or value.utcoffset() is None:
-                raise ValueError('Giờ nhắc hạn phải kèm múi giờ.')
+                raise ValueError('Giờ thông báo phải kèm múi giờ.')
             return value.astimezone(timezone.utc)
         return value
 
     @model_validator(mode='after')
     def single_reminder(self):
         if self.reminder_minutes is not None and self.reminder_at is not None:
-            raise ValueError('Chỉ chọn một cách nhắc: trước hạn hoặc ngày giờ cụ thể.')
+            raise ValueError('Chỉ chọn một cách thông báo: trước hạn hoặc ngày giờ cụ thể.')
         return self
 
 

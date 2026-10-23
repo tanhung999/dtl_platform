@@ -25,7 +25,7 @@ async def update_note_service(note_id: str, payload: NoteUpdate, user: User, db:
     validate_standalone(payload)
     reminder_before = signature(note, 'note')
     if payload.reminder_at is not None and await db.get(NoteCalendarSchedule, note.id):
-        raise HTTPException(422, 'Ghi chú đã gắn lịch: hãy đặt nhắc hạn trong phần lịch hẹn.')
+        raise HTTPException(422, 'Ghi chú đã gắn lịch: hãy đặt thông báo trong phần lịch hẹn.')
     before = None
     was_archived = note.is_archived
     update_data = payload.model_dump(exclude_unset=True, exclude={"expected_version", "calendar_schedule", "reminder_minutes"})

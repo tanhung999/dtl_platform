@@ -34,7 +34,7 @@ async function main() {
     await card(notes[1].id).getByTitle('Xóa ghi chú', { exact: true }).click(); await confirm().getByRole('alert').waitFor();
     assert.equal(await confirm().getByRole('button', { name: 'Xóa ghi chú', exact: true }).isDisabled(), true);
     metadataFail = false;
-    await confirm().getByRole('button', { name: 'Thử lại', exact: true }).click(); await confirm().getByText('Lịch hẹn vẫn được giữ dưới dạng sự kiện riêng tư, chỉ bạn nhìn thấy.', { exact: true }).waitFor();
+    await confirm().getByRole('button', { name: 'Thử lại', exact: true }).click(); await confirm().getByText('Lịch gắn với ghi chú cũng sẽ bị xóa, bao gồm toàn bộ các lần lặp. Các thông báo còn chờ sẽ bị hủy.', { exact: true }).waitFor();
     assert.equal(await confirm().locator('.note-delete-title').getAttribute('title'), notes[1].title);
     assert.ok(await confirm().locator('.note-delete-title').evaluate(node => node.scrollWidth > node.clientWidth));
     assert.equal(await confirm().getByRole('button', { name: 'Xóa ghi chú', exact: true }).evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(185, 28, 28)');
@@ -49,8 +49,8 @@ async function main() {
     await confirm().getByRole('button', { name: 'Đang xóa…', exact: true }).evaluate(node => node.click()); assert.equal(deletes, 2);
     releaseDelete(); await confirm().waitFor({ state: 'hidden' });
     for (const page of [a, b]) await page.waitForFunction(id => !document.querySelector(`[data-note-id="${id}"]`), notes[1].id);
-    assert.ok(await api('GET', `calendar/events/${eventId}`));
-    console.log('PASS: title handling, schedule retention, metadata retry, Cancel/Enter/Escape, delete failure retry, pending lock, duplicate prevention and realtime removal.');
+    assert.equal((await context.request.get(base + `/api/calendar/events/${eventId}`, { headers: { Authorization: `Bearer ${token}` } })).status(), 404);
+    console.log('PASS: title handling, schedule deletion, metadata retry, Cancel/Enter/Escape, delete failure retry, pending lock, duplicate prevention and realtime removal.');
     const editor = () => a.getByRole('dialog', { name: 'Ghi chú', exact: true });
     await card(notes[3].id).locator('.note-title').click(); await editor().getByPlaceholder('Nhập nội dung ghi chú ở đây...').fill('Uncommitted content');
     await editor().getByRole('button', { name: 'Xóa ghi chú', exact: true }).click(); await confirm().waitFor(); await a.keyboard.press('Escape'); assert.ok(await confirm().isVisible()); await confirm().getByRole('button', { name: 'Đóng xác nhận xóa' }).click(); await confirm().waitFor({ state: 'hidden' });

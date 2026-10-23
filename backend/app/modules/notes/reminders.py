@@ -7,9 +7,9 @@ from app.modules.notifications.scheduling import sync_jobs
 
 def validate_standalone(payload):
     if payload.reminder_minutes is not None:
-        raise HTTPException(422, 'Ghi chú chưa gắn lịch cần chọn ngày và giờ nhắc hạn cụ thể.')
+        raise HTTPException(422, 'Ghi chú chưa gắn lịch cần chọn ngày và giờ thông báo cụ thể.')
     if payload.calendar_schedule is not None and payload.reminder_at is not None:
-        raise HTTPException(422, 'Ghi chú đã gắn lịch: hãy đặt nhắc hạn trong phần lịch hẹn.')
+        raise HTTPException(422, 'Ghi chú đã gắn lịch: hãy đặt thông báo trong phần lịch hẹn.')
 
 
 async def sync_note_reminder(db, note, before=None, allow_elapsed=False):

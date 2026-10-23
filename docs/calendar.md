@@ -17,7 +17,7 @@ Mô-đun lịch nội bộ của DTL Platform, không phụ thuộc Google Lịc
   thời điểm kết thúc phải sau bắt đầu. Sự kiện cả ngày không hiện ô giờ và vẫn
   tính ngày kết thúc trên biểu mẫu là ngày bao gồm.
 - Hỗ trợ sự kiện có giờ, cả ngày, nhiều ngày, địa điểm và mô tả.
-- Màu tự đổi theo thời gian: Sắp diễn ra vàng `#EAB308`, Đang diễn ra xanh dương
+- Màu tự đổi theo thời gian: Sắp tới vàng `#EAB308`, Đang diễn ra xanh dương
   `#2563EB`, Đã kết thúc xanh lá `#16A34A`. Quy tắc áp dụng cho cả sự kiện và ghi chú có lịch hẹn. Nền nhạt, viền hoặc chấm đậm, có nhãn trạng thái.
   Mỗi phần hiển thị xét theo ngày của ô lịch: ngày đã qua xanh lá, ngày chưa tới
   vàng; hôm nay xét giờ bắt đầu/kết thúc. Cùng một sự kiện nhiều ngày có thể có

@@ -31,7 +31,7 @@ class StandaloneReminderTests(ApiTestCase):
         self.assertEqual(await self.tick(START),1); self.assertEqual(await self.tick(START),0)
         items=(await self.request('GET','/api/notifications'))[1]['items']
         self.assertEqual(len(items),1); self.assertEqual(items[0]['state'],'active'); self.assertIsNone(items[0]['due_at'])
-        self.assertIn('Nhắc lúc',items[0]['body'])
+        self.assertIn('Thông báo lúc',items[0]['body'])
         self.assertEqual((await self.request('GET',f"/api/notifications/{items[0]['id']}/destination"))[1],{'task_id':task['id']})
 
     async def test_undated_task_edit_noop_clear_deadline_and_past_offset_guards(self):

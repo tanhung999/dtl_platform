@@ -5,3 +5,9 @@
 .note-editor-dialog .note-schedule-fields { background:#ffffff55; border-color:#0002; color:#334155; }
 
 .note-schedule-fields > .note-schedule-action { grid-column:1/-1; }
+
+.note-schedule-fields > .calendar-field { grid-column:1/-1; }
+
+.note-schedule-fields > .note-all-day-toggle { grid-column: 1/-1; font-size: 13px; }
+
+.note-schedule-fields > .note-schedule-start-day { grid-column: 1/-1; }

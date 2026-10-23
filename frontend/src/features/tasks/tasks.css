@@ -65,3 +65,8 @@
 @media (max-width:600px) { .tasks-page { padding:16px; } }
 
 .tasks-widget .task-item.completed .priority-tag { --priority-accent:var(--completed-accent); }
+
+.task-dialog-fields .task-priority-field { align-items:flex-start; }
+.task-dialog-fields .task-priority-picker { width:156px; max-width:100%; }
+.task-dialog-fields .task-priority-select { justify-content:flex-start; }
+.task-dialog-fields .task-priority-select > svg:last-child { margin-left:auto; }

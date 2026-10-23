@@ -1,6 +1,5 @@
 import { SearchPage } from '../search/SearchPage';
 import { AppLauncherWidget } from '../apps/AppLauncherWidget';
-import { BookmarksWidget } from '../bookmarks/BookmarksWidget';
 import { WorkspaceSidebar } from './WorkspaceSidebar';
 import { WorkspacePage } from './navigation';
 import { NotesPage } from '../notes/NotesPage';
@@ -29,16 +28,22 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
   const [activeTab, setActiveTab] = useState<WorkspacePage>('dashboard');
   const access = useAccessCapabilities(user.id);
   const [searchQuery, setSearchQuery] = useState('');
+  const [linkRequest, setLinkRequest] = useState(0);
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('dtl_sidebar_collapsed') === 'true'; } catch { return false; } });
-  const navigate = (page: WorkspacePage) => { setSearchQuery(''); if (page === 'calendar') { setSharedOwner(undefined); setCalendarDate(undefined); } setActiveTab(page); };
+  const navigate = (page: WorkspacePage) => { setSearchQuery(''); if (page === 'bookmarks') { setLinkRequest(value => value + 1); setActiveTab('dashboard'); return; } if (page === 'calendar') { setSharedOwner(undefined); setCalendarDate(undefined); } if (page === 'dashboard') setLinkRequest(0); setActiveTab(page); };
   const toggleSidebar = () => setCollapsed(previous => { const value = !previous; try { localStorage.setItem('dtl_sidebar_collapsed', String(value)); } catch { /* Layout persistence is optional. */ } return value; });
   const [sharedOwner, setSharedOwner] = useState<string>();
   const [calendarDate, setCalendarDate] = useState<Date>();
   useEffect(() => { const open = (event: Event) => { setSharedOwner((event as CustomEvent<string>).detail); setActiveTab('calendar'); }; window.addEventListener('calendar:open-shared', open); return () => window.removeEventListener('calendar:open-shared', open); }, []);
   useEffect(() => { window.scrollTo(0, 0); }, [activeTab]);
+  useEffect(() => {
+    const titles: Partial<Record<WorkspacePage, string>> = { dashboard: 'DT Platform', calendar: 'DT Calendar', tasks: 'DT Task', notes: 'DT My Note', bookmarks: 'DT Link' };
+    document.title = titles[activeTab] ?? 'DT Platform';
+    return () => { document.title = 'DT Platform'; };
+  }, [activeTab]);
 
   return (
-    <SharingCapabilityContext.Provider value={access.can_share && !access.loading && !access.error}><TasksProvider key={user.id} fullPage={activeTab === 'tasks'}><NotificationsProvider userId={user.id}><div className={`dashboard-app${collapsed ? ' sidebar-is-collapsed' : ''}`}>
+    <SharingCapabilityContext.Provider value={access.can_share && !access.loading && !access.error}><TasksProvider key={user.id} fullPage={activeTab === 'tasks'}><NotificationsProvider userId={user.id}><div className={`dashboard-app${activeTab === 'calendar' ? ' calendar-is-active' : ''}${collapsed ? ' sidebar-is-collapsed' : ''}`}>
       <RescheduleToast />
       <Navbar user={user} query={searchQuery} onSearch={query => { setSearchQuery(query); setActiveTab(query.trim() ? 'search' : 'dashboard'); }}
         onOpenProfile={() => navigate('profile')} onOpenNotifications={() => navigate('notifications')} onLogout={onLogout} />
@@ -46,12 +51,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
         <WorkspaceSidebar page={activeTab} onNavigate={navigate} canManage={access.can_manage} collapsed={collapsed} onToggle={toggleSidebar} />
         <div className="workspace-content"><main className="workspace-main" id="workspace-main">
         {activeTab === 'search' ? <SearchPage query={searchQuery} user={user} /> : activeTab === 'dashboard' ? (
-          <WorkspaceWidgets user={user} onOpenApps={() => navigate('apps')} onOpenTasks={() => navigate('tasks')} onOpenNotes={() => navigate('notes')}
+          <WorkspaceWidgets user={user} linkRequest={linkRequest} onOpenApps={() => navigate('apps')} onOpenTasks={() => navigate('tasks')} onOpenNotes={() => navigate('notes')}
             onOpenCalendar={date => { setSharedOwner(undefined); setCalendarDate(date); setActiveTab('calendar'); }} />
         ) : activeTab === 'tasks' ? <TasksPage onBack={() => navigate('dashboard')} />
           : activeTab === 'notes' ? <NotesPage initialFilter="all" onBack={() => navigate('dashboard')} />
           : activeTab === 'apps' ? <section className="workspace-section-page" aria-label="Ứng dụng doanh nghiệp"><AppLauncherWidget allowedApps={user.allowed_apps ?? ''} detailed /></section>
-          : activeTab === 'bookmarks' ? <section className="workspace-section-page" aria-label="Quản lý liên kết nhanh"><BookmarksWidget /></section>
           : activeTab === 'calendar' ? (
           <CalendarWorkspace key={`${user.id}:${sharedOwner ?? "mine"}`} initialOwner={sharedOwner} initialDate={calendarDate} userName={user.full_name} userId={user.id} />
         ) : activeTab === 'notifications' ? <NotificationsPage /> : activeTab === 'admin' ? (

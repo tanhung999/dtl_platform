@@ -34,7 +34,7 @@ class NoteSchedulingTests(ApiTestCase):
         async with self.sessions() as db:
             self.assertEqual(await db.scalar(select(func.count()).select_from(CalendarEvent)), 1)
 
-    async def test_deletions_keep_independent_resources(self):
+    async def test_deleting_schedule_keeps_note_but_deleting_note_removes_schedule(self):
         _, note = await self.request("POST", "/api/notes", payload={"title": "Note", "calendar_schedule": self.schedule()})
         await self.request("DELETE", f"/api/calendar/events/{note['calendar_schedule']['event_id']}")
         _, full = await self.request("GET", f"/api/notes/{note['id']}")
@@ -44,7 +44,7 @@ class NoteSchedulingTests(ApiTestCase):
         _, second = await self.request("POST", "/api/notes", payload={"title": "Note 2", "calendar_schedule": self.schedule()})
         await self.request("DELETE", f"/api/notes/{second['id']}")
         status, _ = await self.request("GET", f"/api/calendar/events/{second['calendar_schedule']['event_id']}")
-        self.assertEqual(status, 200)
+        self.assertEqual(status, 404)
 
     async def test_schedule_collection_metadata_and_removed_link_endpoints(self):
         _, note = await self.request("POST", "/api/notes", payload={"title": "Có lịch", "calendar_schedule": self.schedule()})
@@ -90,4 +90,4 @@ class NoteSchedulingTests(ApiTestCase):
         self.assertEqual(status, 200, updated)
         self.assertEqual((await self.request('GET', f'/api/calendar/events/{event_id}'))[1]['title'], 'Tiêu đề mới')
         await self.request('DELETE', f'/api/notes/{note["id"]}')
-        self.assertIsNone((await self.request('GET', f'/api/calendar/events/{event_id}'))[1]['scheduled_note_id'])
+        self.assertEqual((await self.request('GET', f'/api/calendar/events/{event_id}'))[0], 404)

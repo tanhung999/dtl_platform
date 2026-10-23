@@ -1,8 +1,10 @@
 import type { ReminderValue } from '../reminders/ReminderFields';
+export type Recurrence = 'NONE' | 'DAILY' | 'WEEKLY';
 export type CalendarView = 'week' | 'month' | 'agenda';
 
 export interface CalendarEventInput extends ReminderValue {
   expected_updated_at?: string;
+  recurrence?: Recurrence;
   title: string;
   description: string;
   location: string;
@@ -14,6 +16,10 @@ export interface CalendarEventInput extends ReminderValue {
 }
 
 export interface CalendarEvent extends CalendarEventInput {
+  series_id?: string | null;
+  series_recurrence?: Recurrence | null;
+  deletion_includes_series?: boolean;
+  recurrence_until?: string | null;
   scheduled_note_id?: string | null;
   id: string;
   user_id: string;
@@ -22,6 +28,7 @@ export interface CalendarEvent extends CalendarEventInput {
 }
 
 export interface EventDraft {
+  occurrenceAt?: string;
   date: Date;
   hour?: number;
   allDay?: boolean;

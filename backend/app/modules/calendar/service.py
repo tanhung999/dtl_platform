@@ -30,7 +30,7 @@ async def update_event_service(event_id: str, payload: EventUpdate, user: User, 
         modified = modified.replace(tzinfo=timezone.utc)
     if modified != payload.expected_updated_at:
         raise HTTPException(409, "Sự kiện đã thay đổi. Nội dung đang sửa được giữ; hãy mở lại bản mới trước khi lưu.")
-    data = payload.model_dump(exclude={"expected_updated_at", "reminder_minutes", "reminder_at"} | ({"is_private"} if "is_private" not in payload.model_fields_set else set()))
+    data = payload.model_dump(exclude={"expected_updated_at", "reminder_minutes", "reminder_at"} | ({key for key in ("is_private", "recurrence") if key not in payload.model_fields_set}))
     data.update(reminder_update(payload))
     data = {key: value for key, value in data.items() if getattr(event, key) != value}
     if not data:
@@ -44,6 +44,9 @@ async def update_event_service(event_id: str, payload: EventUpdate, user: User, 
             await db.execute(update(Note).where(Note.id == event.scheduled_note_id, Note.user_id == user.id)
                 .values(is_private=payload.is_private, version=Note.version + 1, updated_at=utcnow()))
         mark_changed(db, user.id, "calendar-privacy")
+    if event.recurrence_until and 'starts_at' in data:
+        from app.core.datetime_utils import database_utc
+        event.recurrence_until = database_utc(event.recurrence_until) + (data['starts_at'] - database_utc(event.starts_at))
     for key, value in data.items():
         setattr(event, key, value)
     event.updated_at = utcnow()

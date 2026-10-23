@@ -19,7 +19,7 @@ Trong trình sửa ghi chú, bấm **Gắn vào lịch** để mở bộ chọn 
 
 Bấm **Lưu ghi chú** mới tạo hoặc cập nhật lịch hẹn. Hủy bỏ bản đang nhập không tạo ghi chú/sự kiện. Mỗi ghi chú tối đa một lịch hẹn riêng, sửa ngày giờ cập nhật sự kiện đó. Nội dung vẫn ở Notes; tiêu đề lịch hẹn lấy theo ghi chú và cập nhật khi lưu ghi chú kèm lịch hẹn.
 
-Thẻ ghi chú có lịch hẹn hiện chip lịch; ghi chú thường hiện ngày tạo. Bộ lọc **Có lịch** chỉ xuất hiện khi có ghi chú đã đặt lịch. Ghim, màu, sắp xếp, tìm kiếm phía máy chủ, phân trang và lưu trữ giữ nguyên. Xóa ghi chú giữ lịch hẹn; xóa lịch hẹn giữ ghi chú. Lưu trữ không xóa lịch hẹn.
+Thẻ ghi chú có lịch hẹn hiện chip lịch; ghi chú thường hiện ngày tạo. Bộ lọc **Có lịch** chỉ xuất hiện khi có ghi chú đã đặt lịch. Ghim, màu, sắp xếp, tìm kiếm phía máy chủ, phân trang và lưu trữ giữ nguyên. Xóa ghi chú xóa luôn lịch hẹn gắn kèm, toàn bộ các lần lặp và hủy nhắc nhở còn chờ; xóa riêng lịch hẹn giữ ghi chú. Lưu trữ không xóa lịch hẹn.
 
 ## Mã nguồn và dữ liệu
 

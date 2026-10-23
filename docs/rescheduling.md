@@ -27,3 +27,9 @@ Trước khi chạy migration trên môi trường đang có dữ liệu, sao l�
 
 - Backend: `python -m unittest tests.integration.test_rescheduling`.
 - Trình duyệt/PostgreSQL: `node tests/browser/rescheduling-browser.cjs`, dùng tài khoản tạm và tự dọn. Kiểm tra mất phản hồi, replay song song, giữ bản nháp, thời lượng, lịch sử/hoàn tác, quyền sở hữu, múi giờ trình duyệt và màn hình nhỏ.
+
+## Lịch và thông báo dùng chung
+
+Chi tiết Công việc, Sự kiện và Ghi chú đã lưu mở cấu hình qua **Dời lịch / Thông báo**; nút xác nhận là **Áp dụng**. Phần cấu hình thông báo không còn nằm trực tiếp trong chi tiết. Form tạo mới vẫn cho chọn thông báo trước khi lưu lần đầu. Lựa chọn **Không nhắc** giữ nguyên.
+
+Có thể chỉ đổi thông báo, không đổi ngày giờ. Công việc chưa có hạn và ghi chú chưa gắn lịch hỗ trợ thông báo vào ngày giờ cụ thể mà không tự tạo hạn/lịch. Thay đổi thông báo có biên nhận chống gửi trùng, kiểm tra phiên bản, lịch sử và Hoàn tác như thay đổi lịch; bản nháp nội dung ở form chi tiết được giữ lại.

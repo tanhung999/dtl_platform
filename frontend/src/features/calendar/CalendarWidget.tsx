@@ -38,7 +38,7 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
   const openEvent = async (event: CalendarEvent) => {
     const controller = opening.start();
     setOpenError('');
-    try { const value = await calendarApi.get(event.id, controller.signal); if (!controller.signal.aborted) { setSelected(value); setDraft({ date }); } }
+    try { const value = await calendarApi.get(event.series_id ?? event.id, controller.signal); if (!controller.signal.aborted) { setSelected(value); setDraft({ date, occurrenceAt: event.starts_at }); } }
     catch (reason) { if (!controller.signal.aborted) setOpenError(reason instanceof Error ? reason.message : 'Không tải được sự kiện.'); }
   };
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -66,13 +66,13 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
   const close = () => { opening.cancel(); setSelected(undefined); setDraft(undefined); };
 
   return <div className="glass-panel widget-box calendar-widget">
-    <div className="widget-header"><div className="widget-title"><FeatureIcon name="calendar" /><span>Lịch cá nhân</span></div>
+    <div className="widget-header"><div className="widget-title"><FeatureIcon name="calendar" /><span>DT Calendar</span></div>
       <button type="button" className="btn btn-secondary btn-sm" aria-label="Tạo sự kiện" title="Tạo sự kiện" onClick={() => { opening.cancel(); setOpenError(''); setSelected(undefined); setDraft({ date }); }}><Plus size={14} /><span>Thêm</span></button>
     </div>
     <div className="calendar-widget-date"><div><span className="calendar-eyebrow">{dateKey(date) === todayKey ? 'HÔM NAY' : 'LỊCH TRONG NGÀY'}</span><h3>{formatDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</h3></div>
       <div className="calendar-inline-actions"><button type="button" className="calendar-icon-button" aria-label="Ngày trước" onClick={() => setDate(addDays(date, -1))}><ChevronLeft size={17} /></button><button type="button" className="calendar-icon-button" aria-label="Ngày sau" onClick={() => setDate(addDays(date, 1))}><ChevronRight size={17} /></button></div>
     </div>
-    {(data.truncated || deadlineData.truncated) && <p role="status">Chỉ hiển thị tối đa 500 mục lịch và 500 hạn công việc. Mở Lịch và thu hẹp khoảng xem để xem thêm.</p>}
+    {(data.truncated || deadlineData.truncated) && <p role="status">Đang hiển thị một phần dữ liệu. Mở Lịch và chọn “Tải thêm” để xem đầy đủ.</p>}
     {(openError || dayData.error) && <p role="alert">{openError || dayData.error}</p>}
     <div className="calendar-widget-week">{days.map((day, index) => {
       const dayTasks = deadlineData.tasks.filter(task => task.due_date === dateKey(day));

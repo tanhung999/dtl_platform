@@ -1,25 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRangeCollection } from '../../../services/useRangeCollection';
 import { ApiError } from '../../../services/api';
 import { Share, SharedItem, SharedPage, sharingApi } from '../api';
 import { permitted } from '../sharedItemUtils';
 
 export function useSharedCalendar(share: Share, start: string, end: string, revision: number, accessEpoch: number) {
-  const rangeKey = `${share.owner_id}:${start}:${end}`;
-  const queryKey = `${rangeKey}:${share.version}`;
-  const [saved, setSaved] = useState<{ rangeKey: string; queryKey: string; accessEpoch: number; page: SharedPage }>();
-  const [pending, setPending] = useState(false), [error, setError] = useState('');
-  useEffect(() => {
-    const controller = new AbortController(); setPending(true); setError('');
-    sharingApi.collection(share.owner_id, start, end, controller.signal).then(page => {
-      if (!controller.signal.aborted) setSaved({ rangeKey, queryKey, accessEpoch, page });
-    }).catch(reason => {
-      if (!controller.signal.aborted) { setSaved(undefined); setError(reason.message); }
-    }).finally(() => { if (!controller.signal.aborted) setPending(false); });
-    return () => controller.abort();
-  }, [queryKey, revision, accessEpoch, rangeKey, share.owner_id, start, end]);
-  const visible = saved?.queryKey === queryKey && saved.accessEpoch === accessEpoch;
-  const items = saved?.rangeKey === rangeKey ? saved.page.items.filter(item => permitted(item, share)) : [];
-  return { items, visible, pending, error, total: saved?.page.total, truncated: saved?.page.truncated };
+  const key = `${share.owner_id}:${start}:${end}:${share.version}:${accessEpoch}`;
+  const fetchPage = useCallback((offset: number, signal: AbortSignal) => sharingApi.collection(share.owner_id, start, end, signal, offset), [share.owner_id, start, end]);
+  const data = useRangeCollection<SharedItem, SharedPage>(key, revision, fetchPage);
+  const items = useMemo(() => data.items.filter(item => permitted(item, share)), [data.items, share.share_events, share.share_tasks, share.share_notes]);
+  return { ...data, items, visible: !!data.page && !data.error, pending: data.loading };
 }
 
 export function useSharedDetail(ownerId: string, item: SharedItem | undefined, revision: number, accessEpoch: number,

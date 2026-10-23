@@ -68,7 +68,7 @@ const base=process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.screenshot({path:path.resolve(__dirname,'../../../.audit-backups/workspace-search-mobile.png'),fullPage:true});
   await page.setViewportSize({width:1550,height:1050});
-  await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'Lịch',exact:true}).click();
+  await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'DT Calendar',exact:true}).click();
   await page.getByRole('button',{name:'Tuần',exact:true}).click();
   const card=page.locator(`.calendar-time-column [data-event-id="${note.calendar_schedule.event_id}"]`);
   await card.waitFor();

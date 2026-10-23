@@ -1,7 +1,7 @@
 import './profile.css';
 import { profileApi } from './api';
 import { sameFields } from '../../services/unchanged';
-import { featureIcons } from '../../assets/featureIcons';
+import { FeatureIcon } from '../../components/FeatureIcon';
 import React, { useState } from 'react';
 import {
   User as UserIcon,
@@ -326,11 +326,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
 
             <div className="profile-app-permissions">
               {[
-                { id: 'bookingreports', name: 'Income Statement', description: 'Báo cáo thu nhập và doanh số', icon: featureIcons.income },
-                { id: 'workflows', name: 'Workflows', description: 'Luồng phê duyệt và trình ký', icon: featureIcons.workflow },
-                { id: 'itam', name: 'Asset Manager', description: 'Quản lý tài sản và cấp phát IT', icon: featureIcons.assets },
+                { id: 'bookingreports', name: 'DT Income Statement', description: 'Báo cáo thu nhập và doanh số', icon: 'income' as const },
+                { id: 'workflows', name: 'DT Workflow', description: 'Luồng phê duyệt và trình ký', icon: 'workflow' as const },
+                { id: 'itam', name: 'DT Assets', description: 'Quản lý tài sản và cấp phát IT', icon: 'assets' as const },
               ].map(app => <div className="profile-app-permission" key={app.id} data-app-id={app.id}>
-                <img src={app.icon} alt="" width={24} height={24} />
+                <FeatureIcon name={app.icon} size={24} />
                 <div><strong>{app.name}</strong><small>{app.description}</small></div>
                 <span className={allowedApps.has(app.id) ? 'is-granted' : 'is-unavailable'}>{allowedApps.has(app.id) ? 'Đã cấp quyền' : 'Chưa cấp quyền'}</span>
               </div>)}

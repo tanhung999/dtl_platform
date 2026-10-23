@@ -191,7 +191,7 @@ class CalendarSharingTests(ApiTestCase):
             self.assertIn('revoked_at',columns)
 
 
-    async def test_note_title_sync_and_retained_appointment_does_not_leak_into_events(self):
+    async def test_note_title_sync_and_deletion_removes_shared_appointment(self):
         await self.enable();await self.share(share_events=True,share_notes=False)
         _,note=await self.request('POST','/api/notes',payload={'title':'Confidential note title','content':'Private body','calendar_schedule':{'starts_at':'2026-10-16T09:00:00+07:00','ends_at':'2026-10-16T09:30:00+07:00','is_all_day':False}})
         event_id=note['calendar_schedule']['event_id']
@@ -200,6 +200,6 @@ class CalendarSharingTests(ApiTestCase):
         _,event=await self.request('GET',f'/api/calendar/events/{event_id}');self.assertEqual(event['title'],'Updated canonical note title')
         _,page=await self.request('GET','/api/calendar-sharing/view/alice',user='bob',query=self.query);self.assertEqual(page['total'],0)
         code,_=await self.request('DELETE',f"/api/notes/{note['id']}");self.assertEqual(code,204)
-        _,retained=await self.request('GET',f'/api/calendar/events/{event_id}');self.assertTrue(retained['is_private']);self.assertIsNone(retained['scheduled_note_id'])
+        code,_=await self.request('GET',f'/api/calendar/events/{event_id}');self.assertEqual(code,404)
         _,page=await self.request('GET','/api/calendar-sharing/view/alice',user='bob',query=self.query);self.assertEqual(page['total'],0)
         code,_=await self.request('GET',f'/api/calendar-sharing/view/alice/event/{event_id}',user='bob');self.assertEqual(code,404)

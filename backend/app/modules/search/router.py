@@ -14,9 +14,9 @@ from app.modules.tasks.queries import task_order
 
 router = APIRouter(prefix="/api/search", tags=["Workspace search"])
 APPS = [
-    {"id": "bookingreports", "title": "Income Statement", "preview": "Báo cáo Thu nhập & Bán hàng. Báo cáo thu nhập, doanh số bán hàng, bảng tính hoa hồng và theo dõi giỏ hàng bất động sản."},
-    {"id": "workflows", "title": "Workflows", "preview": "Hệ thống trình ký. Theo dõi luồng xử lý hồ sơ, phê duyệt chứng từ."},
-    {"id": "itam", "title": "Asset Manager", "preview": "Quản lý Tài sản. Quản lý cấp phát thiết bị IT, tài sản hành chính, kiểm kê kho và thủ tục tiếp nhận nhân sự."},
+    {"id": "bookingreports", "title": "DT Income Statement", "preview": "Báo cáo Thu nhập & Bán hàng. Báo cáo thu nhập, doanh số bán hàng, bảng tính hoa hồng và theo dõi giỏ hàng bất động sản."},
+    {"id": "workflows", "title": "DT Workflow", "preview": "Hệ thống trình ký. Theo dõi luồng xử lý hồ sơ, phê duyệt chứng từ."},
+    {"id": "itam", "title": "DT Assets", "preview": "Quản lý Tài sản. Quản lý cấp phát thiết bị IT, tài sản hành chính, kiểm kê kho và thủ tục tiếp nhận nhân sự."},
 ]
 
 @router.get("")

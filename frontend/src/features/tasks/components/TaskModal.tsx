@@ -11,8 +11,7 @@ import { useMutationChecking } from '../../mutations/useMutationChecking';
 import { PrivacyToggle } from '../../access/PrivacyToggle';
 import { RescheduleControl } from '../../rescheduling/RescheduleControl';
 import { sameFields } from '../../../services/unchanged';
-import { ReminderFields, reminderValue, sameReminder } from '../../reminders/ReminderFields';
-import { dateKey, eventDate, parseDate, toTimestamp } from '../../calendar/dateUtils';
+import { reminderValue, sameReminder } from '../../reminders/ReminderFields';
 
 interface Props {
   task: Task;
@@ -84,11 +83,10 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
         }}/>
         <label>Mô tả công việc<textarea className="form-input" rows={3} maxLength={10000} value={description} onChange={e => setDescription(e.target.value)} /></label>
         <PrivacyToggle label="Công việc riêng tư" value={isPrivate} onChange={setIsPrivate} />
-        <ReminderFields allowUnscheduled value={reminder} onChange={setReminder} anchor={dueDate || dueTime ? toTimestamp(parseDate(dueDate || dateKey(eventDate(task.created_at))), dueTime || '00:00') : null} allDay={!dueTime} disabled={busy} />
       </fieldset>
       {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
       {error && <p className="alert-error task-dialog-error" role="alert">{error}</p>}
-      {confirm && <div className="task-delete-confirm" role="alert"><p>Xóa công việc “{task.title}”? Deadline trên lịch và nhắc hạn cũng sẽ được xóa.</p><div><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirm(false)}>Giữ lại</button><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={remove}>Xác nhận xóa công việc</button></div></div>}
+      {confirm && <div className="task-delete-confirm" role="alert"><p>Xóa công việc “{task.title}”? Deadline trên lịch và thông báo cũng sẽ được xóa.</p><div><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirm(false)}>Giữ lại</button><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={remove}>Xác nhận xóa công việc</button></div></div>}
       <footer className="task-dialog-footer"><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={() => setConfirm(true)}><Trash2 size={14} /> Xóa công việc</button><button type="submit" className="btn btn-primary btn-sm" disabled={busy || confirm || !title.trim()}>{busy ? 'Đang lưu…' : 'Lưu công việc'}</button></footer>
     </form>
   </dialog>;

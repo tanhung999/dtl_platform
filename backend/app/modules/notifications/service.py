@@ -36,7 +36,7 @@ def select_feed():
     # starts depending on another Task column.
     return (select(Notification, Task, CalendarEvent, Note).options(load_only(
         Task.id, Task.is_completed, Task.deadline_version, Task.due_date, Task.reminder_version, raiseload=True,
-    ), load_only(CalendarEvent.id, CalendarEvent.reminder_version, CalendarEvent.ends_at, raiseload=True),
+    ), load_only(CalendarEvent.id, CalendarEvent.reminder_version, CalendarEvent.starts_at, CalendarEvent.ends_at, CalendarEvent.recurrence, raiseload=True),
         load_only(Note.id, Note.is_archived, Note.reminder_version, raiseload=True)).outerjoin(Task, Task.id == Notification.task_id)
         .outerjoin(CalendarEvent, CalendarEvent.id == Notification.event_id).outerjoin(Note, (Notification.resource_type == 'note') & (Note.id == Notification.resource_id)))
 
@@ -49,7 +49,8 @@ def serialize(notification, task, now, event=None, note=None, owners=None):
     elif notification.resource_type == 'note' and notification.note_id:
         state = 'deleted' if note is None else 'archived' if note.is_archived else 'changed' if note.reminder_version != notification.reminder_version else 'active'
     elif notification.resource_type in ('event', 'note'):
-        state = 'deleted' if event is None or notification.resource_type == 'note' and note is None else 'archived' if note is not None and note.is_archived else 'changed' if event.reminder_version != notification.reminder_version else 'ended' if utc(event.ends_at) <= now else 'active'
+        event_end = (utc(notification.due_at) + (utc(event.ends_at) - utc(event.starts_at))) if event is not None and event.recurrence != 'NONE' and notification.due_at else utc(event.ends_at) if event is not None else now
+        state = 'deleted' if event is None or notification.resource_type == 'note' and note is None else 'archived' if note is not None and note.is_archived else 'changed' if event.reminder_version != notification.reminder_version else 'ended' if event_end <= now else 'active'
     owner_id = notification.calendar_owner_id
     ownership_label = ('Của ' + owners[owner_id]) if owner_id and owners and owner_id in owners else 'Của bạn' if owners and notification.source == 'platform' and notification.resource_type in ('task', 'event', 'note') else None
     return {key: utc(getattr(notification, key)) for key in ('id', 'source', 'kind', 'title', 'body', 'resource_type', 'resource_id', 'due_at', 'occurred_at', 'created_at', 'read_at', 'dismissed_at', 'snoozed_until')} | {'state': state, 'calendar_owner_id': owner_id, 'ownership_label': ownership_label}

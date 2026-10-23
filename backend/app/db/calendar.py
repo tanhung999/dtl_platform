@@ -33,6 +33,8 @@ class CalendarEvent(Base):
     ends_at = Column(UTCDateTime(), nullable=False)
     is_all_day = Column(Boolean, nullable=False, default=False)
     is_private = Column(Boolean, nullable=False, default=False, server_default="false")
+    recurrence = Column(String(10), nullable=False, default="NONE", server_default="NONE")
+    recurrence_until = Column(UTCDateTime(), nullable=True)
     color = Column(String(7), nullable=False, default="#2563eb")
     reminder_minutes = Column(Integer, nullable=True)
     reminder_at = Column(UTCDateTime(), nullable=True)

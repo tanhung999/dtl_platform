@@ -33,6 +33,8 @@ class NoteResponse(BaseModel):
     reminder_at: datetime | None = None
     is_private: bool = False
     calendar_schedule: NoteScheduleResponse | None = None
+    calendar_occurrence_at: datetime | None = None
+    calendar_series_recurrence: str | None = None
     version: int
     id: str
     user_id: str

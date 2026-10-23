@@ -20,7 +20,7 @@ export const tasksApi = {
     if (after) params.set('after', after); if (overdueAfter) params.set('overdue_after', overdueAfter);
     return requestWithTimeout<TaskCollection>(`/api/tasks/collection?${params}`, { signal });
   },
-  calendar(start: string, end: string, signal?: AbortSignal) { return requestWithTimeout<TaskRange>(`/api/tasks/calendar/page?${new URLSearchParams({ start, end })}`, { signal }); },
+  calendar(start: string, end: string, signal?: AbortSignal, offset = 0) { return requestWithTimeout<TaskRange>(`/api/tasks/calendar/page?${new URLSearchParams({ start, end, offset: String(offset) })}`, { signal }); },
   create(payload: TaskInput, attempt: CreateAttempt<TaskInput>) {
     return createWithRecovery<Task, TaskInput>('/api/tasks', payload, attempt, matchesTask,
       (task, input) => tasksApi.update(task.id, { ...input, expected_version: task.version }));

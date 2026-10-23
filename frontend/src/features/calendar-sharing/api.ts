@@ -3,7 +3,7 @@ import { requestWithTimeout } from '../../services/requestTimeout';
 export interface Share { id: string; owner_id: string; viewer_id: string; name: string; username: string; version: number; share_events: boolean; share_tasks: boolean; share_notes: boolean }
 export interface ShareState { id: string | null; version: number; active: boolean; share_events: boolean; share_tasks: boolean; share_notes: boolean }
 export type Scope = Pick<Share, 'share_events' | 'share_tasks' | 'share_notes'>;
-export interface SharedItem { id: string; title: string; kind: 'event' | 'note' | 'task'; starts_at?: string; ends_at?: string; is_all_day?: boolean; due_date?: string; due_time?: string; priority?: string; is_completed?: boolean; note_id?: string; note_color?: string; content?: string; color?: string; location?: string }
+export interface SharedItem { series_id?: string; recurrence?: import("../calendar/types").Recurrence; id: string; title: string; kind: 'event' | 'note' | 'task'; starts_at?: string; ends_at?: string; is_all_day?: boolean; due_date?: string; due_time?: string; priority?: string; is_completed?: boolean; note_id?: string; note_color?: string; content?: string; color?: string; location?: string }
 export interface SharedPage extends Scope { items: SharedItem[]; total: number; truncated: boolean }
 const base = '/api/calendar-sharing';
 const read = <T,>(url: string, signal?: AbortSignal) => requestWithTimeout<T>(url, { signal, cache: 'no-store' });
@@ -21,6 +21,6 @@ export const sharingApi = {
     ()=>requestWithTimeout<ShareState>(`${base}/mine/${row.viewer_id}`,{cache:'no-store'},5000),
     state=>!state.active&&state.id===row.id&&state.version>=row.version+1,
   ),
-  collection: (owner: string, start: string, end: string, signal?: AbortSignal) => read<SharedPage>(`${base}/view/${owner}?${new URLSearchParams({ start, end })}`, signal),
-  detail: (owner: string, item: SharedItem, signal?: AbortSignal) => read<SharedItem>(`${base}/view/${owner}/${item.kind}/${item.id}`, signal),
+  collection: (owner: string, start: string, end: string, signal?: AbortSignal, offset = 0) => read<SharedPage>(`${base}/view/${owner}?${new URLSearchParams({ start, end, offset: String(offset) })}`, signal),
+  detail: (owner: string, item: SharedItem, signal?: AbortSignal) => read<SharedItem>(`${base}/view/${owner}/${item.kind}/${item.series_id ?? item.id}${item.series_id && item.starts_at ? `?${new URLSearchParams({ occurrence_at: item.starts_at })}` : ''}`, signal),
 };

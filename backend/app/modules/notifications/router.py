@@ -150,10 +150,10 @@ async def snooze(id: str, user: UserArg, db: DbArg):
     notice = await owned(db, user, id)
     task = await db.scalar(select(Task).where(Task.id == notice.task_id, Task.user_id == user.id).with_for_update()) if notice.task_id else None
     if not task or task.is_completed or task.deadline_version != notice.deadline_version or not task.due_date or notice.reminder_version is None or task.reminder_version != notice.reminder_version or (task.reminder_minutes is None and task.reminder_at is None):
-        raise HTTPException(409, 'Công việc không còn phù hợp để nhắc lại.')
+        raise HTTPException(409, 'Công việc không còn phù hợp để gửi lại thông báo.')
     now, due = utcnow(), deadline_at(task)
     if due <= now + timedelta(hours=1):
-        raise HTTPException(409, 'Hạn còn dưới 1 giờ hoặc đã qua; không thể hoãn nhắc thêm 1 giờ.')
+        raise HTTPException(409, 'Hạn còn dưới 1 giờ hoặc đã qua; không thể hoãn thông báo thêm 1 giờ.')
     notice = await owned(db, user, id, lock=True)
     if not notice.snoozed_until:
         notice.snoozed_until = now + timedelta(hours=1)

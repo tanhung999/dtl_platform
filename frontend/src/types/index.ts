@@ -24,6 +24,8 @@ export interface AuthSession {
 }
 
 export interface Note {
+  calendar_occurrence_at?: string | null;
+  calendar_series_recurrence?: 'DAILY' | 'WEEKLY' | null;
   reminder_at?: string | null;
   is_private: boolean;
   calendar_schedule?: import("../features/note-scheduling/types").NoteSchedule | null;

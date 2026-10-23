@@ -66,7 +66,7 @@ Kiểm thử bổ sung: chống tạo lại sau thu hồi, kiểm tra phiên b�
 
 Việc quá hạn trong khoảng đang xem được gom vào khung riêng và không lặp lại trên lưới. Công việc đã hoàn thành vẫn nằm trên lịch. Bài đo tải đọc lịch chia sẻ cục bộ: `node tests/load/calendar-sharing-load.cjs` (300 tài khoản tạm, 200 yêu cầu đọc đồng thời, tự dọn; không đo tải đăng nhập hoặc tải ghi).
 
-Khi xóa ghi chú đã gắn lịch, lịch hẹn được giữ theo luồng cũ nhưng chuyển thành sự kiện riêng tư. Nó không tự xuất hiện với người chỉ được chia sẻ Sự kiện. Hộp xác nhận xóa nêu rõ hành vi này. Đổi tiêu đề ghi chú bằng yêu cầu cập nhật một phần cũng đồng bộ tiêu đề trên lịch.
+Khi xóa ghi chú đã gắn lịch, lịch hẹn cùng toàn bộ các lần lặp cũng bị xóa và nhắc nhở còn chờ bị hủy. Người được chia sẻ không còn thấy lịch hẹn đã xóa. Hộp xác nhận xóa nêu rõ phạm vi toàn bộ chuỗi. Đổi tiêu đề ghi chú bằng yêu cầu cập nhật một phần cũng đồng bộ tiêu đề trên lịch.
 
 ## Kết quả đo đọc trên Docker cục bộ
 

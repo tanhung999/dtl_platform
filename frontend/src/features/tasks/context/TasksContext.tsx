@@ -1,3 +1,4 @@
+import { useViewMemory, isText, isOffset } from '../../../services/viewMemory';
 import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Task } from '../../../types';
 import { useLatestRequest } from '../../../services/useLatestRequest';
@@ -30,9 +31,7 @@ export function TasksProvider({ children, fullPage = false }: { children: ReactN
   useWorkspaceRealtime();
   const [page, setPage] = useState<TaskCollection>();
   const view = fullPage ? 'full' : 'widget', limit = fullPage ? 25 : 8;
-  const [views, setViews] = useState<Record<'widget' | 'full', { filter: TaskFilter; offset: number; query: string }>>({
-    widget: { filter: 'ALL', offset: 0, query: '' }, full: { filter: 'ALL', offset: 0, query: '' },
-  });
+  const [views, setViews] = useViewMemory<Record<'widget' | 'full', { filter: TaskFilter; offset: number; query: string }>>('tasks', () => ({ widget: { filter: 'ALL', offset: 0, query: '' }, full: { filter: 'ALL', offset: 0, query: '' } }), value => !!value && typeof value === 'object' && ['widget', 'full'].every(name => { const state = (value as any)[name]; return state && ['ALL', 'PENDING', 'DONE', 'OVERDUE'].includes(state.filter) && isOffset(state.offset) && isText(state.query); }));
   const { filter, offset, query } = views[view];
   const [debounced, setDebounced] = useState('');
   useEffect(() => { const timer = setTimeout(() => setDebounced(query), 300); return () => clearTimeout(timer); }, [query]);

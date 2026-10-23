@@ -14,8 +14,8 @@ const matches = (event: CalendarEvent, payload: Partial<CalendarEventInput>) => 
 
 export const calendarApi = {
   days: (start: string, end: string, signal?: AbortSignal) => requestWithTimeout<CalendarDays>(`/api/calendar/days?${new URLSearchParams({ start, end })}`, { signal }),
-  list(start: string, end: string, signal?: AbortSignal, includeEvents = true, includeNotes = true) {
-    const query = new URLSearchParams({ start, end, include_events: String(includeEvents), include_notes: String(includeNotes) });
+  list(start: string, end: string, signal?: AbortSignal, includeEvents = true, includeNotes = true, offset = 0) {
+    const query = new URLSearchParams({ start, end, include_events: String(includeEvents), include_notes: String(includeNotes), offset: String(offset) });
     return requestWithTimeout<EventRange>(`${base}/collection?${query}`, { signal });
   },
   get(id: string, signal?: AbortSignal) { return requestWithTimeout<CalendarEvent>(`${base}/${encodeURIComponent(id)}`, { cache: 'no-store', signal }, 5000); },
@@ -28,7 +28,8 @@ export const calendarApi = {
       method: 'PUT', body: JSON.stringify(payload),
     }), () => calendarApi.get(id), event => Date.parse(event.updated_at) >= Date.parse(payload.expected_updated_at!) && matches(event, payload));
   },
-  remove(id: string, updatedAt: string) {
+  remove(id: string, updatedAt: string, selection?: import("./components/RecurrenceScope").ScopeSelection) {
+    if (selection && selection.scope !== 'ALL') return requestWithTimeout<void>(`${base}/${encodeURIComponent(id)}?${new URLSearchParams({ expected_updated_at:updatedAt, ...selection })}`, {method:'DELETE'});
     return deleteWithRecovery(`${base}/${encodeURIComponent(id)}`, new URLSearchParams({ expected_updated_at: updatedAt }));
   },
 };
