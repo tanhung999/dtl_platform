@@ -4,6 +4,17 @@ Ghi chú chỉ còn **Gắn vào lịch**. Đã bỏ gắn ghi chú vào sự ki
 
 ## Cách sử dụng
 
+Nút trong trình sửa phụ thuộc trạng thái:
+
+| Trạng thái | Thao tác lịch |
+| --- | --- |
+| Ghi chú mới hoặc đã lưu nhưng chưa chọn lịch | Gắn vào lịch |
+| Đã chọn lịch nháp, chưa lưu lịch hẹn | Bỏ chọn lịch; không có Dời lịch |
+| Ghi chú và lịch hẹn đã lưu | Dời lịch và các trường ngày giờ; không có Gắn vào lịch hoặc Bỏ chọn lịch |
+| Ghi chú đã lưu trữ | Không có thao tác gắn/dời lịch |
+
+Tạo mới không có nút xóa/lưu trữ/dời lịch. Đóng bằng X vẫn được trong lúc chờ lưu; thao tác đã gửi có thể hoàn tất, nhưng phản hồi cũ không đóng form mở sau đó. Chuyển từ tải ghi chú cũ sang tạo mới hủy yêu cầu tải cũ. Calendar và Tasks cũng chỉ mở chi tiết từ yêu cầu mới nhất.
+
 Trong trình sửa ghi chú, bấm **Gắn vào lịch** để mở bộ chọn ngày giờ dùng chung với To-Do. Mặc định là hôm nay theo giờ Việt Nam. Chỉ chọn ngày thì hiện ở vùng Cả ngày; có giờ thì gợi ý thời lượng 30 phút và cho sửa giờ kết thúc. Ngày kết thúc cả ngày được lưu bằng mốc 00:00 ngày kế tiếp, không bao gồm mốc này.
 
 Bấm **Lưu ghi chú** mới tạo hoặc cập nhật lịch hẹn. Hủy bỏ bản đang nhập không tạo ghi chú/sự kiện. Mỗi ghi chú tối đa một lịch hẹn riêng, sửa ngày giờ cập nhật sự kiện đó. Nội dung vẫn ở Notes; tiêu đề lịch hẹn lấy theo ghi chú và cập nhật khi lưu ghi chú kèm lịch hẹn.
@@ -66,3 +77,7 @@ Sau khi cập nhật source trên máy triển khai, dựng lại backend bằng
 Timestamp API luôn có múi giờ UTC (`Z` hoặc `+00:00`), kể cả khi SQLite trả datetime không có tzinfo. Lưới ngày và ngày tạo ghi chú hiển thị theo giờ Việt Nam, độc lập múi giờ trình duyệt. Ví dụ chọn cả ngày từ 22 đến hết 25/10/2026: lưu bắt đầu `2026-10-21T17:00:00Z`, kết thúc không bao gồm `2026-10-25T17:00:00Z` (00:00 ngày 26 ở Việt Nam). Ngày 21 trong chuỗi UTC không có nghĩa lịch bắt đầu ngày 21 tại Việt Nam.
 
 Không bù thêm một ngày vào database. Chuẩn hóa datetime đọc từ DB trước khi serialize ở collection Calendar, chi tiết/danh sách Notes và lịch chia sẻ. Dữ liệu date-only của Tasks không qua chuyển đổi timestamp này. Kiểm thử hồi quy: `backend/tests/integration/test_calendar_timezone_contract.py`, cùng các ca frontend timezone cho ngày 22–25 và ngày tạo sát nửa đêm.
+
+## Nhắc nhở tùy chọn
+
+Lịch hẹn của ghi chú dùng cùng cơ chế [nhắc nhở cá nhân](notifications.md): mặc định Không nhắc, nhắc theo giờ bắt đầu hoặc ngày giờ tự chọn trước thời điểm kết thúc, kể cả khi ghi chú đã bắt đầu. Ghi chú chưa gắn vào lịch không có nhắc. Lưu trữ/xóa ghi chú hủy job chưa gửi; khôi phục chỉ lập lại lần nhắc còn ở tương lai. Đổi nội dung không tạo lượt nhắc mới.

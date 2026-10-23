@@ -1,3 +1,4 @@
+import { eventTooltip, taskTooltip } from '../calendar/itemTooltip';
 import { Task, TaskPriority } from '../../types';
 import { CalendarEvent } from '../calendar/types';
 import { addDays, dateKey, eventDate, eventTime, formatDate, toTimestamp } from '../calendar/dateUtils';
@@ -28,4 +29,8 @@ export function sharedRangeLabel(item: SharedItem): string {
 export function sharedItemsOnDay(items: SharedItem[], day: Date) {
   const start = Date.parse(toTimestamp(day)), end = Date.parse(toTimestamp(addDays(day, 1)));
   return items.filter(item => item.kind === 'task' ? item.due_date === dateKey(day) : Date.parse(item.starts_at!) < end && Date.parse(item.ends_at!) > start);
+}
+
+export function sharedItemTooltip(item: SharedItem, now: Date): string {
+  return item.kind === 'task' ? taskTooltip(sharedTask(item), now) : eventTooltip(sharedEvent(item), now);
 }

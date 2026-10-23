@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     NOTIFICATIONS_BOOKINGREPORTS_SECRET: str = ''
     NOTIFICATIONS_WORKFLOWS_SECRET: str = ''
     NOTIFICATIONS_ITAM_SECRET: str = ''
+    # Khóa API đọc tách khỏi khóa gửi thông báo và khóa SSO.
+    NOTIFICATIONS_API_SIGNING_SECRET: str = ''
+    NOTIFICATIONS_BOOKINGREPORTS_API_SECRET: str = ''
+    NOTIFICATIONS_WORKFLOWS_API_SECRET: str = ''
+    NOTIFICATIONS_ITAM_API_SECRET: str = ''
+    NOTIFICATIONS_API_TOKEN_SECONDS: int = Field(default=900, ge=60, le=1800)
+    NOTIFICATIONS_API_SESSION_SECONDS: int = Field(default=28800, ge=900, le=86400)
     
     # CORS
     CORS_ORIGINS: List[str] = [

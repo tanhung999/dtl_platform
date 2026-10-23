@@ -114,26 +114,6 @@ class CollectionScalingTests(unittest.IsolatedAsyncioTestCase):
 
 
 
-    async def test_reminder_next_check_snooze_and_early_deadline(self):
-        _, task = await self.request('POST', '/api/tasks', payload={'title': 'Early', 'due_date': '2026-10-13', 'due_time': '00:10'})
-        endpoint = '/api/tasks/reminders/schedule'
-        with patch('app.modules.tasks.collection.utcnow', return_value=datetime(2026, 10, 12, 7, 59, tzinfo=VN)):
-            _, schedule = await self.request('GET', endpoint)
-            self.assertEqual(schedule['items'], [])
-            self.assertEqual(schedule['next_check_at'], '2026-10-12T01:00:00+00:00')
-        with patch('app.modules.tasks.collection.utcnow', return_value=datetime(2026, 10, 12, 23, 40, tzinfo=VN)):
-            _, schedule = await self.request('GET', endpoint)
-            self.assertEqual(schedule['items'][0]['kind'], 'day')
-            self.assertEqual(schedule['next_check_at'], '2026-10-12T17:00:00+00:00')
-        _, normal = await self.request('POST', '/api/tasks', payload={'title': 'Morning', 'due_date': '2026-10-13', 'due_time': '12:00'})
-        moment = datetime(2026, 10, 13, 9, tzinfo=VN)
-        with patch('app.modules.tasks.router.utcnow', return_value=moment):
-            await self.request('POST', f"/api/tasks/{normal['id']}/reminders/day/snooze", payload={'deadline_version': 0})
-        with patch('app.modules.tasks.collection.utcnow', return_value=moment):
-            _, schedule = await self.request('GET', endpoint)
-            self.assertNotIn(normal['id'], [r['task_id'] for r in schedule['items']])
-            self.assertEqual(schedule['next_check_at'], '2026-10-13T03:00:00+00:00')
-
     async def test_note_summary_schedules_only_its_next_real_transition(self):
         _, note = await self.request('POST', '/api/notes', payload={'title': 'No periodic query'})
         _, page = await self.request('GET', '/api/notes/collection/page')

@@ -60,6 +60,20 @@ Giữ deadline quá hạn trên lịch và đồng nhất viền Notes cả ngà
 
 Riêng tư Task/Notes/Sự kiện và đóng hộp bằng X: `browser/item-privacy-browser.cjs`. Lịch chia sẻ kiểm tra thêm chuyển riêng tư khi người nhận đang mở chi tiết; bộ chọn ngày/giờ vẫn đóng khi bấm ngoài hoặc Esc.
 
-Đổi hạn/dời lịch: `browser/rescheduling-browser.cjs` kiểm tra cả ba loại, giữ bản nháp/thời lượng, lý do/lịch sử riêng, Hoàn tác trong hộp đang mở, mất phản hồi sau commit, gửi trùng song song trên PostgreSQL và giao diện điện thoại. Chi tiết API tại `docs/rescheduling.md` ở gốc repo.
+Dời lịch: `browser/rescheduling-browser.cjs` kiểm tra cả ba loại, giữ bản nháp/thời lượng, lý do/lịch sử riêng, Hoàn tác trong hộp đang mở, mất phản hồi sau commit, gửi trùng song song trên PostgreSQL và giao diện điện thoại. Chi tiết API tại `docs/rescheduling.md` ở gốc repo.
 
 Hoàn tác phản hồi chậm: `browser/undo-race-browser.cjs` dùng cổng đồng bộ, kiểm tra cả thành công/lỗi cũ với toast mới. `unit/reschedule-invalidation.test.cjs` kiểm tra Sự kiện thường không tải lại Notes.
+
+Lưu dữ liệu không thay đổi: `browser/unchanged-save-browser.cjs` kiểm tra không gửi request ghi cho Task/Note/Event/Profile và giữ giây gốc khi chỉ sửa nội dung sự kiện. Quy ước tại `docs/unchanged-updates.md` ở gốc repo.
+
+Trạng thái form: `browser/editor-state-browser.cjs` kiểm tra nút gắn lịch/dời lịch của ghi chú mới, lịch nháp, đã lưu và lưu trữ. Dùng cổng đồng bộ để kiểm tra phản hồi tải/lưu cũ không mở đè hoặc đóng form mới ở Notes, Calendar và Tasks.
+
+Nhắc nhở tùy chọn: `node tests/browser/user-reminders-browser.cjs`; kiểm tra Task/Event/Note mặc định không nhắc, cấu hình preset/tùy chỉnh, lưu không đổi, đóng tab vẫn tạo thông báo, mở đúng editor và bộ chọn ngày trên điện thoại. Helper chỉ chạy worker trên job của tài khoản QA UUID. Cả bài này và `notifications-browser.cjs` nhận `PLATFORM_BASE_URL` nếu kiểm tra bản build qua preview/proxy riêng.
+
+Khóa nhắc hạn đã qua: `node tests/browser/reminder-availability-browser.cjs`. Kiểm tra Task/Event/Note chuyển xám, chỉ đổi ngày nhưng giờ còn quá khứ vẫn bị khóa, mở lại khi chọn giờ tương lai, khóa các lựa chọn nhắc đã qua, và tự khóa khi đến hạn bằng đồng hồ kiểm thử. Unit: `reminder-availability.test.cjs` kiểm tra ranh giới giờ và ngày cả ngày theo giờ Việt Nam.
+
+Vùng bấm bộ chọn ngày/giờ: `node tests/browser/picker-hit-area-browser.cjs`. Kiểm tra vùng trống không mở hoặc mở lại popup trong Dời lịch Task/Event/Note; bấm ô, icon hoặc ArrowDown vẫn mở; bấm ngoài/Esc chỉ đóng popup và giữ hộp thoại; có kiểm tra màn hình nhỏ.
+
+Ngày giờ đã lưu chỉ xem: `browser/rescheduling-browser.cjs` kiểm tra Task/Event/Notes khóa trường lịch, Sự kiện khóa cả lựa chọn cả ngày, sửa qua Dời lịch và Hoàn tác cập nhật lại trường bị khóa. `browser/editor-state-browser.cjs` kiểm tra tạo mới và gắn Notes vào lịch lần đầu vẫn chọn được ngày giờ; Task chưa có hạn dùng Dời lịch để đặt lịch. Các trường nhắc hạn được cấu hình riêng.
+
+Giới hạn nhắc hạn: `browser/reminder-limits-browser.cjs` kiểm tra Task được nhắc đúng hạn, Sự kiện/Notes đang diễn ra được nhắc trước khi kết thúc; ngày/giờ vượt giới hạn hiện cảnh báo và không gửi API ghi. Kiểm tra lại khi dời lịch, độ mờ và con trỏ cấm trên toàn bộ ô ngày/giờ bị khóa.

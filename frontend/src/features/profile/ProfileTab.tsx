@@ -1,4 +1,5 @@
 import { profileApi } from './api';
+import { sameFields } from '../../services/unchanged';
 import { featureIcons } from '../../assets/featureIcons';
 import React, { useState } from 'react';
 import {
@@ -42,16 +43,13 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated }) =
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingProfile) return;
+    const payload = { full_name: fullName.trim(), phone: phone.trim(), job_title: jobTitle.trim(), office_location: officeLocation.trim(), bio: bio.trim() };
+    if (sameFields(payload, { ...user })) { setProfileMessage({ type: 'success', text: 'Thông tin chưa thay đổi.' }); return; }
     setSavingProfile(true);
     setProfileMessage(null);
     try {
-      const updated = await profileApi.updateProfile({
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-        job_title: jobTitle.trim(),
-        office_location: officeLocation.trim(),
-        bio: bio.trim(),
-      });
+      const updated = await profileApi.updateProfile(payload);
       onUserUpdated(updated);
       setProfileMessage({ type: 'success', text: 'Cập nhật thông tin tài khoản thành công!' });
     } catch (err: any) {

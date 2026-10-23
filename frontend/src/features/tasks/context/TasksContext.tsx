@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Task } from '../../../types';
+import { useLatestRequest } from '../../../services/useLatestRequest';
 import { tasksApi } from '../api';
 import { TaskCollection, TaskFilter, TaskInput } from '../types';
 import { sortTasks } from '../deadlineUtils';
@@ -17,7 +18,7 @@ interface TasksState {
   counts: Record<TaskFilter, number>; filter: TaskFilter; setFilter: (filter: TaskFilter) => void;
   query: string; setQuery: (query: string) => void;
   page?: TaskCollection; setOffset: (value: number) => void; setOverdueOffset: (value: number) => void;
-  refresh: () => void; edit: (task: Task) => void; openTask: (id: string) => Promise<void>;
+  refresh: () => void; edit: (task: Task) => void; openTask: (id: string, signal?: AbortSignal) => Promise<void>;
   create: (payload: TaskInput, attempt: CreateAttempt<TaskInput>) => Promise<void>;
   update: (id: string, payload: Partial<TaskInput> & { is_completed?: boolean }) => Promise<void>;
   toggle: (task: Task) => Promise<void>; remove: (id: string, version?: number) => Promise<void>;
@@ -45,6 +46,16 @@ export function TasksProvider({ children, fullPage = false }: { children: ReactN
   const scope = `${view}/${filter}/${offset}/${overdueOffset}/${limit}/${search}`;
   const [loadedScope, setLoadedScope] = useState('');
   const [editing, setEditing] = useState<Task>(), [now, setNow] = useState(new Date()), [overdueRequest, setOverdueRequest] = useState(0);
+  const opening = useLatestRequest();
+  const openTask = async (id: string, signal?: AbortSignal) => {
+    const controller = opening.start();
+    const abort = () => controller.abort();
+    if (signal?.aborted) return;
+    signal?.addEventListener('abort', abort, { once: true });
+    try { const task = await tasksApi.get(id, controller.signal); if (!controller.signal.aborted) setEditing(task); }
+    catch (reason) { if (!controller.signal.aborted) throw reason; }
+    finally { signal?.removeEventListener('abort', abort); }
+  };
   const [revision, refresh] = useInvalidation();
   const busy = useRef(new Set<string>()), mutation = useRef(0);
   const setFilter = (value: TaskFilter) => { cursors.current = {}; setViews(previous => ({ ...previous, [view]: { ...previous[view], filter: value, offset: 0 } })); };
@@ -111,11 +122,11 @@ export function TasksProvider({ children, fullPage = false }: { children: ReactN
   const tasks = useMemo(() => sortTasks(currentPage?.items ?? []), [currentPage?.items]);
   return <Context.Provider value={{ tasks, overdue: page?.overdue ?? [], now, page: currentPage, counts: page?.counts ?? emptyCounts, filter, setFilter, query, setQuery, setOffset, setOverdueOffset,
     revision, loading: fullPage && query !== debounced || (!page || loadedScope !== scope) && (loading || !error), error, busyIds, refresh, create, update, remove,
-    openTask: async id => { setEditing(await tasksApi.get(id)); },
-    edit: task => { tasksApi.get(task.id).then(setEditing).catch(reason => setError(reason.message)); },
+    openTask,
+    edit: task => { openTask(task.id).catch(reason => setError(reason.message)); },
     toggle: async task => { await mutate(task, { is_completed: !task.is_completed }); },
     overdueRequest, showOverdue: () => setOverdueRequest(v => v + 1), acknowledgeOverdue: () => setOverdueRequest(0) }}>
-    {children}<MutationStatus />{editing && <TaskModal key={editing.id} task={editing} onClose={() => setEditing(undefined)} onSave={update} onDelete={remove} />}
+    {children}<MutationStatus />{editing && <TaskModal key={editing.id} task={editing} onClose={() => { opening.cancel(); setEditing(undefined); }} onSave={update} onDelete={remove} />}
   </Context.Provider>;
 }
 export function useTasks(): TasksState { const value = useContext(Context); if (!value) throw new Error('TasksProvider is required.'); return value; }

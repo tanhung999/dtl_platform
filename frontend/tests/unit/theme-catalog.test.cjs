@@ -4,20 +4,21 @@ const fs = require('node:fs'), path = require('node:path'), Module = require('no
 const ts = require('typescript');
 const source = path.resolve(__dirname, '../../src/theme');
 const catalogData = JSON.parse(fs.readFileSync(path.join(source, 'catalog.json'), 'utf8'));
-test('rose and lavender palettes keep readable text and clean backgrounds', () => {
+test('rose, lavender and forest palettes keep readable text and clean backgrounds', () => {
   const { catalog } = load();
   const luminance = hex => {
     const parts = hex.replace('#', '').match(/../g).map(part => parseInt(part, 16) / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
     return parts[0] * .2126 + parts[1] * .7152 + parts[2] * .0722;
   };
   const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + .05) / (Math.min(luminance(a), luminance(b)) + .05);
-  for (const [id, colors] of Object.entries({ 'princess-pink': ['#FFF4F8', '#E91E73', '#FFFFFF', '#F3D5E2'], 'fairy-purple': ['#F5F2FF', '#7138F5', '#FFFFFF', '#DDD5FA'] })) {
+  for (const [id, colors] of Object.entries({ 'princess-pink': ['#FBE2ED', '#E91E73', '#FFFFFF', '#E6B1C9'], 'fairy-purple': ['#E8DDF8', '#7138F5', '#FFFFFF', '#C9B4E8'], ivory: ['#E6EBDD', '#285B42', '#fffefa', '#C3D0B7'] })) {
     const tokens = catalog.themeTokens(id);
     assert.deepEqual(['--bg-main', '--accent', '--bg-card-solid', '--border'].map(key => tokens[key]), colors);
+    const resolve = key => tokens[key].startsWith('var(') ? tokens[tokens[key].slice(4,-1)] : tokens[key];
     for (const ink of ['--text-main', '--text-secondary', '--text-muted', '--accent-text']) {
-      assert.ok(contrast(tokens[ink], tokens['--bg-card-solid']) >= 4.5, id + ' low contrast ' + ink);
+      assert.ok(contrast(resolve(ink), tokens['--bg-card-solid']) >= 4.5, id + ' low contrast ' + ink);
     }
-    assert.ok(contrast(tokens['--on-calendar-selected'], tokens['--calendar-selected-bg']) >= 4.5);
+    assert.ok(contrast(resolve('--on-calendar-selected'), resolve('--calendar-selected-bg')) >= 4.5);
     assert.ok(!tokens['--bg-page-gradient'].includes('url('));
   }
 });

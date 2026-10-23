@@ -17,6 +17,7 @@ from app.modules.calendar.schemas import EventWrite
 from app.core.datetime_utils import database_utc
 
 from .service import owned, snapshot, apply, response, record_change
+from app.modules.notifications.reminder_fields import ReminderFields, reminder_update
 
 router = APIRouter(prefix='/api/schedule-changes', tags=['Rescheduling'])
 Kind = Literal['task', 'event', 'note']
@@ -24,7 +25,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 Database = Annotated[AsyncSession, Depends(get_db, scope='function')]
 
 
-class Move(BaseModel):
+class Move(ReminderFields):
     model_config = ConfigDict(extra='forbid')
     request_id: UUID
     reason: str = Field(default='', max_length=500)
@@ -89,9 +90,11 @@ async def move(kind: Kind, resource_id: str, payload: Move, user: CurrentUser, d
             raise HTTPException(422, 'Cần thời gian mới và phiên bản lịch.')
         target = {'starts_at': payload.starts_at.isoformat(), 'ends_at': payload.ends_at.isoformat(), 'is_all_day': payload.is_all_day}
     expected = {'expected_version': payload.expected_version, 'expected_updated_at': payload.expected_updated_at.isoformat() if payload.expected_updated_at else None}
+    target.update({key: before.get(key) for key in ('reminder_minutes', 'reminder_at')})
+    target.update({key: value.isoformat() if isinstance(value, datetime) else value for key, value in reminder_update(payload).items()})
     if any(expected[key] != value for key, value in guard.items() if key.startswith('expected_')):
         raise HTTPException(409, 'Mục đã thay đổi. Hãy mở lại bản mới trước khi dời lịch.')
-    if before == target:
+    if {k:v for k,v in before.items() if not k.startswith('reminder_')} == {k:v for k,v in target.items() if not k.startswith('reminder_')}:
         raise HTTPException(422, 'Hãy chọn thời gian khác với lịch hiện tại.')
     await apply(db, user, row, kind, target, guard)
     change = await record_change(db, user, kind, row, before, request_id=str(payload.request_id), fingerprint=fingerprint, reason=payload.reason)
@@ -108,9 +111,10 @@ async def undo(change_id: UUID, user: CurrentUser, db: Database):
     current, guard = await snapshot(db, row, change.kind)
     if change.undone_at is not None:
         return {**response(change), 'current': current, 'current_guard': guard}
-    if current != change.after or guard != change.guard:
+    expected_after = {'reminder_minutes': None, 'reminder_at': None, **change.after}
+    if current != expected_after or guard != change.guard:
         raise HTTPException(409, 'Mục đã được sửa tiếp. Không thể hoàn tác; hãy mở lại bản mới.')
-    await apply(db, user, row, change.kind, change.before, guard)
+    await apply(db, user, row, change.kind, {'reminder_minutes': None, 'reminder_at': None, **change.before}, guard, allow_elapsed=True)
     change.undone_at = utcnow()
     await db.flush()
     current, guard = await snapshot(db, row, change.kind)

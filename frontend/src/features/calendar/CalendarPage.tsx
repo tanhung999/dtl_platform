@@ -1,4 +1,5 @@
 import { AnimatedCount } from '../../components/AnimatedCount';
+import { useLatestRequest } from '../../services/useLatestRequest';
 import { ReactNode, useEffect, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react';
 import { addDays, addMonths, dateKey, formatDate, monthDays, parseDate, startOfWeek, today, toTimestamp, viewRange } from './dateUtils';
@@ -58,13 +59,15 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
   const navigate = (direction: number) => {
     selectDate(view === 'month' ? addMonths(anchor, direction) : addDays(anchor, direction * (view === 'week' ? 7 : 30)));
   };
-  const onCreate = (value: EventDraft) => { setSelected(undefined); setDraft(value); };
+  const opening = useLatestRequest();
+  const onCreate = (value: EventDraft) => { opening.cancel(); setOpenError(''); setSelected(undefined); setDraft(value); };
   const onSelect = async (event: CalendarEvent, day?: string) => {
+    const controller = opening.start();
     setOpenError('');
-    try { setSelected(await calendarApi.get(event.id)); setDraft({ date: day ? parseDate(day) : anchor }); }
-    catch (reason) { setOpenError(reason instanceof Error ? reason.message : 'Không tải được sự kiện.'); }
+    try { const value = await calendarApi.get(event.id, controller.signal); if (!controller.signal.aborted) { setSelected(value); setDraft({ date: day ? parseDate(day) : anchor }); } }
+    catch (reason) { if (!controller.signal.aborted) setOpenError(reason instanceof Error ? reason.message : 'Không tải được sự kiện.'); }
   };
-  const close = () => { setSelected(undefined); setDraft(undefined); };
+  const close = () => { opening.cancel(); setSelected(undefined); setDraft(undefined); };
   const weekEnd = addDays(startOfWeek(anchor), 6);
   const heading = view === 'week'
     ? `${formatDate(startOfWeek(anchor), { day: 'numeric', month: 'numeric' })} – ${formatDate(weekEnd, { day: 'numeric', month: 'numeric', year: 'numeric' })}`
@@ -96,7 +99,7 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
             <button type="button" className="btn btn-primary btn-sm calendar-mobile-create" onClick={() => onCreate({ date: anchor })}><Plus size={16} /> Tạo</button>
           </div>
         </div>
-        <div className="calendar-status" aria-live="polite"><button type="button" className={`calendar-count-chip ${showEvents ? 'is-active' : ''}`} aria-label="Bật/tắt sự kiện" aria-pressed={showEvents} title="Bật/tắt hiển thị sự kiện" onClick={() => setShowEvents(value => !value)}><AnimatedCount value={data.eventTotal} /> sự kiện</button><button type="button" className={`calendar-count-chip ${showNotes ? 'is-active' : ''}`} aria-label="Bật/tắt ghi chú" aria-pressed={showNotes} title="Bật/tắt hiển thị ghi chú" onClick={() => setShowNotes(value => !value)}><AnimatedCount value={data.noteTotal} /> ghi chú</button><button type="button" className={`calendar-count-chip ${showTasks ? 'is-active' : ''}`} aria-label="Bật/tắt hạn công việc" aria-pressed={showTasks} title="Bật/tắt hiển thị việc cần làm" onClick={() => setShowTasks(value => !value)}><AnimatedCount value={deadlineCount} /> hạn công việc</button>{(data.loading || deadlineData.loading || tasksData.loading) && <span>Đang tải lịch…</span>}</div>
+        <div className="calendar-status" aria-live="polite"><button type="button" className={`calendar-count-chip ${showEvents ? 'is-active' : ''}`} aria-label="Bật/tắt sự kiện" aria-pressed={showEvents} title="Bật/tắt hiển thị sự kiện" onClick={() => setShowEvents(value => !value)}><AnimatedCount value={data.eventTotal} /> sự kiện</button><button type="button" className={`calendar-count-chip ${showNotes ? 'is-active' : ''}`} aria-label="Bật/tắt ghi chú" aria-pressed={showNotes} title="Bật/tắt hiển thị ghi chú" onClick={() => setShowNotes(value => !value)}><AnimatedCount value={data.noteTotal} /> ghi chú</button><button type="button" className={`calendar-count-chip ${showTasks ? 'is-active' : ''}`} aria-label="Bật/tắt hạn công việc" aria-pressed={showTasks} title="Bật/tắt hiển thị việc cần làm" onClick={() => setShowTasks(value => !value)}><AnimatedCount value={deadlineCount} /> công việc</button>{(data.loading || deadlineData.loading || tasksData.loading) && <span>Đang tải lịch…</span>}</div>
         {(data.truncated || deadlineData.truncated) && <p className="calendar-error-state" role="status">Chỉ hiển thị tối đa 500 mục lịch và 500 hạn công việc. Còn nhiều mục; hãy thu hẹp khoảng xem.</p>}
         {(openError || miniData.error) && <p className="calendar-error-state" role="alert">{openError || miniData.error}</p>}
         {deadlineData.error && <p className="calendar-error-state" role="alert">{deadlineData.error}</p>}

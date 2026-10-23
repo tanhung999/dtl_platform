@@ -4,7 +4,7 @@ import { CalendarEvent } from '../../calendar/types';
 import { eventContinuation, eventContinuesNextDay, eventDayLabel } from '../../calendar/dateUtils';
 import { eventStatus } from '../../calendar/eventStatus';
 import { SharedItem } from '../api';
-import { sharedEvent, sharedKindLabel, sharedRangeLabel } from '../sharedItemUtils';
+import { sharedEvent, sharedItemTooltip } from '../sharedItemUtils';
 import '../../tasks/priority.css';
 import { deadlineLabel } from '../../tasks/deadlineUtils';
 import { sharedTask } from '../sharedItemUtils';
@@ -19,7 +19,7 @@ export function SharedItemCard({ item, day, now, onSelect, style, compact, start
   const continues = event && eventContinuesNextDay(event, day);
   return <button type="button" data-shared-id={item.id} data-shared-kind={item.kind} data-task-priority={isTask ? item.priority : undefined}
     className={`shared-calendar-item ${isTask ? 'is-deadline' : ''} ${item.kind === 'note' ? 'is-note' : ''} ${item.is_completed ? 'is-completed' : ''} ${compact ? 'is-compact' : ''}`}
-    style={{ ...style, '--event-color': status?.color } as CSSProperties} title={`${sharedKindLabel(item)} · ${item.title} · ${sharedRangeLabel(item)}`} onClick={() => onSelect(item)}>
+    style={{ ...style, '--event-color': status?.color } as CSSProperties} title={sharedItemTooltip(item, now)} onClick={() => onSelect(item)}>
     {isTask ? <span className="shared-deadline-line"><Icon size={15} /><b>{deadlineLabel(sharedTask(item),includeDate)}</b><span>{item.title}</span></span>
       : <><strong>{continuation && <span role="img" aria-label={continuation}>↑</span>}<Icon size={14} /><span>{item.title}</span></strong>
         {(!compact || !event!.is_all_day) && <small>{eventDayLabel(event!, day, true)}</small>}

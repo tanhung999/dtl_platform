@@ -28,7 +28,7 @@ export function RescheduleToast() {
     node.setAttribute('popover', 'manual'); node.showPopover?.(); return () => node.hidePopover?.(); }, [change, host]);
   if (!change) return null;
   return createPortal(<div ref={panel} className={`reschedule-toast ${error ? 'has-error' : ''}`} role={error ? 'alert' : 'status'}>
-    <span>{error || `Đã ${change.kind === 'task' ? 'đổi hạn' : 'dời lịch'} sang ${scheduleLabel(change.after)}`}</span>
+    <span>{error || `Đã dời lịch sang ${scheduleLabel(change.after)}`}</span>
     {!error && <button type="button" disabled={busy} onClick={async () => { const current = generation.current; setBusy(true); try { const result = await undo(change.id); window.dispatchEvent(new CustomEvent('schedule:undone', { detail: result })); notifyMoved(change.kind); if (generation.current === current) setChange(undefined); } catch (reason) { if (generation.current === current) setError((reason as Error).message); } finally { if (generation.current === current) setBusy(false); } }}>{busy ? 'Đang hoàn tác…' : 'Hoàn tác'}</button>}
     <button type="button" aria-label="Đóng thông báo dời lịch" disabled={busy} onClick={() => setChange(undefined)}><X size={15}/></button>
   </div>, host);

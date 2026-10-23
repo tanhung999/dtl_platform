@@ -1,3 +1,4 @@
+from app.modules.notifications.reminder_fields import ReminderFields
 from datetime import date, datetime
 from uuid import UUID
 from typing import Literal
@@ -6,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 PriorityType = Literal["LOW", "MEDIUM", "HIGH", "URGENT"]
 
 
-class TaskCreate(BaseModel):
+class TaskCreate(ReminderFields):
     is_private: bool = False
     client_request_id: UUID | None = None
     model_config = ConfigDict(extra="forbid")
@@ -21,7 +22,7 @@ class TaskCreate(BaseModel):
     def trim_title(cls, value):
         return value.strip() if isinstance(value, str) else value
 
-class TaskUpdate(BaseModel):
+class TaskUpdate(ReminderFields):
     is_private: bool | None = None
     expected_version: int = Field(ge=0)
     model_config = ConfigDict(extra="forbid")
@@ -47,6 +48,8 @@ class TaskUpdate(BaseModel):
 
 
 class TaskResponse(BaseModel):
+    reminder_minutes: int | None = None
+    reminder_at: datetime | None = None
     is_private: bool = False
     version: int
     model_config = ConfigDict(from_attributes=True)
@@ -62,18 +65,3 @@ class TaskResponse(BaseModel):
     is_completed: bool
     created_at: datetime
     updated_at: datetime
-
-
-class ReminderResponse(BaseModel):
-    task_id: str
-    title: str
-    due_date: str
-    due_time: str | None
-    priority: PriorityType
-    deadline_version: int
-    kind: Literal["before", "day"]
-    scheduled_at: datetime
-
-
-class ReminderDismiss(BaseModel):
-    deadline_version: int = Field(ge=0)

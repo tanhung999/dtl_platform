@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 from sqlalchemy import event, select
 from tests.support.api_case import ApiTestCase
-from app.db.models import Task
+from app.db.models import Task, Note
+from app.db.calendar import CalendarEvent
 from app.db.notifications import Notification
 from app.core.workspace_versions import read_versions
 
@@ -24,7 +25,7 @@ class FeedProjectionTests(ApiTestCase):
                     read_at=NOW if state=='changed' else None,dismissed_at=NOW if state=='no-deadline' else None))
             await db.commit()
         queries=[{}, {'filter':'unread'}, {'filter':'hidden'}, {'source':'platform'}, {'limit':2}]
-        baseline = lambda: select(Notification, Task).outerjoin(Task, Task.id == Notification.task_id)
+        baseline = lambda: (select(Notification, Task, CalendarEvent, Note).outerjoin(Task, Task.id == Notification.task_id).outerjoin(CalendarEvent, CalendarEvent.id == Notification.event_id).outerjoin(Note, (Notification.resource_type == 'note') & (Note.id == Notification.resource_id)))
         with patch('app.modules.notifications.router.utcnow',return_value=NOW):
             with patch('app.modules.notifications.router.select_feed',side_effect=baseline):
                 before=[await self.request('GET','/api/notifications',query=query) for query in queries]

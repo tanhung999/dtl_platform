@@ -94,7 +94,10 @@ async def delete_note(
     if event_id:
         # The retained appointment must not silently move from Notes scope into shared Events.
         await db.execute(update(CalendarEvent).where(CalendarEvent.id == event_id, CalendarEvent.user_id == user.id)
-            .values(is_private=True, updated_at=utcnow()))
+            .values(is_private=True, reminder_minutes=None, reminder_at=None, reminder_version=CalendarEvent.reminder_version + 1, updated_at=utcnow()))
+        from app.db.notifications import NotificationJob
+        await db.execute(delete(NotificationJob).where(NotificationJob.event_id == event_id, NotificationJob.processed_at.is_(None)))
+        mark_changed(db, user.id, 'notifications')
         mark_changed(db, user.id, 'calendar-privacy')
     await db.execute(delete(NoteCalendarSchedule).where(NoteCalendarSchedule.note_id == note.id))
     await db.execute(update(NoteCreateRequest).where(NoteCreateRequest.note_id == note.id).values(note_id=None))

@@ -1,8 +1,9 @@
+from app.modules.notifications.reminder_fields import ReminderFields
 """Hợp đồng lịch hẹn của ghi chú ."""
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, model_validator
 
-class NoteScheduleWrite(BaseModel):
+class NoteScheduleWrite(ReminderFields):
     model_config = ConfigDict(extra="forbid")
     starts_at: datetime
     ends_at: datetime
@@ -22,6 +23,8 @@ class NoteScheduleWrite(BaseModel):
         return self
 
 class NoteScheduleResponse(BaseModel):
+    reminder_minutes: int | None = None
+    reminder_at: datetime | None = None
     event_id: str
     starts_at: datetime
     ends_at: datetime

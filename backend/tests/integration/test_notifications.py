@@ -27,7 +27,7 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
 
     async def task(self, **changes):
         with patch('app.modules.tasks.router.utcnow', return_value=CREATED):
-            code, task = await self.request('POST', '/api/tasks', payload={'title': 'Offline deadline', 'due_date': '2026-10-20', 'due_time': '16:00', **changes})
+            code, task = await self.request('POST', '/api/tasks', payload={'title': 'Offline deadline', 'due_date': '2026-10-20', 'due_time': '16:00', 'reminder_minutes': 1440, **changes})
         self.assertEqual(code, 201)
         return task
 
@@ -39,13 +39,13 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_server_generates_history_without_browser_and_never_duplicates(self):
         task = await self.task()
-        self.assertEqual(await self.tick(BEFORE), 1)
-        self.assertEqual(await self.tick(BEFORE), 0)
-        await self.tick(DAY); await self.tick(DUE)
+        self.assertEqual(await self.tick(DUE - timedelta(days=1)), 1)
+        self.assertEqual(await self.tick(DUE - timedelta(days=1)), 0)
+        self.assertEqual(await self.tick(DAY), 0); self.assertEqual(await self.tick(DUE), 0)
         _, feed = await self.request('GET', '/api/notifications')
-        self.assertEqual(len(feed['items']), 3)
-        self.assertEqual({row['kind'] for row in feed['items']}, {'task.before', 'task.day', 'task.overdue'})
-        self.assertEqual((await self.request('GET', '/api/notifications/summary'))[1]['unread_count'], 3)
+        self.assertEqual(len(feed['items']), 1)
+        self.assertEqual({row['kind'] for row in feed['items']}, {'task.reminder'})
+        self.assertEqual((await self.request('GET', '/api/notifications/summary'))[1]['unread_count'], 1)
         item = feed['items'][0]
         await self.request('PATCH', '/api/notifications/' + item['id'], payload={'read': True, 'dismissed': True})
         latest = (await self.request('GET', '/api/tasks/' + task['id']))[1]
@@ -58,7 +58,7 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
         task = await self.task()
         await self.tick(DUE + timedelta(hours=2))
         _, feed = await self.request('GET', '/api/notifications')
-        self.assertEqual([n['kind'] for n in feed['items']], ['task.overdue'])
+        self.assertEqual([n['kind'] for n in feed['items']], ['task.reminder'])
         path = '/api/tasks/' + task['id']
         await self.request('PATCH', path, payload={'due_date': '2026-11-01'})
         self.assertEqual((await self.request('GET', '/api/notifications'))[1]['items'][0]['state'], 'changed')
@@ -71,11 +71,11 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
 
     @patch('app.modules.notifications.router.utcnow', return_value=DAY)
     async def test_preview_does_not_resurrect_old_stages_after_read_or_hide(self, _clock):
-        await self.task(); await self.tick(BEFORE); await self.tick(DAY)
+        await self.task(); await self.tick(DUE - timedelta(days=1)); await self.tick(DAY)
         summary = (await self.request('GET', '/api/notifications/summary'))[1]
         self.assertEqual(len(summary['preview']), 1)
         latest = summary['preview'][0]
-        self.assertEqual(latest['kind'], 'task.day')
+        self.assertEqual(latest['kind'], 'task.reminder')
         path = '/api/notifications/' + latest['id']
         await self.request('PATCH', path, payload={'read': True})
         self.assertEqual((await self.request('GET', '/api/notifications/summary'))[1]['preview'], [])
@@ -89,27 +89,26 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(preview), 2)
         self.assertTrue(all(item['source'] == 'workflows' for item in preview))
 
-    async def test_fresh_install_seeds_durable_jobs_once(self):
+    async def test_fresh_install_does_not_choose_reminders_for_seed_tasks(self):
         from app.main import seed_initial_data
         with patch('app.main.async_session_maker', self.sessions):
             await seed_initial_data()
             async with self.sessions() as db:
                 count = await db.scalar(select(func.count()).select_from(NotificationJob))
-                self.assertGreater(count, 0)
-                self.assertEqual(set((await db.scalars(select(NotificationJob.task_id))).all()),
-                    set((await db.scalars(select(Task.id).where(Task.is_completed.is_(False)))).all()))
+                self.assertEqual(count, 0)
+                self.assertEqual((await db.scalars(select(NotificationJob.task_id))).all(), [])
             await seed_initial_data()
             async with self.sessions() as db:
                 self.assertEqual(await db.scalar(select(func.count()).select_from(NotificationJob)), count)
 
     async def test_snooze_is_idempotent_and_does_not_change_task(self):
-        task = await self.task(); await self.tick(BEFORE)
+        task = await self.task(); await self.tick(DUE - timedelta(days=1))
         item = (await self.request('GET', '/api/notifications'))[1]['items'][0]
-        with patch('app.modules.notifications.router.utcnow', return_value=BEFORE):
+        with patch('app.modules.notifications.router.utcnow', return_value=DUE - timedelta(days=1)):
             for _ in range(2): self.assertEqual((await self.request('POST', f"/api/notifications/{item['id']}/snooze"))[0], 204)
         async with self.sessions() as db:
             self.assertEqual(await db.scalar(select(func.count()).select_from(NotificationJob).where(NotificationJob.kind == 'snooze')), 1)
-        await self.tick(BEFORE + timedelta(hours=1))
+        await self.tick(DUE - timedelta(days=1) + timedelta(hours=1))
         self.assertEqual(len((await self.request('GET', '/api/notifications'))[1]['items']), 2)
         self.assertEqual((await self.request('GET', '/api/tasks/' + task['id']))[1]['version'], 0)
         with patch('app.modules.notifications.router.utcnow', return_value=DUE):
@@ -164,17 +163,17 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
     async def test_preferences_are_versioned_and_mute_future_deliveries(self):
         self.assertEqual((await self.request('PATCH', '/api/notifications/preferences', payload={'expected_version': 0, 'task_reminders': False, 'workflows': False}))[0], 200)
         self.assertEqual((await self.request('PATCH', '/api/notifications/preferences', payload={'expected_version': 0, 'task_reminders': True}))[0], 409)
-        await self.task(); await self.tick(BEFORE)
+        await self.task(); await self.tick(DUE - timedelta(days=1))
         self.assertEqual((await self.request('GET', '/api/notifications'))[1]['items'], [])
         await self.signed('workflows', {'external_id': 'muted', 'recipient_user_id': 'alice', 'title': 'Muted message'})
         self.assertEqual((await self.request('GET', '/api/notifications/summary'))[1]['unread_count'], 0)
         self.assertEqual(len((await self.request('GET', '/api/notifications', query={'filter': 'hidden'}))[1]['items']), 1)
 
-    async def test_migration_backfills_jobs_in_batches_without_duplicates(self):
+    async def test_legacy_bootstrap_does_not_invent_reminders(self):
         async with self.sessions() as db:
             db.add_all([Task(user_id='alice', title=f'Existing {i}', due_date='2026-12-20') for i in range(520)])
             await db.commit()
         async with self.engine.begin() as conn:
             await migrate_notifications(conn); await migrate_notifications(conn)
         async with self.sessions() as db:
-            self.assertEqual(await db.scalar(select(func.count()).select_from(NotificationJob)), 1560)
+            self.assertEqual(await db.scalar(select(func.count()).select_from(NotificationJob)), 0)

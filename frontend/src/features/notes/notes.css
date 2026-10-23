@@ -24,6 +24,7 @@
 .notes-full-collection .note-card { min-height: 170px; }
 .note-editor-secondary-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .note-editor-dialog .modal-footer { flex-wrap: wrap; gap: 8px; }
+.note-editor-dialog .modal-header, .note-editor-dialog .modal-footer { background:rgba(255,255,255,.4); }
 .note-archived-label { font-size: 11px; font-weight: 400; }
 @media (max-width: 600px) { .notes-page { padding: 16px; } .notes-full-collection .notes-grid { grid-template-columns: 1fr; } }
 

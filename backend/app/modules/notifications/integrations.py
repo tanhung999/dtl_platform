@@ -1,8 +1,4 @@
 """Server-to-server inbox ingestion for the three enterprise apps, disabled until configured."""
-import hashlib
-import hmac
-import re
-import time
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 from urllib.parse import unquote, urlsplit
@@ -15,6 +11,7 @@ from app.core.database import get_db
 from app.db.models import User, utcnow
 from app.db.notifications import Notification, NotificationPreference
 from .service import changed, fingerprint
+from .integration_auth import signed_body
 
 router = APIRouter(prefix='/api/integrations', tags=['Notification integrations'])
 Source = Literal['bookingreports', 'workflows', 'itam']
@@ -55,22 +52,7 @@ class IncomingNotification(BaseModel):
 
 @router.post('/{source}/notifications')
 async def receive(source: Source, request: Request, db: Annotated[AsyncSession, Depends(get_db, scope='function')]):
-    secret = getattr(settings, f'NOTIFICATIONS_{source.upper()}_SECRET')
-    if len(secret) < 32:
-        raise HTTPException(503, 'Nguồn thông báo này chưa được kết nối.')
-    timestamp = request.headers.get('X-Notification-Timestamp', '')
-    try:
-        if len(timestamp) > 12 or abs(time.time() - int(timestamp)) > 300: raise ValueError()
-    except ValueError:
-        raise HTTPException(401, 'Chữ ký thông báo hết hạn hoặc không hợp lệ.')
-    body = bytearray()
-    async for chunk in request.stream():
-        body.extend(chunk)
-        if len(body) > 16384: raise HTTPException(413, 'Nội dung thông báo quá lớn.')
-    signature = 'sha256=' + hmac.new(secret.encode(), timestamp.encode() + b'\n' + source.encode() + b'\n' + body, hashlib.sha256).hexdigest()
-    supplied = request.headers.get('X-Notification-Signature', '')
-    if not re.fullmatch(r'sha256=[0-9a-f]{64}', supplied) or not hmac.compare_digest(signature, supplied):
-        raise HTTPException(401, 'Chữ ký thông báo không hợp lệ.')
+    body = await signed_body(request, getattr(settings, f'NOTIFICATIONS_{source.upper()}_SECRET'), source)
     try:
         payload = IncomingNotification.model_validate_json(bytes(body))
     except ValidationError:

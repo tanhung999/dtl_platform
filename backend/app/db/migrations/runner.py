@@ -146,6 +146,12 @@ async def upgrade(conn):
         await migrate_retention(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
+    version = 'notifications_002_user_selected_reminders'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .user_reminders import migrate_user_reminders
+        await migrate_user_reminders(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
 async def run():
     try:
         async with engine.begin() as conn:

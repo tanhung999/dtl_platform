@@ -71,6 +71,10 @@ async def update_profile(
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     data = payload.model_dump(exclude_unset=True)
+    data = {key: value.strip() if isinstance(value, str) else value for key, value in data.items() if value is not None}
+    data = {key: value for key, value in data.items() if (getattr(user, key) or '') != (value or '')}
+    if not data:
+        return UserResponse.model_validate(user)
     for key, value in data.items():
         if value is not None:
             setattr(user, key, value.strip() if isinstance(value, str) else value)

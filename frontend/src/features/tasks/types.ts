@@ -1,6 +1,7 @@
+import type { ReminderValue } from '../reminders/ReminderFields';
 import { TaskPriority } from '../../types';
 
-export interface TaskInput {
+export interface TaskInput extends ReminderValue {
   is_private?: boolean;
   expected_version?: number;
   title: string;

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -57,6 +57,8 @@ async def create_event(payload: EventCreate, user: CurrentUser, db: Database):
         db.add(event)
         await db.flush()
         await db.refresh(event)
+        from app.modules.notifications.scheduling import sync_event_jobs
+        await sync_event_jobs(db, event)
         mark_changed(db, user.id, "calendar")
         return event
     return await create_once(db, user, "event", payload.client_request_id, {k: v for k, v in data.items() if k != "is_private" or v}, CalendarEvent, create)
@@ -88,6 +90,10 @@ async def delete_event(event_id: str, user: CurrentUser, db: Database, expected_
     if modified != expected_updated_at.astimezone(timezone.utc):
         raise HTTPException(409, {"message": "Sự kiện vừa được cập nhật. Hãy xem bản mới và xác nhận xóa lại.", "current": EventResponse.model_validate(event).model_dump(mode="json")})
     await db.execute(delete(NoteCalendarSchedule).where(NoteCalendarSchedule.event_id == event.id))
+    from app.db.notifications import NotificationJob, Notification
+    await db.execute(delete(NotificationJob).where(NotificationJob.event_id == event.id))
+    await db.execute(update(Notification).where(Notification.event_id == event.id).values(event_id=None))
     await db.delete(event)
+    mark_changed(db, user.id, "notifications")
     mark_changed(db, user.id, "calendar")
     if has_note: mark_changed(db, user.id, "notes")

@@ -313,3 +313,9 @@ button.calendar-count-chip { cursor: pointer; }
 .calendar-event-frame > .calendar-event { position: relative; width: 100%; height: 100%; }
 .calendar-all-day-event-frame { position: relative; min-width: 0; }
 .calendar-all-day-event-frame .calendar-all-day-span { width: calc(100% - 4px) !important; }
+
+.calendar-mini-day-dot.is-past, .calendar-widget-day-dot.is-past { background:#16a34a; }
+[data-color-mode="dark"] .calendar-mini-day-dot.is-past, [data-color-mode="dark"] .calendar-widget-day-dot.is-past { background:#4ade80; }
+
+.calendar-mini-day-dot.is-future, .calendar-widget-day-dot.is-future { background:#ca8a04; }
+[data-color-mode="dark"] .calendar-mini-day-dot.is-future, [data-color-mode="dark"] .calendar-widget-day-dot.is-future { background:#facc15; }

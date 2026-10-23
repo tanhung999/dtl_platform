@@ -5,6 +5,7 @@ import { Account } from '../access/api';
 import { useMutationChecking } from '../mutations/useMutationChecking';
 import { ApiError } from '../../services/api';
 import { AccountSearch } from '../access/AccountSearch';
+import { sameFields } from '../../services/unchanged';
 export function SharingDialog({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { const previous = document.activeElement as HTMLElement | null; const node = ref.current; node?.showModal(); return () => { node?.close(); previous?.focus(); }; }, []);
@@ -29,7 +30,9 @@ export function ManageSharing({ userId, onClose, onChanged, revision }: { revisi
     finally{setBusy(false);}
   };
   const save = async () => {
-    if(!target||!editing||busy)return;setBusy(true);setError('');
+    if(!target||!editing||busy)return;
+    if(editing.active && sameFields(scope, { ...editing })) { setTarget(undefined); setEditing(undefined); return; }
+    setBusy(true);setError('');
     try { await sharingApi.save(target.id,scope,editing.version,editing.id??undefined);await refresh();setTarget(undefined);setEditing(undefined); }
     catch(reason){
       setError((reason as Error).message);

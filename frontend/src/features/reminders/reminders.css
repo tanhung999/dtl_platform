@@ -1,0 +1,19 @@
+.reminder-fields { display:grid; gap:8px; min-width:0; padding:12px; margin-top:12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-surface); color:var(--text-main); }
+.reminder-fields .reminder-choice { display:grid; gap:7px; margin:0; font-size:13px; text-align:left; }
+.reminder-choice > span { display:flex; align-items:center; gap:6px; font-weight:600; }
+.reminder-fields .form-input { width:100%; min-width:0; }
+.reminder-custom { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.reminder-custom > div { display:grid; gap:6px; font-size:12px; min-width:0; }
+.reminder-custom .app-date-picker,.reminder-custom .app-time-picker { width:100%; }
+.reminder-fields p { margin:0; font-size:12px; line-height:1.6; color:var(--text-muted); }
+.reminder-fields .reminder-warning { color:#b45309; }
+[data-color-mode="dark"] .reminder-fields .reminder-warning { color:#fcd34d; }
+.note-schedule-fields > .reminder-fields { display:grid; grid-column:1/-1; margin:0; background:#ffffff55; border-color:#0002; color:#334155; }
+.note-schedule-fields .reminder-fields p { color:#475569; }
+
+.reminder-fields.is-unavailable .reminder-choice,
+.reminder-fields.is-unavailable .reminder-custom { opacity:.55; }
+.reminder-fields select:disabled { cursor:not-allowed; }
+
+.reminder-fields.is-unavailable .app-date-input:has(input:disabled),
+.reminder-fields.is-unavailable .app-time-input:has(input:disabled) { opacity:1; }

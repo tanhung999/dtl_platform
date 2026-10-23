@@ -10,7 +10,7 @@ from app.db.calendar import CalendarEvent
 from app.modules.note_scheduling.service import save_schedule, with_schedule
 from app.modules.notes.schemas import NoteUpdate
 
-async def update_note_service(note_id: str, payload: NoteUpdate, user: User, db: AsyncSession, *, record_history=True):
+async def update_note_service(note_id: str, payload: NoteUpdate, user: User, db: AsyncSession, *, record_history=True, allow_elapsed=False):
     await db.execute(select(User.id).where(User.id == user.id).with_for_update())
     stmt = select(Note).where(Note.id == note_id, Note.user_id == user.id)
     result = await db.execute(stmt)
@@ -30,20 +30,32 @@ async def update_note_service(note_id: str, payload: NoteUpdate, user: User, db:
     if private_changed:
         await require_privacy_change(db, user.id, update_data['is_private'], note.is_private)
     target_archived = update_data.pop("is_archived", note.is_archived)
-    note.version += 1
+    update_data = {key: value for key, value in update_data.items() if getattr(note, key) != value}
+    fields_changed = bool(update_data) or target_archived != was_archived
     for key, value in update_data.items():
         setattr(note, key, value)
-    note.updated_at = utcnow()
     # Khôi phục trước khi đặt lịch; chỉ lưu trạng thái lưu trữ sau khi lịch hợp lệ.
     if was_archived and not target_archived:
         note.is_archived = False
+    schedule_changed = False
     if payload.calendar_schedule is not None:
-        before = await save_schedule(db, note, payload.calendar_schedule)
+        before, schedule_changed = await save_schedule(db, note, payload.calendar_schedule, allow_elapsed=allow_elapsed)
+    if not fields_changed and not schedule_changed:
+        return await with_schedule(db, note)
+    note.version += 1
+    note.updated_at = utcnow()
     if 'title' in update_data and payload.calendar_schedule is None:
         event_id = select(NoteCalendarSchedule.event_id).where(NoteCalendarSchedule.note_id == note.id)
         await db.execute(update(CalendarEvent).where(CalendarEvent.id.in_(event_id), CalendarEvent.user_id == user.id)
             .values(title=note.title or 'Ghi chú không có tiêu đề', updated_at=utcnow()))
     note.is_archived = target_archived
+    if was_archived != target_archived:
+        from app.modules.notifications.scheduling import signature, sync_event_jobs
+        event = await db.scalar(select(CalendarEvent).join(NoteCalendarSchedule, NoteCalendarSchedule.event_id == CalendarEvent.id)
+            .where(NoteCalendarSchedule.note_id == note.id).with_for_update())
+        if event:
+            await sync_event_jobs(db, event, before=signature(event, 'event', not was_archived), active=not target_archived, allow_elapsed=True)
+        mark_changed(db, user.id, 'notifications')
     if private_changed:
         if payload.calendar_schedule is None:
             event_id = select(NoteCalendarSchedule.event_id).where(NoteCalendarSchedule.note_id == note.id)
@@ -53,6 +65,8 @@ async def update_note_service(note_id: str, payload: NoteUpdate, user: User, db:
     await db.flush()
     mark_changed(db, user.id, "notes")
     mark_changed(db, user.id, "calendar")
+    if schedule_changed:
+        mark_changed(db, user.id, "notifications")
     if record_history and before is not None:
         from app.modules.rescheduling.service import record_change
         await record_change(db, user, 'note', note, before)

@@ -13,44 +13,14 @@ class ReminderSnoozeTests(unittest.IsolatedAsyncioTestCase):
     asyncTearDown = test_calendar.ApiTestCase.asyncTearDown
     request = test_calendar.ApiTestCase.request
 
-    async def test_snooze_across_stage_expiry_dismissal_and_deadline_change(self):
-        _, task = await self.request('POST', '/api/tasks', payload={'title': 'Nhắc lại', 'due_date': '2026-10-13'})
-        base = '/api/tasks/' + task['id']
-        with patch('app.modules.tasks.router.utcnow', return_value=datetime(2026, 10, 13, 7, 45, tzinfo=VN)):
-            status, _ = await self.request('POST', base + '/reminders/before/snooze', payload={'deadline_version': 0})
-            self.assertEqual(status, 204)
-        with patch('app.modules.tasks.router.utcnow', return_value=datetime(2026, 10, 13, 8, tzinfo=VN)):
-            _, reminders = await self.request('GET', '/api/tasks/reminders')
-            self.assertEqual(reminders, [])
-        with patch('app.modules.tasks.router.utcnow', return_value=datetime(2026, 10, 13, 8, 45, tzinfo=VN)):
-            _, reminders = await self.request('GET', '/api/tasks/reminders')
-            self.assertEqual(reminders[0]['kind'], 'day')
-            status, _ = await self.request('POST', base + '/reminders/day/snooze', payload={'deadline_version': 0})
-            self.assertEqual(status, 204)
-            status, _ = await self.request('POST', base + '/reminders/day/dismiss', payload={'deadline_version': 0})
-            self.assertEqual(status, 204)
-        with patch('app.modules.tasks.router.utcnow', return_value=datetime(2026, 10, 13, 10, tzinfo=VN)):
-            _, reminders = await self.request('GET', '/api/tasks/reminders')
-            self.assertEqual(reminders, [])
-            await self.request('PATCH', base, payload={'due_time': '12:00'})
-            _, reminders = await self.request('GET', '/api/tasks/reminders')
-            self.assertEqual(reminders[0]['deadline_version'], 1)
-            status, _ = await self.request('POST', base + '/reminders/day/snooze', payload={'deadline_version': 0})
-            self.assertEqual(status, 409)
-            status, _ = await self.request('POST', base + '/reminders/day/snooze', user='bob', payload={'deadline_version': 1})
-            self.assertEqual(status, 404)
-
-    async def test_overdue_and_completed_cannot_be_snoozed(self):
-        _, task = await self.request('POST', '/api/tasks', payload={'title': 'Hạn giờ', 'due_date': '2026-10-13', 'due_time': '09:30'})
-        base = '/api/tasks/' + task['id']
-        with patch('app.modules.tasks.router.utcnow', return_value=datetime(2026, 10, 13, 9, tzinfo=VN)):
-            self.assertEqual((await self.request('POST', base + '/reminders/day/snooze', payload={'deadline_version': 0}))[0], 204)
-        with patch('app.modules.tasks.router.utcnow', return_value=datetime(2026, 10, 13, 10, tzinfo=VN)):
-            self.assertEqual((await self.request('GET', '/api/tasks/reminders'))[1], [])
-            self.assertEqual((await self.request('POST', base + '/reminders/day/snooze', payload={'deadline_version': 0}))[0], 409)
-        await self.request('PATCH', base, payload={'is_completed': True})
-        with patch('app.modules.tasks.router.utcnow', return_value=datetime(2026, 10, 13, 9, tzinfo=VN)):
-            self.assertEqual((await self.request('POST', base + '/reminders/day/snooze', payload={'deadline_version': 0}))[0], 409)
+    async def test_legacy_routes_do_not_recreate_automatic_reminders(self):
+        _, task = await self.request('POST', '/api/tasks', payload={'title': 'No implicit reminder', 'due_date': '2026-10-13'})
+        self.assertEqual((await self.request('GET', '/api/tasks/reminders'))[1], [])
+        schedule = (await self.request('GET', '/api/tasks/reminders/schedule'))[1]
+        self.assertEqual(schedule['items'], [])
+        self.assertIsNone(schedule['next_check_at'])
+        for action in ('snooze', 'dismiss'):
+            self.assertEqual((await self.request('POST', f"/api/tasks/{task['id']}/reminders/day/{action}", payload={'deadline_version': 0}))[0], 410)
 
 
 class ReminderSnoozeMigrationTests(unittest.IsolatedAsyncioTestCase):

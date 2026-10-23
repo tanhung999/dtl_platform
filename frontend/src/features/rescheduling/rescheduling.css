@@ -8,7 +8,7 @@
 .reschedule-tabs button[aria-pressed=true] { color:var(--accent-text); background:var(--primary-light); }
 .reschedule-dialog form,.reschedule-history { padding:18px 22px; }
 .reschedule-dialog fieldset { display:grid; gap:12px; padding:0; margin:0; border:0; min-width:0; }
-.reschedule-dialog label { display:block; font-size:13px; line-height:1.6; }
+.reschedule-dialog label,.reschedule-dialog .reschedule-field { display:block; font-size:13px; line-height:1.6; }
 .reschedule-dialog .reschedule-all-day { display:flex; align-items:center; gap:8px; }
 .reschedule-quick { display:flex; gap:8px; flex-wrap:wrap; }
 .reschedule-preview { display:grid; gap:5px; padding:12px; border-radius:10px; background:var(--bg-subtle); font-size:13px; overflow-wrap:anywhere; }

@@ -12,6 +12,7 @@ async def create_once(db, user, kind, key, data, model, factory):
         return await factory()
     await db.execute(select(User.id).where(User.id == user.id).with_for_update())
     key = str(key)
+    data = {k: v for k, v in data.items() if k not in ('reminder_minutes', 'reminder_at') or v is not None}
     fingerprint = hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()
     receipt = await db.get(CreateRequest, (user.id, kind, key))
     if receipt:

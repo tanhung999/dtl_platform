@@ -1,0 +1,32 @@
+const {chromium}=require('../.browser-tools/node_modules/playwright');
+const {createTestUsers}=require('../support/test-users.cjs');
+const assert=require('node:assert/strict');
+const base=process.env.PLATFORM_BASE_URL||'http://127.0.0.1:5173';
+(async()=>{const fixture=createTestUsers(1);let browser;
+try{browser=await chromium.launch({channel:'msedge',headless:true});const page=await browser.newPage({viewport:{width:1500,height:1050}});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route(/fonts\.(googleapis|gstatic)\.com/,r=>r.abort());
+await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);await page.getByLabel('Mật khẩu',{exact:true}).fill(fixture.accounts[0].password);await page.getByRole('button',{name:'Đăng nhập hệ thống'}).click();await page.locator('.calendar-widget').waitFor();
+const api=(path,body)=>page.evaluate(async({path,body})=>{const r=await fetch('/api/'+path,{method:'POST',headers:{Authorization:'Bearer '+localStorage.getItem('dtl_platform_token'),'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());return r.json();},{path,body});
+const day=await page.evaluate(()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Ho_Chi_Minh'}));
+await api('tasks',{title:'Hit area task'});const event=await api('calendar/events',{title:'Hit area event',starts_at:day+'T09:00:00+07:00',ends_at:day+'T10:00:00+07:00'});const note=await api('notes',{title:'Hit area note',calendar_schedule:{starts_at:day+'T09:00:00+07:00',ends_at:day+'T10:00:00+07:00',is_all_day:false}});
+await page.reload({waitUntil:'domcontentloaded'});await page.locator('.calendar-widget').waitFor();
+let dialog;
+const closePicker=async()=>{await dialog.locator('header h2').click();await dialog.locator('.app-time-popover,.app-date-popover').waitFor({state:'hidden'});};
+async function check(label){const input=dialog.getByRole('textbox',{name:label,exact:true});const field=input.locator('..').locator('..').locator('..');const value=await input.inputValue();const group=dialog.getByRole('group',{name:'Chọn '+label.toLowerCase(),exact:true});
+await field.click({position:{x:(await field.boundingBox()).width-6,y:(await field.boundingBox()).height-9}});
+if(process.env.EXPECT_PICKER_BUG){await group.waitFor();console.log('REPRODUCED: blank label space opens '+label);return;}
+assert.equal(await group.count(),0,'Whitespace must not open '+label);assert.equal(await input.inputValue(),value);
+await input.click();await group.waitFor();await field.click({position:{x:(await field.boundingBox()).width-6,y:(await field.boundingBox()).height-9}});await group.waitFor({state:'hidden'});
+await dialog.getByRole('button',{name:'Chọn '+label.toLowerCase(),exact:true}).click();await group.waitFor();await input.press('Escape');await group.waitFor({state:'hidden'});assert.ok(await dialog.isVisible());
+await input.focus();await input.press('ArrowDown');await group.waitFor();await closePicker();assert.equal(await input.inputValue(),value);
+}
+await page.getByRole('button',{name:'Sửa Hit area task',exact:true}).click();let parent=page.getByRole('dialog',{name:'Chi tiết công việc',exact:true});await parent.getByRole('button',{name:'Dời lịch',exact:true}).click();dialog=page.locator('.reschedule-dialog');await dialog.getByLabel('Hạn cả ngày (không đặt giờ)',{exact:true}).uncheck();
+await check('Giờ đến hạn mới');if(process.env.EXPECT_PICKER_BUG)return;
+await check('Ngày đến hạn mới');await dialog.getByRole('button',{name:'Đóng dời lịch',exact:true}).click();await parent.getByRole('button',{name:'Đóng công việc',exact:true}).click();
+await page.locator(`.calendar-widget button[data-event-id="${event.id}"]`).click();parent=page.getByRole('dialog',{name:'Chi tiết sự kiện',exact:true});await parent.getByRole('button',{name:'Dời lịch',exact:true}).click();dialog=page.locator('.reschedule-dialog');
+for(const label of ['Ngày bắt đầu mới','Giờ bắt đầu mới','Ngày kết thúc mới','Giờ kết thúc mới'])await check(label);
+await dialog.getByRole('button',{name:'Đóng dời lịch',exact:true}).click();await parent.getByRole('button',{name:'Đóng',exact:true}).click();
+await page.locator(`[data-note-id="${note.id}"] .note-title`).click();parent=page.getByRole('dialog',{name:'Ghi chú',exact:true});await parent.getByRole('button',{name:'Dời lịch',exact:true}).click();dialog=page.locator('.reschedule-dialog');await check('Giờ bắt đầu mới');await check('Ngày kết thúc mới');
+await page.setViewportSize({width:390,height:844});await check('Giờ kết thúc mới');assert.deepEqual(errors,[]);
+console.log('PASS: blank areas never open/reopen pickers; input, icon, ArrowDown still open; outside click/Escape close only the picker; Task/Event/Note rescheduling and mobile.');
+}finally{if(browser)await browser.close();fixture.cleanup();}})().catch(e=>{console.error(e);process.exitCode=1;});
