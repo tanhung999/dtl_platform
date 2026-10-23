@@ -691,7 +691,8 @@ body {
 }
 
 .login-brand-logo {
-  height: 60px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
 }
 
@@ -763,3 +764,8 @@ body {
 }
 
 .form-input::placeholder, .app-date-input input::placeholder, .app-time-input input::placeholder { color:var(--text-muted); opacity:1; }
+
+.page-loading { display:flex; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:12px; min-height:180px; padding:24px; color:var(--text-secondary); text-align:center; }
+.page-loading.is-startup { min-height:100dvh; }
+.page-loading-spinner { color:var(--accent-text); animation:spin 1s linear infinite; }
+@media(prefers-reduced-motion:reduce) { .page-loading-spinner { animation:none; } }

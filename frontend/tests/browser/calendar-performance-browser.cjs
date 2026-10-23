@@ -75,7 +75,7 @@ asyncio.run(run())`], { cwd: path.resolve(__dirname, '../../..'), input: JSON.st
     await dialog.getByLabel('Thời gian thông báo', { exact: true }).selectOption('15');
     assert.match(await dialog.locator('.reminder-fields').textContent(), /Thông báo tiếp theo:.*08:45.*Thông báo hằng ngày/);
     await dialog.getByRole('button', { name: 'Đóng', exact: true }).click();
-    await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('button', { name: 'Ghi chú', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'DT My Note', exact: true }).click();
     const search = page.locator('.notes-search input');
     await search.fill('k');
     await page.getByText('Nhập ít nhất 2 ký tự để tìm kiếm.', { exact: true }).waitFor();

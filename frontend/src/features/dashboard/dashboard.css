@@ -23,15 +23,18 @@
 .workspace-sidebar { zoom:0.9; position:sticky; top:82px; height:calc(100dvh / 0.9 - 82px); display:flex; flex-direction:column; padding:20px 12px 18px; border-right:1px solid var(--border); background:var(--bg-surface); }
 .workspace-sidebar nav { display:flex; flex-direction:column; gap:5px; }
 .workspace-nav-item,.workspace-collapse { display:flex; align-items:center; gap:12px; min-height:46px; padding:10px 14px; border:1px solid transparent; border-radius:12px; color:var(--text-secondary); background:transparent; font:600 13px/1.3 var(--font-family); text-align:left; cursor:pointer; white-space:nowrap; box-sizing:border-box; }
-.workspace-nav-icon { display:inline-flex !important; align-items:center; justify-content:center; width:24px; height:24px; flex-shrink:0; }
+.workspace-nav-icon { display:inline-flex !important; align-items:center; justify-content:center; width:24px; height:24px; flex:0 0 24px; }
 .workspace-nav-icon svg { display:block; flex-shrink:0; }
 .workspace-nav-icon .feature-icon { display:block !important; flex-shrink:0; }
-.workspace-nav-label { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.workspace-nav-label { display:block; flex:1 1 auto; min-width:0; line-height:24px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.workspace-nav-item { text-decoration:none; }
+.workspace-not-found { display:flex; flex-direction:column; align-items:flex-start; gap:16px; }
+.workspace-not-found p { color:var(--text-secondary); line-height:1.6; }
 .workspace-nav-item:hover,.workspace-collapse:hover { background:var(--bg-subtle); color:var(--text-main); }
 .workspace-nav-item.is-active { background:var(--primary-light); border-color:color-mix(in srgb,var(--accent) 22%,transparent); color:var(--accent-text); }
 .workspace-collapse { margin-top:auto; color:var(--text-muted); }
 .sidebar-is-collapsed .workspace-nav-item,.sidebar-is-collapsed .workspace-collapse { justify-content:center; padding:10px; }
-.sidebar-is-collapsed .workspace-nav-label,.sidebar-is-collapsed .workspace-collapse .workspace-nav-label,.sidebar-is-collapsed .workspace-nav-item > span:not(.workspace-nav-icon):not(.feature-icon),.sidebar-is-collapsed .workspace-collapse > span:not(.workspace-nav-icon) { display:none; }
+.sidebar-is-collapsed .workspace-nav-label { display:none; }
 .workspace-content { min-width:0; min-height:calc(100dvh - 73.8px); display:flex; flex-direction:column; }
 .workspace-main { flex:1; min-width:0; }
 .workspace-home { display:grid; grid-template-columns:minmax(0,1fr) minmax(320px,.46fr); align-items:start; gap:20px; max-width:1680px; padding:24px; margin:0 auto; }
@@ -75,7 +78,7 @@
 @media (max-width:1350px) {
   .dashboard-app { --workspace-sidebar-width:68.4px; }
   .workspace-nav-item,.workspace-collapse { padding:10px; justify-content:center; }
-  .workspace-nav-label,.workspace-collapse .workspace-nav-label,.workspace-nav-item > span:not(.workspace-nav-icon):not(.feature-icon),.workspace-collapse > span:not(.workspace-nav-icon) { display:none; }
+  .workspace-nav-label { display:none; }
   .workspace-collapse { display:none; }
   .dashboard-app .nav-clock { display:none; }
   .workspace-home { grid-template-columns:minmax(0,1fr) 320px; padding:20px; }
@@ -105,7 +108,7 @@
   .workspace-sidebar { top:0; height:auto; padding:6px 8px; border-right:0; border-bottom:1px solid var(--border); background:var(--bg-card-solid); z-index:30; }
   .workspace-sidebar nav { flex-direction:row; gap:4px; overflow-x:auto; scrollbar-width:thin; }
   .workspace-nav-item { flex-direction:column; flex-shrink:0; min-width:64px; min-height:56px; gap:5px; padding:7px 8px; border-radius:9px; justify-content:center; }
-  .workspace-nav-label,.sidebar-is-collapsed .workspace-nav-label,.workspace-nav-item > span:not(.workspace-nav-icon),.sidebar-is-collapsed .workspace-nav-item > span:not(.workspace-nav-icon) { display:block; font-size:10px; line-height:1.2; text-align:center; }
+  .workspace-nav-label,.sidebar-is-collapsed .workspace-nav-label { display:block; font-size:10px; line-height:1.2; text-align:center; }
   .sidebar-is-collapsed .workspace-nav-item { padding:7px 8px; }
   .workspace-home { padding:14px; gap:16px; }.workspace-home-main { gap:14px; }
   .workspace-home .widget-box { padding:15px; }.workspace-home .widget-title { font-size:13px; }

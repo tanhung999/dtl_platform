@@ -16,12 +16,14 @@ import { SharedCalendarList } from './components/SharedCalendarList';
 import { SharedItemDialog } from './components/SharedItemDialog';
 import { EventStatusLegend } from '../calendar/components/EventStatusBadge';
 
-export function SharedCalendarView({ share, revision, accessEpoch, accessPending, navigation, initialDate }: {
-  share: Share; revision: number; accessEpoch: number; accessPending: boolean; navigation: ReactNode; initialDate?: Date;
+export function SharedCalendarView({ share, revision, accessEpoch, accessPending, navigation, initialDate, onDateChange }: {
+  share: Share; revision: number; accessEpoch: number; accessPending: boolean; navigation: ReactNode; initialDate?: Date; onDateChange?: (date: Date) => void;
 }) {
   const { now }=useTasks();
   const [memory, remember] = useViewMemory(`shared-calendar/${share.owner_id}`, () => ({ day: dateKey(today()), view: window.matchMedia('(max-width:768px)').matches ? 'agenda' : 'week' }), value => !!value && typeof value === 'object' && isDay((value as any).day) && ['week', 'month', 'agenda'].includes((value as any).view));
   const [anchor,setAnchor]=useState(initialDate??parseDate(memory.day)), [view,setView]=useState<CalendarView>(memory.view as CalendarView);
+  useEffect(() => { if (initialDate) setAnchor(initialDate); }, [initialDate]);
+  const chooseDate = (day: Date) => { setAnchor(day); onDateChange?.(day); };
   useEffect(() => { remember({ day: dateKey(anchor), view }); }, [anchor, view, remember]);
   const [showEarlyHours,setShowEarlyHours]=useState(false), [selected,setSelected]=useState<SharedItem>(), [notice,setNotice]=useState('');
   const [manualRevision,refresh]=useInvalidation();
@@ -38,8 +40,8 @@ export function SharedCalendarView({ share, revision, accessEpoch, accessPending
   const gridItems=data.items;
   const days=Array.from({length:view==='week'?7:30},(_,i)=>addDays(range.start,i));
   const earlyCount=gridItems.filter(item=>item.kind==='task'?!!item.due_time && item.due_time<'06:00':!item.is_all_day && days.some(day=>Date.parse(item.starts_at!)<Date.parse(toTimestamp(day,'06:00'))&&Date.parse(item.ends_at!)>Date.parse(toTimestamp(day)))).length;
-  const move=(step:number)=>setAnchor(view==='month'?addMonths(anchor,step):addDays(anchor,step*(view==='week'?7:30)));
-  const showDay=(day:Date)=>{setAnchor(day);setView('agenda');};
+  const move=(step:number)=>chooseDate(view==='month'?addMonths(anchor,step):addDays(anchor,step*(view==='week'?7:30)));
+  const showDay=(day:Date)=>{chooseDate(day);setView('agenda');};
   const current=dateKey(viewRange(today(),view).start)===dateKey(range.start);
   return <div className="calendar-page shared-calendar-page">
     <div className="calendar-shell"><aside className="calendar-sidebar"><div className="calendar-sidebar-scroll" tabIndex={0} role="region" aria-label="Danh sách và bộ lọc lịch">{navigation}
@@ -48,7 +50,7 @@ export function SharedCalendarView({ share, revision, accessEpoch, accessPending
       {(share.share_events||share.share_notes)&&<div className="calendar-event-legend-section"><h4>Trạng thái sự kiện và ghi chú</h4><EventStatusLegend/></div>}
       {share.share_tasks && <TaskStatusLegend />}
     </div></aside><section className="calendar-main" aria-label={`Lịch được chia sẻ của ${share.name}`}>
-      <div className="calendar-toolbar"><div className="calendar-toolbar-navigation"><button type="button" className="btn btn-outline btn-sm" disabled={current} onClick={()=>setAnchor(today())}>Hôm nay</button><button type="button" className="calendar-icon-button" aria-label="Khoảng trước" onClick={()=>move(-1)}><ChevronLeft size={19}/></button><button type="button" className="calendar-icon-button" aria-label="Khoảng sau" onClick={()=>move(1)}><ChevronRight size={19}/></button><h2>{view==='month'?formatDate(anchor,{month:'long',year:'numeric'}):`${formatDate(range.start)} – ${formatDate(addDays(range.end,-1))}`}</h2></div>
+      <div className="calendar-toolbar"><div className="calendar-toolbar-navigation"><button type="button" className="btn btn-outline btn-sm" disabled={current} onClick={()=>chooseDate(today())}>Hôm nay</button><button type="button" className="calendar-icon-button" aria-label="Khoảng trước" onClick={()=>move(-1)}><ChevronLeft size={19}/></button><button type="button" className="calendar-icon-button" aria-label="Khoảng sau" onClick={()=>move(1)}><ChevronRight size={19}/></button><h2>{view==='month'?formatDate(anchor,{month:'long',year:'numeric'}):`${formatDate(range.start)} – ${formatDate(addDays(range.end,-1))}`}</h2></div>
         <div className="calendar-toolbar-actions"><button type="button" className="calendar-icon-button" title="Tải lại" aria-label="Tải lại lịch được chia sẻ" onClick={refresh} disabled={data.pending}><RefreshCw size={17}/></button>
           {view==='week'&&<label className="calendar-night-toggle"><input type="checkbox" checked={showEarlyHours} onChange={e=>setShowEarlyHours(e.target.checked)}/>Hiện khung giờ đêm</label>}
           <div className="calendar-view-switch" role="group" aria-label="Chế độ xem lịch">{(['week','month','agenda']as const).map(value=><button type="button" key={value} aria-pressed={view===value} className={view===value?'is-active':''} onClick={()=>setView(value)}>{value==='week'?'Tuần':value==='month'?'Tháng':'Danh sách'}</button>)}</div></div>

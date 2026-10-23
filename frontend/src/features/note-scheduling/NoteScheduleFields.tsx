@@ -32,7 +32,7 @@ export function NoteScheduleFields({ value, onChange, scheduleReadOnly = false, 
     {value.is_all_day && <div><span>Ngày kết thúc</span><DatePicker disabled={scheduleReadOnly} label="Ngày kết thúc" required min={startDay} value={endDay} align="end" onChange={day => { if (day) onChange({ ...value, ends_at: toTimestamp(addDays(parseDate(day), 1)) }); }}/></div>}
     {!value.is_all_day && <div><span>Giờ kết thúc</span><TimePicker disabled={scheduleReadOnly} label="Giờ kết thúc" required value={eventTime(value.ends_at)} onChange={time => { if (time) onChange({ ...value, ends_at: toTimestamp(parseDate(startDay), time) }); }} /></div>}
     <RecurrenceSelect startDate={startDay} value={value.recurrence ?? 'NONE'} disabled={scheduleReadOnly} onChange={recurrence => onChange({ ...value, recurrence, ends_at: value.is_all_day ? value.ends_at : toTimestamp(parseDate(startDay), eventTime(value.ends_at)) })}/>
-    {value.recurrence && value.recurrence !== 'NONE' && <p>Lặp không thời hạn. Khi dời hoặc xóa, bạn có thể chọn phần lịch cần áp dụng.</p>}
+    {scheduleReadOnly && value.recurrence && value.recurrence !== 'NONE' && <p>Đây là lịch lặp. Khi thay đổi hoặc xóa, hãy chọn lần cần áp dụng.</p>}
     {scheduleReadOnly && scheduleAction && <p>Chọn “Dời lịch / Thông báo” để thay đổi lịch hoặc cài đặt thông báo.</p>}
     {scheduleAction && <div className="note-schedule-action">{scheduleAction}</div>}
     {showNotifications && <ReminderFields eventId={value.event_id} recurrence={value.recurrence} value={value} onChange={reminder => onChange({ ...value, ...reminder })} anchor={value.starts_at} endsAt={value.ends_at} allDay={value.is_all_day} />}

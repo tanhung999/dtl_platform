@@ -21,9 +21,9 @@ import { EventStatusLegend } from './components/EventStatusBadge';
 import { calendarApi } from './api';
 import { useCalendarDays } from './hooks/useCalendarDays';
 
-interface Props { initialDate?: Date; userName: string; userId: string; sharingControls?: ReactNode }
+interface Props { initialDate?: Date; onDateChange?: (date: Date) => void; userName: string; userId: string; sharingControls?: ReactNode }
 
-export function CalendarPage({ initialDate, userName, userId, sharingControls }: Props) {
+export function CalendarPage({ initialDate, onDateChange, userName, userId, sharingControls }: Props) {
   const tasksData = useTasks();
   const [remembered, remember] = useViewMemory('calendar', () => ({ day: dateKey(today()), month: dateKey(today()), view: window.matchMedia('(max-width: 768px)').matches ? 'agenda' : 'week', night: false }), value => !!value && typeof value === 'object' && isDay((value as any).day) && isDay((value as any).month) && ['week', 'month', 'agenda'].includes((value as any).view) && typeof (value as any).night === 'boolean');
   const [anchor, setAnchor] = useState(initialDate ?? parseDate(remembered.day));
@@ -58,7 +58,7 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
   const inCurrentPeriod = view === 'week' ? dateKey(startOfWeek(anchor)) === dateKey(startOfWeek(today()))
     : view === 'month' ? dateKey(anchor).slice(0, 7) === todayKey.slice(0, 7) : dateKey(anchor) === todayKey;
 
-  const selectDate = (date: Date) => { setAnchor(date); setMiniMonth(date); };
+  const selectDate = (date: Date) => { setAnchor(date); setMiniMonth(date); onDateChange?.(date); };
   const navigate = (direction: number) => {
     selectDate(view === 'month' ? addMonths(anchor, direction) : addDays(anchor, direction * (view === 'week' ? 7 : 30)));
   };
@@ -115,10 +115,10 @@ export function CalendarPage({ initialDate, userName, userId, sharingControls }:
         {tasksData.error && <p className="calendar-error-state" role="alert">{tasksData.error}</p>}
         {showTasks && <OverdueGroup compact />}
         {data.error && <div className="calendar-error-state" role="alert"><p>{data.error}</p><button type="button" className="btn btn-outline btn-sm" onClick={data.refresh}>Thử lại</button></div>}
-          <div className="calendar-view-content" aria-busy={data.loading}>
+          <div className="calendar-view-content" aria-busy={data.loading || deadlineData.loading}>
             {view === 'week' && <WeekView {...viewProps} showEarlyHours={showEarlyHours} onShowDay={date => { selectDate(date); setView('agenda'); }} />}
             {view === 'month' && <MonthView {...viewProps} onShowDay={date => { selectDate(date); setView('agenda'); }} />}
-            {view === 'agenda' && ((!data.loading && !data.error && !deadlineData.error) || data.events.length > 0 || visibleTasks.length > 0) && <AgendaView {...viewProps} />}
+            {view === 'agenda' && ((!data.loading && !deadlineData.loading && !data.error && !deadlineData.error) || data.events.length > 0 || visibleTasks.length > 0) && <AgendaView {...viewProps} />}
           </div>
       </section>
     </div>

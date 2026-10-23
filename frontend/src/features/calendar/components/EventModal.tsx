@@ -8,6 +8,7 @@ import { CalendarEvent, CalendarEventInput, EventDraft, Recurrence } from '../ty
 import { EventStatusBadge, EventStatusLegend } from './EventStatusBadge';
 import { useTasks } from '../../tasks/context/TasksContext';
 import { eventStatus } from '../eventStatus';
+import { isUncertainFailure, MutationUncertainError } from '../../../services/mutationRecovery';
 import { CreateAttempt } from '../../../services/mutationRecovery';
 import { ApiError } from '../../../services/api';
 import { useMutationChecking } from '../../mutations/useMutationChecking';
@@ -49,6 +50,8 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
   const [deleteScope, setDeleteScope] = useState<RecurrenceScope>('THIS');
   const [occurrenceAt, setOccurrenceAt] = useState(() => event ? occurrenceFor(event.starts_at, event.recurrence, draft.occurrenceAt) : undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteUncertain, setDeleteUncertain] = useState(false);
+  const submitting = useRef(false);
   const attempt = useRef<CreateAttempt<CalendarEventInput>>();
   const [deleteVersion, setDeleteVersion] = useState(event?.updated_at);
   const [updatedAt, setUpdatedAt] = useState(event?.updated_at);
@@ -76,7 +79,7 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (busy) return;
+    if (submitting.current || confirmDelete || deleteUncertain) return;
     setError('');
     if (!title.trim()) { setError('Vui lòng nhập tên sự kiện.'); return; }
     if (!startDate || !endDate || (!allDay && (!startTime || !endTime))) { setError('Vui lòng chọn đầy đủ ngày và giờ của sự kiện.'); return; }
@@ -87,7 +90,7 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
     if (event && recurrence === (savedSchedule.recurrence ?? 'NONE') && sameStart && sameEnd && sameReminder(reminder, savedReminder) && sameFields({ title: title.trim(), description: description.trim(), location: location.trim(), is_private: isPrivate },
       { ...event, title: event.title.trim(), description: (event.description ?? '').trim(), location: (event.location ?? '').trim(), is_private: event.is_private ?? false })) { onClose(); return; }
     if (Date.parse(ends) <= Date.parse(starts)) { setError('Thời gian kết thúc phải sau thời gian bắt đầu.'); return; }
-    setBusy(true);
+    submitting.current = true; setBusy(true);
     try {
       const payload: CalendarEventInput = { title: title.trim(), description, location, starts_at: starts, ends_at: ends, is_all_day: allDay, recurrence, is_private: isPrivate, color: event?.color ?? '#2563eb', ...reminder, ...(event ? { expected_updated_at: updatedAt } : {}) };
       if (!event) attempt.current ??= { requestId: crypto.randomUUID(), original: payload };
@@ -96,30 +99,33 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
     } catch (reason) {
       if (!event && reason instanceof ApiError && [400, 404, 422].includes(reason.status)) attempt.current = undefined;
       setError(reason instanceof Error ? reason.message : 'Không thể lưu sự kiện.');
-    } finally { setBusy(false); }
+    } finally { submitting.current = false; if (mounted.current) setBusy(false); }
   };
 
   const remove = async () => {
-    if (!event || busy) return;
-    setBusy(true);
+    if (!event || submitting.current || deleteUncertain || scopedMoved) return;
+    submitting.current = true; setBusy(true);
     setError('');
     try { await onDelete(event.id, deleteVersion!, recurring ? {scope:deleteScope, occurrence_at:occurrenceAt!} : undefined); if (mounted.current) onClose(); }
     catch (reason) {
-      if (reason instanceof ApiError && reason.status === 409 && reason.current) {
+      if (isUncertainFailure(reason) || reason instanceof MutationUncertainError) {
+        setDeleteUncertain(true);
+        setError('Chưa xác nhận được kết quả xóa. Đóng chi tiết và kiểm tra lại lịch trước khi thao tác tiếp.');
+      } else if (reason instanceof ApiError && reason.status === 409 && reason.current) {
         setDeleteVersion(reason.current.updated_at);
         setError(`Sự kiện vừa được cập nhật: “${reason.current.title}”. Bấm xác nhận xóa lần nữa nếu vẫn muốn xóa bản mới.`);
       } else setError(reason instanceof Error ? reason.message : 'Không thể xóa sự kiện.');
     }
-    finally { setBusy(false); }
+    finally { submitting.current = false; if (mounted.current) setBusy(false); }
   };
 
   return (
     <dialog ref={dialog} className="calendar-event-dialog" aria-labelledby="calendar-dialog-title"
       onCancel={e => { e.preventDefault(); e.stopPropagation(); }}>
-      <form onSubmit={submit}>
+      <form onSubmit={submit} aria-busy={busy}>
         <header className="calendar-dialog-header">
           <div><span className="calendar-eyebrow">LỊCH CÁ NHÂN</span><h2 id="calendar-dialog-title">{event ? 'Chi tiết sự kiện' : 'Tạo sự kiện mới'}</h2></div>
-          <button type="button" className="calendar-icon-button" onClick={onClose} aria-label="Đóng"><X size={20} /></button>
+          <button type="button" className="calendar-icon-button" onClick={onClose} disabled={busy} aria-label="Đóng"><X size={20} /></button>
         </header>
         <fieldset disabled={busy} className="calendar-dialog-fields">
           {status && <div style={{ '--event-color': status.color } as CSSProperties}><EventStatusBadge status={status} /></div>}
@@ -141,8 +147,8 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
 
           <RecurrenceSelect startDate={startDate} value={recurrence} disabled={busy || !!event} onChange={value => { setRecurrence(value); if (!allDay) setEndDate(startDate); }}/>
           {event && <p className="calendar-repeat-help">Chọn “Dời lịch / Thông báo” để thay đổi lịch hoặc cài đặt thông báo.</p>}
-          {scopedMoved && <p className="calendar-repeat-help">Đã áp dụng cho phần lịch đã chọn. Nội dung đang nhập được giữ; đóng và mở lại lịch để chọn lần khác.</p>}
-          {event && <RescheduleControl occurrenceAt={occurrenceAt} seriesRecurrence={savedSchedule.recurrence !== 'NONE' ? savedSchedule.recurrence : event.recurrence === 'NONE' ? event.series_recurrence : undefined} onScoped={() => { setScopedMoved(true); setDeleteScope('ALL'); }} kind="event" id={event.id} title={event.title} current={{ ...savedSchedule, ...savedReminder }} updatedAt={updatedAt} disabled={busy || scopedMoved} onMoved={change => {
+          {scopedMoved && <p className="calendar-repeat-help">Đã cập nhật phần lịch đã chọn. Lưu nội dung nếu cần, rồi đóng và mở lại sự kiện để dời hoặc xóa tiếp.</p>}
+          {event && <RescheduleControl occurrenceAt={occurrenceAt} seriesRecurrence={savedSchedule.recurrence !== 'NONE' ? savedSchedule.recurrence : event.recurrence === 'NONE' ? event.series_recurrence : undefined} onScoped={() => { setScopedMoved(true); setConfirmDelete(false); }} kind="event" id={event.id} title={event.title} current={{ ...savedSchedule, ...savedReminder }} updatedAt={updatedAt} disabled={busy || scopedMoved} onMoved={change => {
             if (occurrenceAt && savedSchedule.starts_at) setOccurrenceAt(new Date(Date.parse(occurrenceAt) + Date.parse(change.after.starts_at!) - Date.parse(savedSchedule.starts_at)).toISOString());
             setReminder(reminderValue(change.after)); setSavedReminder(reminderValue(change.after));
             setSavedSchedule({ starts_at: change.after.starts_at!, ends_at: change.after.ends_at!, is_all_day: change.after.is_all_day!, recurrence: change.after.recurrence });
@@ -161,13 +167,13 @@ export function EventModal({ event, draft, onClose, onSave, onDelete }: Props) {
         {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
         {error && <p className="alert-error calendar-dialog-error" role="alert">{error}</p>}
         {confirmDelete && <div className="calendar-delete-confirm" role="alert">
-          {!scopedMoved && recurring && <RecurrenceScopePicker action="delete" at={occurrenceAt!} value={deleteScope} onChange={setDeleteScope} disabled={busy} />}
+          {!scopedMoved && recurring && <RecurrenceScopePicker action="delete" at={occurrenceAt!} value={deleteScope} onChange={setDeleteScope} disabled={busy || deleteUncertain} />}
           <p>{recurring ? 'Các lần đã chọn và thông báo tương ứng sẽ bị xóa. Các phần còn lại được giữ nguyên.' : event?.deletion_includes_series ? `Mục này thuộc một chuỗi lịch. Xóa sẽ xóa cả chuỗi chứa “${event.title}” và các thông báo còn chờ.` : `Xóa sự kiện “${event?.title}”?`} Thao tác này không thể hoàn tác.</p>
-          <div className="calendar-inline-actions"><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirmDelete(false)}>Giữ lại</button><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={remove}>{busy ? 'Đang xóa…' : 'Xác nhận xóa'}</button></div>
+          <div className="calendar-inline-actions"><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirmDelete(false)}>Giữ lại</button><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || deleteUncertain} onClick={remove}>{busy ? 'Đang xóa…' : 'Xác nhận xóa'}</button></div>
         </div>}
         <footer className="calendar-dialog-footer">
-          {event && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Xóa</button>}
-          <div className="calendar-inline-actions"><button type="submit" className="btn btn-primary" disabled={busy || confirmDelete}>{busy ? 'Đang lưu…' : 'Lưu sự kiện'}</button></div>
+          {event && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || scopedMoved || deleteUncertain} onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Xóa</button>}
+          <div className="calendar-inline-actions"><button type="submit" className="btn btn-primary" disabled={busy || confirmDelete || deleteUncertain}>{busy ? 'Đang lưu…' : 'Lưu sự kiện'}</button></div>
         </footer>
       </form>
     </dialog>

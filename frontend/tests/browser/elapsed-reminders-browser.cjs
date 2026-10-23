@@ -68,7 +68,7 @@ asyncio.run(run())`;
       assert.equal(await dialog.getByLabel('Ngày thông báo', { exact: true }).evaluate(el => el.validity.valid), true);
     }
     // Exact reported flow: an unscheduled Note carries a past reminder into a past appointment.
-    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'DT My Note',exact:true}).click();
+    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('link',{name:'DT My Note',exact:true}).click();
     await page.locator('.notes-widget').getByRole('button', { name: 'Thêm', exact: true }).click();
     let dialog = page.getByRole('dialog', { name: 'Ghi chú', exact: true });
     await dialog.getByPlaceholder('Tiêu đề ghi chú...', { exact: true }).fill('Recovered past note QA');
@@ -94,7 +94,7 @@ asyncio.run(run())`;
     await dialog.getByRole('button', { name: 'Lưu ghi chú', exact: true }).click(); assert.equal((await saved).status(), 200);
     await dialog.waitFor({ state: 'hidden' });
     // The same recovery applies to expired Task and Event detail forms.
-    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'DT Task',exact:true}).click();
+    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('link',{name:'DT Task',exact:true}).click();
     await page.getByRole('button', { name: 'Sửa Expired task QA', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Chi tiết công việc', exact: true });
     await editElapsed(dialog);
@@ -114,7 +114,7 @@ asyncio.run(run())`;
       title: 'Move reminder QA', due_date: '2099-01-01', due_time: '09:00', reminder_minutes: 30,
     } });
     assert.equal(created.status(), 201);
-    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'DT Task',exact:true}).click();
+    await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('link',{name:'DT Task',exact:true}).click();
     await page.getByRole('button', { name: 'Sửa Move reminder QA', exact: true }).click();
     const taskDialog = page.getByRole('dialog', { name: 'Chi tiết công việc', exact: true });
     await taskDialog.getByRole('button', { name: 'Dời lịch / Thông báo', exact: true }).click();

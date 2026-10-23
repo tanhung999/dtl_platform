@@ -31,3 +31,6 @@
 .reschedule-range-row.is-single { grid-template-columns:minmax(0,1fr); }
 .reschedule-range-row > .reschedule-field { min-width:0; }
 .reschedule-range-row .app-date-picker, .reschedule-range-row .app-time-picker { width:100%; min-width:0; }
+
+/* Keep Apply reachable when the settings form needs vertical scrolling. */
+.reschedule-dialog form > footer { position:sticky; bottom:0; z-index:3; margin:16px -22px -18px; padding:12px 22px; border-top:1px solid var(--border); background:var(--bg-card-solid); }

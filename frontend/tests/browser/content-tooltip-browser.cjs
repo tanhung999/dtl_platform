@@ -6,7 +6,7 @@ const assert=require('node:assert/strict');
  await page.route(/fonts\.(googleapis|gstatic)\.com/,route=>route.abort());await page.goto('http://127.0.0.1:5173');
  await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);await page.getByLabel('Mật khẩu',{exact:true}).fill(fixture.accounts[0].password);await page.getByRole('button',{name:'Đăng nhập hệ thống'}).click();await page.locator('.workspace-home').waitFor();
  const task=await page.evaluate(async()=>{const response=await fetch('/api/tasks',{method:'POST',headers:{Authorization:'Bearer '+localStorage.getItem('dtl_platform_token'),'Content-Type':'application/json'},body:JSON.stringify({title:'Tooltip timing QA'})});if(!response.ok)throw new Error(await response.text());return response.json();});
- await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('button',{name:'DT Task',exact:true}).click();
+ await page.getByRole('navigation',{name:'Điều hướng chính'}).getByRole('link',{name:'DT Task',exact:true}).click();
  const target=page.locator(`[data-task-id="${task.id}"] .task-title-button`);await target.waitFor();
  await page.clock.install();await page.clock.pauseAt(new Date(Date.now()+100));
  await target.hover();await page.clock.runFor(249);assert.equal(await page.getByRole('tooltip').count(),0);

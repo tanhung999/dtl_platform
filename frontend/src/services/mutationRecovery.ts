@@ -2,7 +2,7 @@ import { ApiError } from './api';
 import { requestWithTimeout, RequestTimeoutError } from './requestTimeout';
 
 export class MutationUncertainError extends Error {
-  constructor() { super('Chưa xác định được kết quả lưu. Hãy kiểm tra lại khi có kết nối; không tạo yêu cầu mới cho cùng thao tác.'); }
+  constructor() { super('Chưa xác nhận được thao tác đã hoàn tất. Giữ nguyên nội dung, kiểm tra kết nối và thử lại trên form này.'); }
 }
 export const isUncertainFailure = (reason: unknown) => reason instanceof RequestTimeoutError || reason instanceof TypeError;
 // UI can show a short status without coupling the transport to any one form.

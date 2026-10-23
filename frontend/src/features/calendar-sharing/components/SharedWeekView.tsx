@@ -44,7 +44,7 @@ export function SharedWeekView({ ownerId, anchor, items, now, showEarlyHours, on
         </button></div>;
       })}
       {days.map((day,index) => { const extra=allDay.filter(item=>item.lane>=3 && item.start<=index && item.end>=index).length;
-        return <div key={dateKey(day)} className="calendar-all-day-footer" style={{ gridColumn:index+2, gridRow:rows+1 }}>{extra>0 && <button type="button" className="calendar-more" onClick={()=>onShowDay(day)}>+{extra} mục</button>}</div>;
+        return <div key={dateKey(day)} className="calendar-all-day-footer" style={{ gridColumn:index+2, gridRow:rows+1 }}>{extra>0 && <button type="button" className="calendar-more" aria-label={`Xem thêm ${extra} mục ngày ${formatDate(day)}`} onClick={()=>onShowDay(day)}>+{extra} mục</button>}</div>;
       })}
     </div>
     <div className="calendar-timeline-scroll" ref={scroll}><div className="calendar-week-timeline" style={{ height:1440-startMinute+48 }}>

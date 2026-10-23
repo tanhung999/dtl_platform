@@ -27,7 +27,7 @@ export function AllDayWeek({ anchor, events, tasks, onCreate, onSelect, onShowDa
     })}
     {days.map((day, index) => {
       const extra = items.filter(item => item.lane >= 3 && item.start <= index && item.end >= index).length;
-      return <div key={dateKey(day)} className="calendar-all-day-footer" style={{ gridColumn: index + 2, gridRow: rows + 1 }}>{extra > 0 && <button type="button" className="calendar-more" onClick={() => onShowDay(day)}>+{extra} mục</button>}<button type="button" className="calendar-all-day-add" aria-label={`Tạo sự kiện cả ngày ${formatDate(day)}`} onClick={() => onCreate({ date: day, allDay: true })}>+</button></div>;
+      return <div key={dateKey(day)} className="calendar-all-day-footer" style={{ gridColumn: index + 2, gridRow: rows + 1 }}>{extra > 0 && <button type="button" className="calendar-more" aria-label={`Xem thêm ${extra} mục ngày ${formatDate(day)}`} onClick={() => onShowDay(day)}>+{extra} mục</button>}<button type="button" className="calendar-all-day-add" aria-label={`Tạo sự kiện cả ngày ${formatDate(day)}`} onClick={() => onCreate({ date: day, allDay: true })}>+</button></div>;
     })}
   </div>;
 }

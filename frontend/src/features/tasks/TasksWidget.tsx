@@ -32,6 +32,7 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
   const createAttempt = useRef<CreateAttempt<TaskInput>>();
+  const submitting = useRef(false);
   useEffect(() => {
     if (!data.overdueRequest) return;
     setFilter('OVERDUE');
@@ -43,13 +44,14 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
   useWindowScrollMemory(`tasks/${fullPage}/${data.filter}/${data.query}/${data.page?.offset ?? 0}`, !data.loading && !!data.page);
   const create = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || saving) return;
+    if (!title.trim() || submitting.current) return;
+    submitting.current = true;
     setSaving(true); setActionError('');
     const payload = { title: title.trim(), priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, ...reminder };
     createAttempt.current ??= { requestId: crypto.randomUUID(), original: payload };
     try { await data.create(payload, createAttempt.current); createAttempt.current = undefined; setTitle(''); setIsPrivate(false); setDueDate(''); setDueTime(''); setReminder(noReminder()); }
     catch (reason) { if (reason instanceof ApiError && [400, 404, 422].includes(reason.status)) createAttempt.current = undefined; setActionError(reason instanceof Error ? reason.message : 'Không thể tạo công việc.'); }
-    finally { setSaving(false); }
+    finally { submitting.current = false; setSaving(false); }
   };
   return <div ref={panel} tabIndex={-1} className={`glass-panel widget-box tasks-widget ${fullPage ? 'tasks-full-collection' : ''}`}>
     <div className="widget-header"><div className="widget-title"><FeatureIcon name="tasks" /><span>DT Task</span></div><span className="task-pending-badge"><AnimatedCount value={pending} /> việc chưa xong</span></div>

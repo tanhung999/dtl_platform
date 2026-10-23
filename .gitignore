@@ -54,3 +54,18 @@ frontend/tests/.browser-tools/
 .DS_Store
 Thumbs.db
 .audit-backups/
+
+# Local documentation, audit reports and change journals
+/docs/
+/CHANGELOG*
+/CHANGES*
+/HISTORY*
+/audit-*.md
+/review-*.md
+/source-audit-*.md
+/cleanup-and-optimization-*.md
+
+# Local diagnostic output and database backups
+*.log
+*.dump
+*.sql.bak

@@ -68,12 +68,3 @@ export interface Bookmark {
   category: string;
   is_global: boolean;
 }
-
-export interface SubAppInfo {
-  id: 'bookingreports' | 'workflows' | 'itam';
-  name: string;
-  shortName: string;
-  description: string;
-  category: string;
-  iconUrl: string;
-}

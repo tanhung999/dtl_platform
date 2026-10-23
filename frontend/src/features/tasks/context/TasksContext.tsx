@@ -27,7 +27,7 @@ interface TasksState {
 }
 const Context = createContext<TasksState | null>(null);
 const emptyCounts = { ALL: 0, PENDING: 0, DONE: 0, OVERDUE: 0 };
-export function TasksProvider({ children, fullPage = false }: { children: ReactNode; fullPage?: boolean }) {
+export function TasksProvider({ children, fullPage = false, collectionEnabled = true }: { children: ReactNode; fullPage?: boolean; collectionEnabled?: boolean }) {
   useWorkspaceRealtime();
   const [page, setPage] = useState<TaskCollection>();
   const view = fullPage ? 'full' : 'widget', limit = fullPage ? 25 : 8;
@@ -59,6 +59,7 @@ export function TasksProvider({ children, fullPage = false }: { children: ReactN
   const busy = useRef(new Set<string>()), mutation = useRef(0);
   const setFilter = (value: TaskFilter) => { cursors.current = {}; setViews(previous => ({ ...previous, [view]: { ...previous[view], filter: value, offset: 0 } })); };
   useEffect(() => {
+    if (!collectionEnabled) { setLoading(false); setError(''); return; }
     if (fullPage && query !== debounced) { setLoading(true); return; }
     const controller = new AbortController(), version = mutation.current;
     setLoading(true);
@@ -75,7 +76,7 @@ export function TasksProvider({ children, fullPage = false }: { children: ReactN
     } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [filter, offset, overdueOffset, revision, view, limit, search, query]);
+  }, [filter, offset, overdueOffset, revision, view, limit, search, query, collectionEnabled]);
   useEffect(() => {
     // Deadlines and form input use minute precision. No whole-workspace rerender every second.
     let timer: ReturnType<typeof setTimeout>, onlineTimer: ReturnType<typeof setTimeout>;
@@ -89,11 +90,11 @@ export function TasksProvider({ children, fullPage = false }: { children: ReactN
     return () => { clearTimeout(timer); clearTimeout(onlineTimer); window.removeEventListener(WORKSPACE_CHANGED, changed); window.removeEventListener('focus', focus); window.removeEventListener('online', online); window.removeEventListener('storage', storage); };
   }, [refresh]);
   useEffect(() => {
-    if (!page?.next_refresh_at) return;
+    if (!collectionEnabled || !page?.next_refresh_at) return;
     const delay = Date.parse(page.next_refresh_at) - Date.parse(page.server_now);
     const timer = setTimeout(() => { setNow(new Date()); refresh(); }, Math.min(2147483647, Math.max(50, delay + 20)));
     return () => clearTimeout(timer);
-  }, [page?.next_refresh_at, page?.server_now, refresh]);
+  }, [page?.next_refresh_at, page?.server_now, refresh, collectionEnabled]);
   const changed = () => { mutation.current++; cursors.current = {}; overdueCursors.current = {}; localStorage.setItem('dtl_tasks_changed', `${Date.now()}:${mutation.current}`); refresh(); };
   const mutate = async (task: Task, payload: Partial<TaskInput> & { is_completed?: boolean; expected_deadline_version?: number }) => {
     if (busy.current.has(task.id)) throw new Error('Công việc đang được cập nhật. Vui lòng thử lại.');
@@ -120,7 +121,7 @@ export function TasksProvider({ children, fullPage = false }: { children: ReactN
   const currentPage = loadedScope === scope && (!fullPage || query === debounced) ? page : undefined;
   const tasks = useMemo(() => sortTasks(currentPage?.items ?? []), [currentPage?.items]);
   return <Context.Provider value={{ tasks, overdue: page?.overdue ?? [], now, page: currentPage, counts: page?.counts ?? emptyCounts, filter, setFilter, query, setQuery, setOffset, setOverdueOffset,
-    revision, loading: fullPage && query !== debounced || (!page || loadedScope !== scope) && (loading || !error), error, busyIds, refresh, create, update, remove,
+    revision, loading: collectionEnabled && (fullPage && query !== debounced || (!page || loadedScope !== scope) && (loading || !error)), error, busyIds, refresh, create, update, remove,
     openTask,
     edit: task => { openTask(task.id).catch(reason => setError(reason.message)); },
     toggle: async task => { await mutate(task, { is_completed: !task.is_completed }); },

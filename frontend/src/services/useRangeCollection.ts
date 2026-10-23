@@ -8,7 +8,10 @@ export function useRangeCollection<T extends { id: string }, P extends RangePage
   key: string, revision: number, fetchPage: (offset: number, signal: AbortSignal) => Promise<P>, enabled = true,
 ) {
   const [saved, setSaved] = useState<{ key: string; page: P; items: T[]; nextOffset: number }>();
-  const [pending, setPending] = useState(true), [error, setError] = useState('');
+  const [pending, setPending] = useState(true);
+  const [failure, setFailure] = useState<{ key: string; message: string }>();
+  const error = failure?.key === key ? failure.message : '';
+  const setError = (message: string) => setFailure(message ? { key, message } : undefined);
   const active = useRef<AbortController>();
   const moreBusy = useRef(false);
   const latest = useRef(saved);

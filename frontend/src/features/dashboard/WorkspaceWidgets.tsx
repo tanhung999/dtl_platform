@@ -9,7 +9,7 @@ import { today } from '../calendar/dateUtils';
 import './dashboard.css';
 
 export function WorkspaceWidgets({ user, onOpenApps, onOpenCalendar, onOpenNotes, onOpenTasks, linkRequest = 0 }: {
-  user: User; onOpenApps: () => void; onOpenCalendar: (date: Date) => void; onOpenNotes: () => void; onOpenTasks: () => void; linkRequest?: number;
+  user: User; onOpenApps: () => void; onOpenCalendar: (date: Date) => void; onOpenNotes: () => void; onOpenTasks: () => void; linkRequest?: number | string;
 }) {
   const [linksOpen, setLinksOpen] = useState(false);
   const [scrollRequest, setScrollRequest] = useState(0);

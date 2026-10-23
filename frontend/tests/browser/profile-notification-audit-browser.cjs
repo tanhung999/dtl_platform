@@ -20,7 +20,7 @@ asyncio.run(run())`],{cwd:path.resolve(__dirname,'../../..'),input:JSON.stringif
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route(/fonts\.(googleapis|gstatic)\.com/,r=>r.abort());
  await page.goto(base);await page.getByLabel('Tên đăng nhập hoặc Email').fill(fixture.accounts[0].username);await page.getByLabel('Mật khẩu',{exact:true}).fill(fixture.accounts[0].password);await page.getByRole('button',{name:'Đăng nhập hệ thống'}).click();await page.locator('.workspace-home').waitFor();
- const nav=page.getByRole('navigation',{name:'Điều hướng chính'});await nav.getByRole('button',{name:'Hồ sơ',exact:true}).click();
+ const nav=page.getByRole('navigation',{name:'Điều hướng chính'});await nav.getByRole('link',{name:'Hồ sơ',exact:true}).click();
  const profile=page.locator('.profile-page');await profile.waitFor();
  assert.equal(await profile.getByText('admin',{exact:true}).count(),0,'Legacy admin field is not proof of actual access');
  assert.equal(await profile.locator('.is-granted').count(),1);assert.equal(await profile.locator('.is-unavailable').count(),2);

@@ -3,31 +3,11 @@ import { FeatureIcon } from '../../components/FeatureIcon';
 import { useRef, useState } from 'react';
 import { ArrowUpRight, ExternalLink, LayoutGrid, Loader2 } from 'lucide-react';
 
-import { SubAppInfo } from '../../types';
-
-type EnterpriseApp = Omit<SubAppInfo, 'shortName' | 'iconUrl'> & { feature: 'income' | 'workflow' | 'assets' };
+interface EnterpriseApp { id: 'bookingreports' | 'workflows' | 'itam'; name: string; feature: 'income' | 'workflow' | 'assets' }
 const APPS: EnterpriseApp[] = [
-  {
-    id: 'bookingreports',
-    name: 'DT Income Statement',
-    description: 'Báo cáo thu nhập, doanh số bán hàng, bảng tính hoa hồng và theo dõi giỏ hàng bất động sản.',
-    category: 'Tài Chính & Kinh Doanh',
-    feature: 'income',
-  },
-  {
-    id: 'workflows',
-    name: 'DT Workflow',
-    description: 'Theo dõi luồng xử lý hồ sơ, phê duyệt chứng từ.',
-    category: 'Vận Hành',
-    feature: 'workflow',
-  },
-  {
-    id: 'itam',
-    name: 'DT Assets',
-    description: 'Quản lý cấp phát thiết bị IT, tài sản hành chính, kiểm kê kho và thủ tục tiếp nhận nhân sự.',
-    category: 'Hành Chính & IT',
-    feature: 'assets',
-  },
+  { id: 'bookingreports', name: 'DT Income Statement', feature: 'income' },
+  { id: 'workflows', name: 'DT Workflow', feature: 'workflow' },
+  { id: 'itam', name: 'DT Assets', feature: 'assets' },
 ];
 
 export function AppLauncherWidget({ allowedApps, resultIds, detailed = false, onOpenAll }: {
