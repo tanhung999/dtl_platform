@@ -15,7 +15,7 @@ const base = process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const path = value => new URL(value).pathname;
-    const nav = page.getByRole('navigation', { name: 'Điều hướng chính' });
+    const home = () => page.locator('.platform-navbar').getByRole('link', { name: 'Về trang chủ', exact: true }).click();
     const icons = new Map();
     async function brand(title, icon = 'dtone', target = page) {
       await target.waitForFunction(({ title, icon }) => {
@@ -32,12 +32,16 @@ const base = process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
       await page.getByRole('button', { name: 'Đăng nhập hệ thống' }).click();
     }
     async function open(label, pathname, title, icon) {
-      const link = nav.getByRole('link', { name: label, exact: true });
-      assert.equal(await link.getAttribute('href'), pathname);
-      await link.click();
+      if (label === 'Trang chủ') await home();
+      else if (label === 'Hồ sơ') await page.getByRole('button', { name: /Hồ sơ của/ }).click();
+      else {
+        await home();
+        if (label === 'DT Platform') await page.locator('.enterprise-apps').getByRole('button', { name: 'Xem tất cả', exact: false }).click();
+        else await page.locator('.workspace-shortcut-grid').getByRole('button', { name: label, exact: true }).click();
+      }
       await page.waitForURL(url => url.pathname === pathname);
       await brand(title, icon);
-      assert.equal(await link.getAttribute('aria-current'), 'page');
+      assert.equal(await page.locator('.workspace-sidebar').count(), 0);
     }
 
     // A protected deep link survives the login redirect.
@@ -70,7 +74,8 @@ const base = process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
     await brand('Đông Tây One');
 
     await open('DT Task', '/tasks', 'DT Task', 'tasks');
-    await nav.getByRole('button', { name: 'DT Link', exact: true }).click();
+    await home();
+    await page.locator('.workspace-shortcut-grid').getByRole('button', { name: 'DT Link', exact: true }).click();
     await page.waitForURL(url => url.pathname === '/homepage');
     await panel.waitFor();
     await brand('Đông Tây One');
@@ -83,8 +88,8 @@ const base = process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
     await open('DT Calendar', '/calendar', 'DT Calendar', 'calendar');
     await open('DT Task', '/tasks', 'DT Task', 'tasks');
     await page.goBack();
-    await page.waitForURL(url => url.pathname === '/calendar');
-    await brand('DT Calendar', 'calendar');
+    await page.waitForURL(url => url.pathname === '/homepage');
+    await brand('Đông Tây One');
     await page.goForward();
     await page.waitForURL(url => url.pathname === '/tasks');
     await brand('DT Task', 'tasks');
@@ -104,11 +109,11 @@ const base = process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
 
     const [tab] = await Promise.all([
       context.waitForEvent('page'),
-      nav.getByRole('link', { name: 'DT Calendar', exact: true }).click({ modifiers: ['Control'] }),
+      page.locator('.nav-home').click({ modifiers: ['Control'] }),
     ]);
-    await tab.locator('.calendar-page').waitFor();
-    assert.equal(path(tab.url()), '/calendar');
-    await brand('DT Calendar', 'calendar', tab);
+    await tab.locator('.workspace-home').waitFor();
+    assert.equal(path(tab.url()), '/homepage');
+    await brand('Đông Tây One', 'dtone', tab);
     await tab.close();
     assert.equal(path(page.url()), '/tasks');
     assert.equal(new Set([...icons.entries()].filter(([key]) => key !== 'dtone').map(([,value]) => value)).size, 4);
@@ -121,7 +126,7 @@ const base = process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
     await page.goto(base + '/not-a-real-page', { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: 'Không tìm thấy trang', exact: true }).waitFor();
     await brand('Không tìm thấy trang · Đông Tây One');
-    await page.getByRole('link', { name: 'Về trang chủ', exact: true }).click();
+    await home();
     await page.waitForURL(url => url.pathname === '/homepage');
     await brand('Đông Tây One');
     await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
@@ -129,7 +134,7 @@ const base = process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
     await page.screenshot({ path: '.audit-backups/router-homepage.png' });
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    assert.ok(await nav.getByRole('link', { name: 'Trang chủ', exact: true }).locator('.workspace-nav-label').isVisible());
+    assert.ok(await page.locator('.nav-home span').isVisible());
     await open('DT Calendar', '/calendar', 'DT Calendar', 'calendar');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await page.screenshot({ path: '.audit-backups/router-calendar-mobile.png' });

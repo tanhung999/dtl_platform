@@ -1,3 +1,4 @@
+import { createRequestId } from '../../../services/requestId';
 import { RecurrenceScopePicker, occurrenceFor, type ScopeSelection, type RecurrenceScope } from './RecurrenceScope';
 import { RecurrenceSelect } from './RecurrenceSelect';
 import { CSSProperties, FormEvent, useEffect, useRef, useState } from 'react';
@@ -93,7 +94,7 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
     submitting.current = true; setBusy(true);
     try {
       const payload: CalendarEventInput = { title: title.trim(), description, location, starts_at: starts, ends_at: ends, is_all_day: allDay, recurrence, is_private: isPrivate, color: event?.color ?? '#2563eb', ...reminder, ...(event ? { expected_updated_at: updatedAt } : {}) };
-      if (!event) attempt.current ??= { requestId: crypto.randomUUID(), original: payload };
+      if (!event) attempt.current ??= { requestId: createRequestId(), original: payload };
       await onSave(payload, event?.id, attempt.current);
       if (mounted.current) onClose();
     } catch (reason) {

@@ -1,3 +1,4 @@
+import { createRequestId } from '../../services/requestId';
 import { RecurrenceScopePicker, occurrenceFor, type RecurrenceScope } from '../calendar/components/RecurrenceScope';
 import { RecurrenceSelect } from '../calendar/components/RecurrenceSelect';
 import type { Recurrence } from '../calendar/types';
@@ -80,7 +81,7 @@ function MoveDialog({ kind, id, title, current, version, updatedAt, eventId, ser
   const submit = async (event: FormEvent) => {
     event.preventDefault(); event.stopPropagation(); if (submitting.current || !target || !changed) return;
     submitting.current = true;
-    attempt.current ??= { ...target, request_id: crypto.randomUUID(), ...(recurring ? {scope, occurrence_at:at} : {}), reason: reason.trim(), ...(version !== undefined ? { expected_version: version } : {}), ...(updatedAt ? { expected_updated_at: updatedAt } : {}) };
+    attempt.current ??= { ...target, request_id: createRequestId(), ...(recurring ? {scope, occurrence_at:at} : {}), reason: reason.trim(), ...(version !== undefined ? { expected_version: version } : {}), ...(updatedAt ? { expected_updated_at: updatedAt } : {}) };
     setBusy(true); setError('');
     try {
       committed.current ??= await move(kind, id, attempt.current);

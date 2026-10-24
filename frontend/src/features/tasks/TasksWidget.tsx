@@ -1,3 +1,4 @@
+import { createRequestId } from '../../services/requestId';
 import { useWindowScrollMemory } from '../../services/viewMemory';
 import { PrioritySelect } from './components/PrioritySelect';
 import { FeatureIcon } from '../../components/FeatureIcon';
@@ -48,7 +49,7 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
     submitting.current = true;
     setSaving(true); setActionError('');
     const payload = { title: title.trim(), priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, ...reminder };
-    createAttempt.current ??= { requestId: crypto.randomUUID(), original: payload };
+    createAttempt.current ??= { requestId: createRequestId(), original: payload };
     try { await data.create(payload, createAttempt.current); createAttempt.current = undefined; setTitle(''); setIsPrivate(false); setDueDate(''); setDueTime(''); setReminder(noReminder()); }
     catch (reason) { if (reason instanceof ApiError && [400, 404, 422].includes(reason.status)) createAttempt.current = undefined; setActionError(reason instanceof Error ? reason.message : 'Không thể tạo công việc.'); }
     finally { submitting.current = false; setSaving(false); }

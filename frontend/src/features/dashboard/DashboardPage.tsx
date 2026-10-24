@@ -1,8 +1,7 @@
-import { WorkspaceSidebar } from './WorkspaceSidebar';
 import { pageForPath, workspaceRoutes } from './navigation';
 import { RescheduleToast } from '../rescheduling/RescheduleToast';
 import { SharingCapabilityContext } from '../access/SharingCapabilityContext';
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo } from 'react';
 import { PageLoading, PageLoadBoundary } from '../../components/PageLoading';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useAccessCapabilities } from '../access/useAccessCapabilities';
@@ -41,11 +40,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
   const day = params.get('date');
   const calendarDate = useMemo(() => isDay(day) ? parseDate(day!) : undefined, [day]);
   const linkRequest = typeof location.state?.linkRequest === 'string' ? location.state.linkRequest : undefined;
-  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('dtl_sidebar_collapsed') === 'true'; } catch { return false; } });
-  const toggleSidebar = () => setCollapsed(previous => { const value = !previous; try { localStorage.setItem('dtl_sidebar_collapsed', String(value)); } catch { /* Layout persistence is optional. */ } return value; });
-  const openLinks = () => navigate(workspaceRoutes.dashboard.path, {
-    replace: activeTab === 'dashboard', state: { linkRequest: crypto.randomUUID() },
-  });
   const openCalendar = (date: Date) => navigate(`${workspaceRoutes.calendar.path}?${new URLSearchParams({ date: dateKey(date) })}`);
   const changeCalendarDate = (date: Date) => {
     const query = new URLSearchParams(location.search);
@@ -67,30 +61,28 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
     return () => window.removeEventListener('calendar:open-shared', open);
   }, [navigate]);
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
-  const homepage = () => navigate(workspaceRoutes.dashboard.path);
 
   return (
-    <SharingCapabilityContext.Provider value={access.can_share && !access.loading && !access.error}><TasksProvider key={user.id} fullPage={activeTab === 'tasks'} collectionEnabled={activeTab === 'dashboard' || activeTab === 'tasks' || activeTab === 'calendar'}><NotificationsProvider userId={user.id}><div className={`dashboard-app${activeTab === 'calendar' ? ' calendar-is-active' : ''}${collapsed ? ' sidebar-is-collapsed' : ''}`}>
+    <SharingCapabilityContext.Provider value={access.can_share && !access.loading && !access.error}><TasksProvider key={user.id} fullPage={activeTab === 'tasks'} collectionEnabled={activeTab === 'dashboard' || activeTab === 'tasks' || activeTab === 'calendar'}><NotificationsProvider userId={user.id}><div className={`dashboard-app${activeTab === 'calendar' ? ' calendar-is-active' : ''}`}>
       <PageBranding page={activeTab} notFound={!activeTab && location.pathname !== '/'} />
       <RescheduleToast />
-      <Navbar user={user} query={searchQuery} onSearch={search}
+      <Navbar canManage={access.can_manage && !access.loading && !access.error} user={user} query={searchQuery} onSearch={search}
         onOpenProfile={() => navigate(workspaceRoutes.profile.path)} onOpenNotifications={() => navigate(workspaceRoutes.notifications.path)} onLogout={onLogout} />
       <div className="workspace-shell">
-        <WorkspaceSidebar onOpenLinks={openLinks} canManage={access.can_manage} collapsed={collapsed} onToggle={toggleSidebar} />
         <div className="workspace-content"><main className="workspace-main" id="workspace-main">
           <PageLoadBoundary key={location.pathname}><Suspense fallback={<PageLoading />}><Routes>
             <Route path="/" element={<Navigate to={workspaceRoutes.dashboard.path} replace />} />
             <Route path={workspaceRoutes.dashboard.path} element={<WorkspaceWidgets user={user} linkRequest={linkRequest}
               onOpenApps={() => navigate(workspaceRoutes.apps.path)} onOpenTasks={() => navigate(workspaceRoutes.tasks.path)} onOpenNotes={() => navigate(workspaceRoutes.notes.path)} onOpenCalendar={openCalendar} />} />
             <Route path={workspaceRoutes.apps.path} element={<section className="workspace-section-page" aria-label="Ứng dụng doanh nghiệp"><AppLauncherWidget allowedApps={user.allowed_apps ?? ''} detailed /></section>} />
-            <Route path={workspaceRoutes.tasks.path} element={<TasksPage onBack={homepage} />} />
-            <Route path={workspaceRoutes.notes.path} element={<NotesPage initialFilter="all" onBack={homepage} />} />
+            <Route path={workspaceRoutes.tasks.path} element={<TasksPage />} />
+            <Route path={workspaceRoutes.notes.path} element={<NotesPage initialFilter="all" />} />
             <Route path={workspaceRoutes.calendar.path} element={<CalendarWorkspace key={`${user.id}:${sharedOwner ?? 'mine'}`} initialOwner={sharedOwner} initialDate={calendarDate} onDateChange={changeCalendarDate} onOwnerChange={changeCalendarOwner} userName={user.full_name} userId={user.id} />} />
             <Route path={workspaceRoutes.profile.path} element={<ProfileTab user={user} onUserUpdated={onUserUpdated} canManage={access.can_manage && !access.loading && !access.error} />} />
             <Route path={workspaceRoutes.notifications.path} element={<NotificationsPage />} />
             <Route path={workspaceRoutes.admin.path} element={<AdminPage revision={access.revision} allowed={access.can_manage} loading={access.loading} error={access.error} onChanged={access.refresh} />} />
             <Route path={workspaceRoutes.search.path} element={<SearchPage query={searchQuery} user={user} />} />
-            <Route path="*" element={<section className="workspace-section-page workspace-not-found" aria-labelledby="not-found-title"><h1 id="not-found-title">Không tìm thấy trang</h1><p>Đường dẫn này không tồn tại. Bạn có thể trở về trang chủ hoặc chọn một mục ở thanh điều hướng.</p><Link className="btn btn-primary" to={workspaceRoutes.dashboard.path}>Về trang chủ</Link></section>} />
+            <Route path="*" element={<section className="workspace-section-page workspace-not-found" aria-labelledby="not-found-title"><h1 id="not-found-title">Không tìm thấy trang</h1><p>Đường dẫn này không tồn tại. Bạn có thể trở về trang chủ.</p><Link className="btn btn-primary" to={workspaceRoutes.dashboard.path}>Về trang chủ</Link></section>} />
           </Routes></Suspense></PageLoadBoundary>
         </main>
         <footer className="platform-footer">
