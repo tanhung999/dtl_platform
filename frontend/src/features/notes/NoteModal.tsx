@@ -1,3 +1,4 @@
+import { createRequestId } from '../../services/requestId';
 import { occurrenceFor } from '../calendar/components/RecurrenceScope';
 import { PrivacyToggle } from '../access/PrivacyToggle';
 import { RescheduleControl } from '../rescheduling/RescheduleControl';
@@ -134,7 +135,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({ occurrenceAt,
       const payload = buildPayload();
       const { calendar_schedule, expected_version, ...fields } = payload;
       if (note?.id && sameFields(fields, savedFields.current) && sameSchedule(calendar_schedule, savedSchedule)) { onClose(); return; }
-      if (!note?.id) creationAttempt.current ??= { requestId: crypto.randomUUID(), original: { ...payload } };
+      if (!note?.id) creationAttempt.current ??= { requestId: createRequestId(), original: { ...payload } };
       await onSave(payload, creationAttempt.current, note?.id);
       if (mounted.current) onClose();
     } catch (reason) {

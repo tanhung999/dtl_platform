@@ -1,3 +1,4 @@
+import { createRequestId } from '../../services/requestId';
 import './bookmarks.css';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Plus, Trash2, Globe } from 'lucide-react';
@@ -34,7 +35,7 @@ export function BookmarksWidget() {
   }, [fetchBookmarks, cancel]);
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault(); if (mutating.current || !title.trim() || !url.trim()) return;
-    try { attempt.current ??= { title: title.trim(), url: bookmarkUrl(url), category: 'Cá nhân', client_request_id: crypto.randomUUID() }; }
+    try { attempt.current ??= { title: title.trim(), url: bookmarkUrl(url), category: 'Cá nhân', client_request_id: createRequestId() }; }
     catch (reason) { setError((reason as Error).message); return; }
     mutating.current = true; setSaving(true); setError('');
     try {
