@@ -11,14 +11,10 @@ from app.db.calendar import CalendarEvent as Event
 from app.db.note_scheduling import NoteCalendarSchedule as Schedule
 from app.modules.auth.dependencies import get_current_user
 from app.modules.tasks.queries import task_order
+from app.db.applications import Application
+from app.modules.applications.service import accessible_applications_query
 
 router = APIRouter(prefix="/api/search", tags=["Workspace search"])
-APPS = [
-    {"id": "bookingreports", "title": "DT Income Statement", "preview": "Báo cáo Thu nhập & Bán hàng. Báo cáo thu nhập, doanh số bán hàng, bảng tính hoa hồng và theo dõi giỏ hàng bất động sản."},
-    {"id": "workflows", "title": "DT Workflow", "preview": "Hệ thống trình ký. Theo dõi luồng xử lý hồ sơ, phê duyệt chứng từ."},
-    {"id": "itam", "title": "DT Assets", "preview": "Quản lý Tài sản. Quản lý cấp phát thiết bị IT, tài sản hành chính, kiểm kê kho và thủ tục tiếp nhận nhân sự."},
-]
-
 @router.get("")
 async def search(
     user: Annotated[User, Depends(get_current_user)],
@@ -32,9 +28,19 @@ async def search(
     groups = {name: {"items": [], "total": 0} for name in ('apps', 'tasks', 'notes', 'events')}
     if len(keyword) < 2:
         return {"groups": groups, "offset": offset, "limit": limit}
-    permissions = {value.strip() for value in (user.allowed_apps or '').split(',')}
     if kind in ('all', 'apps'):
-        apps = [app for app in APPS if app['id'] in permissions and keyword in fold_text(app['title'] + ' ' + app['preview'])]
+        registered = (
+            await db.scalars(
+                accessible_applications_query(user.id).order_by(
+                    Application.sort_order, Application.display_name, Application.key
+                )
+            )
+        ).all()
+        apps = [
+            {"id": app.key, "title": app.display_name, "preview": app.description}
+            for app in registered
+            if keyword in fold_text(app.display_name + ' ' + app.description)
+        ]
         groups['apps'] = {"items": apps[offset:offset + limit], "total": len(apps)}
     specs = {
         'tasks': (Task, [Task.id, Task.title, func.substr(Task.description, 1, 240).label('preview'), Task.due_date, Task.due_time, Task.is_completed],

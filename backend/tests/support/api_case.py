@@ -10,8 +10,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 # Keep host environment settings and real databases out of the test process.
 os.environ["DEBUG"] = "false"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["OIDC_ENABLED"] = "false"
 
 from app.core.database import Base, get_db
+from app.core.config import settings
 from app.core.security import create_access_token, hash_password
 from app.db.models import User
 from app.main import app
@@ -20,6 +22,8 @@ from app.core.realtime import prepare_changes, broadcast
 
 class ApiTestCase(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        self.previous_oidc_enabled = settings.OIDC_ENABLED
+        settings.OIDC_ENABLED = False
         self.engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
         async with self.engine.begin() as conn:
@@ -47,6 +51,7 @@ class ApiTestCase(unittest.IsolatedAsyncioTestCase):
         self.tokens = {name: create_access_token({"sub": name}) for name in ("alice", "bob")}
 
     async def asyncTearDown(self):
+        settings.OIDC_ENABLED = self.previous_oidc_enabled
         app.dependency_overrides.clear()
         await self.engine.dispose()
 

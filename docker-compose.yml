@@ -6,13 +6,14 @@ services:
     container_name: dtl-platform-backend
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${PLATFORM_BACKEND_PORT:-8001}:8000"
     environment:
-      - APP_ENV=production
+      - APP_ENV=${APP_ENV:-development}
       - DEBUG=false
-      - DB_POOL_SIZE=8
-      - DB_MAX_OVERFLOW=4
-      - DB_POOL_TIMEOUT=5
+      - ALLOW_INSECURE_LOCAL_CONFIG=${ALLOW_INSECURE_LOCAL_CONFIG:-true}
+      - DB_POOL_SIZE=10
+      - DB_MAX_OVERFLOW=2
+      - DB_POOL_TIMEOUT=10
       - DB_STATEMENT_TIMEOUT_MS=8000
       - DB_LOCK_TIMEOUT_MS=3000
       - NOTIFICATIONS_WORKER_ENABLED=${NOTIFICATIONS_WORKER_ENABLED:-true}
@@ -30,14 +31,38 @@ services:
       - NOTIFICATIONS_ITAM_API_SECRET=${NOTIFICATIONS_ITAM_API_SECRET:-}
       - NOTIFICATIONS_API_TOKEN_SECONDS=${NOTIFICATIONS_API_TOKEN_SECONDS:-900}
       - NOTIFICATIONS_API_SESSION_SECONDS=${NOTIFICATIONS_API_SESSION_SECONDS:-28800}
-      - SECRET_KEY=dtl_platform_production_secret_key_change_me
-      - SSO_SECRET_KEY=dtl_sso_shared_secret_for_ticket_exchange_32_chars
+      - SECRET_KEY=${SECRET_KEY:-dtl_platform_local_secret_key_change_me_32}
+      - SSO_SECRET_KEY=${SSO_SECRET_KEY:-dtl_sso_local_ticket_secret_change_me_32}
       - DATABASE_URL=postgresql+asyncpg://platform_user:platform_pass@platform-db:5432/dtl_platform_db
-      - BOOKING_REPORTS_URL=http://localhost:5174
-      - WORKFLOWS_URL=http://localhost:8080
+      - BOOKING_REPORTS_URL=http://localhost:3000
+      - WORKFLOWS_URL=http://localhost:8082
       - ASSET_MANAGER_URL=http://localhost:8444
+      - OIDC_ENABLED=${OIDC_ENABLED:-true}
+      - OIDC_ISSUER=${OIDC_ISSUER:-http://localhost:5173/auth/realms/dtl}
+      - OIDC_AUTHORIZATION_URL=${OIDC_AUTHORIZATION_URL:-http://localhost:5173/auth/realms/dtl/protocol/openid-connect/auth}
+      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL:-http://keycloak:8080/auth/realms/dtl/protocol/openid-connect/token}
+      - OIDC_JWKS_URL=${OIDC_JWKS_URL:-http://keycloak:8080/auth/realms/dtl/protocol/openid-connect/certs}
+      - OIDC_END_SESSION_URL=${OIDC_END_SESSION_URL:-http://localhost:5173/auth/realms/dtl/protocol/openid-connect/logout}
+      - OIDC_AUDIENCE=dtl-platform
+      - OIDC_CLIENT_ID=dtl-platform
+      - OIDC_CLIENT_SECRET=${PLATFORM_OIDC_CLIENT_SECRET:-platform-local-secret-change-me}
+      - OIDC_SESSION_ENCRYPTION_SECRET=${OIDC_SESSION_ENCRYPTION_SECRET:-local-session-encryption-change-me}
+      - OIDC_POST_LOGOUT_REDIRECT_URI=${OIDC_POST_LOGOUT_REDIRECT_URI:-http://localhost:5173/login}
+      - INTEGRATION_BOOKINGREPORTS_SECRET=${BOOKINGREPORTS_INTEGRATION_SECRET:-booking-integration-local-change-me-32}
+      - INTEGRATION_WORKFLOWS_SECRET=${WORKFLOWS_INTEGRATION_SECRET:-workflows-integration-local-change-me-32}
+      - INTEGRATION_ITAM_SECRET=${ITAM_INTEGRATION_SECRET:-itam-integration-local-change-me-32}
+      - KEYCLOAK_ADMIN_BASE_URL=http://keycloak:8080/auth
+      - KEYCLOAK_ADMIN_REALM=dtl
+      - KEYCLOAK_ADMIN_CLIENT_ID=platform-user-admin
+      - KEYCLOAK_ADMIN_CLIENT_SECRET=${KEYCLOAK_USER_ADMIN_CLIENT_SECRET:-platform-user-admin-local-secret-change-me}
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8000
+      --workers ${PLATFORM_API_WORKERS:-4}
+      --limit-concurrency ${PLATFORM_WORKER_CONCURRENCY:-400}
+      --backlog 2048 --timeout-keep-alive 10 --proxy-headers
     depends_on:
       - platform-db
+      - keycloak
 
   platform-frontend:
     image: node:20-alpine
@@ -45,6 +70,7 @@ services:
     working_dir: /app
     environment:
       - API_PROXY_TARGET=http://platform-backend:8000
+      - IDENTITY_PROXY_TARGET=http://keycloak:8080
       - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./frontend:/app
@@ -66,6 +92,66 @@ services:
       - "5434:5432"
     volumes:
       - platform_db_data:/var/lib/postgresql/data
+    command: >
+      postgres -c max_connections=160 -c shared_buffers=256MB
+      -c effective_cache_size=768MB -c work_mem=4MB
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    container_name: dtl-keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-change-me-local-only}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak-local-password}
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://localhost:5173/auth}
+      KC_HOSTNAME_ADMIN: ${KEYCLOAK_ADMIN_URL:-http://localhost:8081/auth}
+      KC_PROXY_HEADERS: xforwarded
+      KC_DB_POOL_INITIAL_SIZE: "10"
+      KC_DB_POOL_MIN_SIZE: "10"
+      KC_DB_POOL_MAX_SIZE: "40"
+      KC_HTTP_POOL_MAX_THREADS: "100"
+      JAVA_OPTS_KC_HEAP: "-Xms512m -Xmx1536m"
+      PLATFORM_OIDC_CLIENT_SECRET: ${PLATFORM_OIDC_CLIENT_SECRET:-platform-local-secret-change-me}
+      BOOKINGREPORTS_OIDC_CLIENT_SECRET: ${BOOKINGREPORTS_OIDC_CLIENT_SECRET:-booking-local-secret-change-me}
+      WORKFLOWS_OIDC_CLIENT_SECRET: ${WORKFLOWS_OIDC_CLIENT_SECRET:-workflows-local-secret-change-me}
+      ASSET_MANAGER_OIDC_CLIENT_SECRET: ${ASSET_MANAGER_OIDC_CLIENT_SECRET:-assets-local-secret-change-me}
+      KEYCLOAK_USER_ADMIN_CLIENT_SECRET: ${KEYCLOAK_USER_ADMIN_CLIENT_SECRET:-platform-user-admin-local-secret-change-me}
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import:ro
+      - ./keycloak/themes:/opt/keycloak/themes
+      - ./frontend/src/assets/logo.png:/opt/keycloak/themes/dtl/login/resources/img/logo.png:ro
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: dtl-keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak-local-password}
+      POSTGRES_DB: keycloak
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    command: >
+      postgres -c max_connections=100 -c shared_buffers=256MB
+      -c effective_cache_size=768MB -c work_mem=4MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
 volumes:
   platform_db_data:
+  keycloak_db_data:

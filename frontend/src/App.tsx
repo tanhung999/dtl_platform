@@ -9,13 +9,25 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { loginDestination } from './features/dashboard/navigation';
 import { PageBranding } from './components/PageBranding';
 import { PageLoading, PageLoadBoundary } from './components/PageLoading';
+import { AccessDeniedPage, ApplicationConnectPage, SystemDevelopmentPage } from './features/apps/ApplicationStatusPages';
 
 const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage').then(module => ({ default: module.DashboardPage })));
+
+function CentralLogoutPage() {
+  useEffect(() => {
+    void authApi.logout().finally(() => {
+      clearSession();
+      window.location.replace('/login');
+    });
+  }, []);
+  return <PageLoading startup />;
+}
 
 export function AppContent() {
   const location = useLocation(), navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<User | null>(getStoredUser());
   const [hasToken, setHasToken] = useState<boolean>(Boolean(getStoredToken()));
+  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
     const handleUnauthorized = () => {
@@ -27,16 +39,13 @@ export function AppContent() {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
-  // Fetch full user profile on mount if token exists
+  // Bootstrap either the legacy bearer session or the new HttpOnly OIDC session.
   useEffect(() => {
-    if (hasToken) {
-      authApi.getMe()
-        .then((user) => setCurrentUser(user))
-        .catch(() => {
-          // Token might be invalid or expired
-        });
-    }
-  }, [hasToken]);
+    authApi.getMe()
+      .then((user) => { setCurrentUser(user); setHasToken(true); })
+      .catch(() => { if (!getStoredToken()) { setCurrentUser(null); setHasToken(false); } })
+      .finally(() => setCheckingSession(false));
+  }, []);
 
   const handleLoginSuccess = (session: AuthSession) => {
     setCurrentUser(session.user);
@@ -44,15 +53,24 @@ export function AppContent() {
   };
 
   const handleLogout = () => {
-    clearSession();
-    setCurrentUser(null);
-    setHasToken(false);
-    navigate('/login', { replace: true, state: null });
+    void authApi.logout().then(() => {
+      clearSession();
+      setCurrentUser(null);
+      setHasToken(false);
+      navigate('/login', { replace: true, state: null });
+    }).catch(() => {
+      clearSession();
+      setCurrentUser(null);
+      setHasToken(false);
+      navigate('/login', { replace: true, state: null });
+    });
   };
 
   const handleUserUpdated = (updatedUser: User) => {
     setCurrentUser(updatedUser);
   };
+
+  if (checkingSession) return <PageLoading startup />;
 
   if (!hasToken || !currentUser) {
     return <><PageBranding /><Routes>
@@ -63,6 +81,10 @@ export function AppContent() {
 
   return (
     <Routes><Route path="/login" element={<Navigate to={loginDestination(location.state?.from)} replace />} />
+    <Route path="/logout" element={<CentralLogoutPage />} />
+    <Route path="/applications/connect" element={<ApplicationConnectPage />} />
+    <Route path="/access-denied" element={<AccessDeniedPage />} />
+    <Route path="/system-development" element={<SystemDevelopmentPage />} />
     <Route path="/*" element={<PageLoadBoundary><Suspense fallback={<PageLoading startup />}><DashboardPage
       user={currentUser}
       onUserUpdated={handleUserUpdated}

@@ -45,6 +45,8 @@ frontend/.env.local
 frontend/tests/artifacts/
 /tests/artifacts/
 frontend/tests/.browser-tools/
+.playwright-cli/
+output/playwright/
 
 # IDE & OS
 .idea/

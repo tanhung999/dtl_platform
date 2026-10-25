@@ -1,0 +1,298 @@
+:root {
+  --dtl-accent: #d9156b;
+  --dtl-accent-dark: #b70e57;
+  --dtl-text: #25202b;
+  --dtl-muted: #766b78;
+  --dtl-border: #efafcc;
+  --dtl-input: #edf3ff;
+}
+
+html,
+body {
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+.pf-v5-c-login,
+.login-pf-page {
+  min-height: 0 !important;
+  padding: 12px !important;
+  background: transparent !important;
+}
+
+.login-pf,
+.pf-v5-c-background-image {
+  min-height: 0;
+  background: transparent !important;
+  color: var(--dtl-text);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+#kc-header,
+.pf-v5-c-login__header,
+.pf-v5-c-brand {
+  display: none !important;
+}
+
+.pf-v5-c-login,
+.login-pf-page {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.pf-v5-c-login__container,
+.login-pf-page .card-pf {
+  width: min(440px, calc(100vw - 32px)) !important;
+  max-width: 440px !important;
+  margin: 0 !important;
+}
+
+.pf-v5-c-login__main,
+.login-pf-page .card-pf {
+  border: 1px solid rgba(217, 21, 107, .16) !important;
+  border-radius: 24px !important;
+  background: rgba(255, 255, 255, .94) !important;
+  box-shadow: 0 22px 65px rgba(116, 37, 75, .22) !important;
+  overflow: hidden;
+}
+
+.pf-v5-c-login__main-header,
+.pf-v5-c-login__main-body,
+.login-pf-page .card-pf {
+  padding-left: 36px !important;
+  padding-right: 36px !important;
+}
+
+#kc-page-title {
+  text-align: center;
+  color: var(--dtl-text);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin: 0 0 24px;
+}
+
+#kc-page-title::before {
+  content: "";
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin: 22px auto 8px;
+  background: url("../img/logo.png") center / contain no-repeat;
+}
+
+#kc-page-title::after {
+  content: "Đăng nhập một lần để truy cập toàn bộ hệ thống";
+  display: block;
+  margin-top: 7px;
+  color: var(--dtl-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.pf-v5-c-form__label,
+.control-label {
+  color: var(--dtl-text) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.pf-v5-c-form-control,
+.form-control {
+  min-height: 46px !important;
+  border: 1px solid var(--dtl-border) !important;
+  border-radius: 12px !important;
+  background: var(--dtl-input) !important;
+  color: var(--dtl-text) !important;
+  box-shadow: none !important;
+}
+
+.pf-v5-c-form-control:focus-within,
+.form-control:focus {
+  border-color: var(--dtl-accent) !important;
+  box-shadow: 0 0 0 3px rgba(217, 21, 107, .12) !important;
+}
+
+#kc-login,
+input[type="submit"].btn-primary,
+.pf-v5-c-button.pf-m-primary {
+  width: 100%;
+  min-height: 46px;
+  border: 0 !important;
+  border-radius: 11px !important;
+  background: linear-gradient(135deg, var(--dtl-accent), #cc1262) !important;
+  box-shadow: 0 7px 18px rgba(217, 21, 107, .25) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+
+#kc-login:hover,
+.pf-v5-c-button.pf-m-primary:hover {
+  background: var(--dtl-accent-dark) !important;
+}
+
+#kc-form-options a,
+#kc-registration a,
+.pf-v5-c-login__main-footer-links a {
+  color: var(--dtl-accent) !important;
+}
+
+.pf-v5-c-login__main-footer,
+#kc-info {
+  border-top: 1px dashed #e7bdcf !important;
+  background: transparent !important;
+  color: var(--dtl-muted) !important;
+}
+
+.pf-v5-c-login__main::after,
+.login-pf-page .card-pf::after {
+  content: "🔒 Bảo mật nội bộ Đông Tây Land\A Liên hệ quản trị viên nếu bạn chưa có tài khoản.\A\A Designed by Phòng CN & CĐS - Đông Tây Land • v1.0.0";
+  display: block;
+  white-space: pre-line;
+  margin: 20px 36px 26px;
+  padding-top: 16px;
+  border-top: 1px dashed #e7bdcf;
+  color: var(--dtl-muted);
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+@media (max-width: 520px) {
+  .pf-v5-c-login__main-header,
+  .pf-v5-c-login__main-body,
+  .login-pf-page .card-pf { padding-left: 24px !important; padding-right: 24px !important; }
+}
+
+/* Compact login layout matching the Platform card. */
+.pf-v5-c-login__container,
+.login-pf-page .card-pf {
+  width: min(440px, calc(100vw - 28px)) !important;
+  max-width: 440px !important;
+  padding: 0 !important;
+}
+
+.pf-v5-c-login__main {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 440px !important;
+}
+
+.pf-v5-c-login__main-header {
+  padding: 24px 32px 8px !important;
+}
+
+.pf-v5-c-login__main-body {
+  padding: 8px 32px 0 !important;
+}
+
+.pf-v5-c-login__main-footer {
+  display: none !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+}
+
+#kc-page-title {
+  margin: 0 !important;
+  font-size: 19px !important;
+}
+
+#kc-page-title::before {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 8px;
+}
+
+#kc-page-title::after {
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+#kc-form-login,
+.pf-v5-c-form {
+  gap: 0 !important;
+}
+
+.pf-v5-c-form__group {
+  margin: 0 0 14px !important;
+}
+
+/* Reserve the validation-message row before submit so an invalid login does
+   not increase the card height and make the whole form jump. */
+#kc-form-login > .pf-v5-c-form__group:first-child {
+  min-height: 99px !important;
+}
+
+.pf-v5-c-form__group-label {
+  padding-bottom: 5px !important;
+}
+
+.pf-v5-c-form-control {
+  height: 44px !important;
+  min-height: 44px !important;
+  overflow: hidden;
+}
+
+.pf-v5-c-form-control input {
+  height: 42px !important;
+  padding: 0 13px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--dtl-text) !important;
+  font-size: 14px !important;
+  outline: 0 !important;
+}
+
+.pf-v5-c-input-group {
+  display: flex !important;
+  align-items: stretch !important;
+}
+
+.pf-v5-c-input-group__item.pf-m-fill .pf-v5-c-form-control {
+  border-right: 0 !important;
+  border-radius: 12px 0 0 12px !important;
+}
+
+#password-show-password {
+  width: 48px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  border: 1px solid var(--dtl-border) !important;
+  border-left: 0 !important;
+  border-radius: 0 12px 12px 0 !important;
+  background: var(--dtl-input) !important;
+  color: #5f5362 !important;
+}
+
+.pf-v5-c-form__helper-text {
+  margin-top: 5px !important;
+  font-size: 12px !important;
+}
+
+.pf-v5-c-form__actions {
+  padding-top: 2px !important;
+}
+
+#kc-login {
+  min-height: 44px !important;
+  font-size: 14px !important;
+}
+
+.pf-v5-c-login__main::after,
+.login-pf-page .card-pf::after {
+  margin: 5px 32px 22px !important;
+  padding-top: 15px !important;
+  font-size: 11px !important;
+  line-height: 1.55 !important;
+}
+
+@media (max-width: 520px) {
+  .pf-v5-c-login,
+  .login-pf-page { padding: 14px !important; }
+  .pf-v5-c-login__main-header { padding: 20px 22px 7px !important; }
+  .pf-v5-c-login__main-body { padding: 7px 22px 0 !important; }
+  .pf-v5-c-login__main::after { margin: 4px 22px 18px !important; }
+}

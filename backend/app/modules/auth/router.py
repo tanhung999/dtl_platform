@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from app.modules.auth.schemas import (
     ProfileUpdate,
     ChangePasswordRequest,
 )
+from app.modules.auth.oidc import authenticate_password
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -22,8 +23,30 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 @router.post("/login", response_model=TokenResponse)
 async def login(
     payload: LoginRequest,
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
+    if settings.OIDC_ENABLED:
+        user, session_token = await authenticate_password(
+            db,
+            payload.username.strip(),
+            payload.password,
+        )
+        response.set_cookie(
+            settings.OIDC_SESSION_COOKIE_NAME,
+            session_token,
+            max_age=settings.OIDC_SESSION_HOURS * 3600,
+            httponly=True,
+            secure=settings.OIDC_SESSION_COOKIE_SECURE,
+            samesite="lax",
+            path="/",
+        )
+        return TokenResponse(
+            access_token="",
+            token_type="cookie",
+            expires_in=settings.OIDC_SESSION_HOURS * 3600,
+            user=UserResponse.model_validate(user),
+        )
     username = payload.username.strip().lower()
     stmt = select(User).where(
         (User.username == username) | (User.email == username)
@@ -89,6 +112,11 @@ async def change_password(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
+    if settings.OIDC_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Mật khẩu được quản lý tập trung trên Keycloak qua Đông Tây One.",
+        )
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác.")
     if len(payload.new_password) < 6:

@@ -21,6 +21,86 @@ body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
+/* Central application handoff and availability states */
+.application-status-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 5rem 1.25rem 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.application-status-screen::before,
+.application-status-screen::after {
+  content: '';
+  position: fixed;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 50%;
+  filter: blur(8px);
+  opacity: .18;
+  pointer-events: none;
+}
+
+.application-status-screen::before { top: -10rem; right: -7rem; background: var(--primary); }
+.application-status-screen::after { bottom: -12rem; left: -8rem; background: var(--accent); }
+.application-status-theme { position: absolute; top: 1.25rem; right: 1.5rem; z-index: 2; }
+
+.application-status-card {
+  width: min(100%, 540px);
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 3.25rem 2rem;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 30px;
+  box-shadow: var(--glass-shadow);
+  position: relative;
+  z-index: 1;
+}
+
+.application-status-logo { width: 84px; height: 84px; object-fit: contain; margin-bottom: 1.2rem; }
+.application-status-icon {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  margin-bottom: 1.5rem;
+}
+.is-connecting .application-status-icon { color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.is-denied .application-status-icon { color: var(--error); background: color-mix(in srgb, var(--error) 12%, transparent); }
+.is-development .application-status-icon { color: #d97706; background: color-mix(in srgb, #f59e0b 14%, transparent); }
+.application-status-spinner { animation: application-status-spin 1s linear infinite; }
+@keyframes application-status-spin { to { transform: rotate(360deg); } }
+
+.application-status-card h1 {
+  max-width: 440px;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: -.03em;
+  color: var(--text-main);
+  margin-bottom: .85rem;
+}
+.application-status-card > p { max-width: 430px; color: var(--text-secondary); line-height: 1.7; font-size: .98rem; }
+.application-status-actions { width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: 1.75rem; }
+.application-status-actions .btn { min-height: 44px; text-decoration: none; }
+.application-status-error { flex-basis: 100%; color: var(--error); font-size: .9rem; margin-bottom: .25rem; }
+.application-status-footer { margin-top: auto; padding-top: 2.25rem; color: var(--text-muted); font-size: .75rem; }
+
+@media (max-width: 600px) {
+  .application-status-screen { padding: 4.75rem .9rem 1rem; }
+  .application-status-theme { top: .9rem; right: .9rem; }
+  .application-status-card { min-height: 500px; padding: 2.25rem 1.4rem 1.5rem; border-radius: 24px; }
+  .application-status-actions { flex-direction: column; }
+  .application-status-actions .btn { width: 100%; }
+}
+
 /* Glass Card */
 .glass-panel {
   background: var(--bg-card);
@@ -661,10 +741,12 @@ body {
 /* Login Page Shell */
 .login-screen {
   min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 12px;
   position: relative;
 }
 
@@ -679,7 +761,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  transition: all 0.25s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .login-brand-header {
@@ -700,6 +782,17 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
+}
+
+.login-error-slot {
+  min-height: 44px;
+  display: flex;
+  align-items: stretch;
+}
+
+.login-error-slot .alert-error {
+  width: 100%;
+  margin: 0;
 }
 
 .form-group {

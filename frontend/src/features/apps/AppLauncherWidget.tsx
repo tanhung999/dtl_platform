@@ -1,39 +1,34 @@
-import { appsApi } from './api';
+import { appsApi, EnterpriseApp } from './api';
 import { FeatureIcon } from '../../components/FeatureIcon';
-import { useRef, useState } from 'react';
-import { ArrowUpRight, ExternalLink, LayoutGrid, Loader2 } from 'lucide-react';
+import { FeatureIconName, brandIconCells } from '../../assets/featureIcons';
+import { useEffect, useState } from 'react';
+import { ArrowUpRight, ExternalLink, LayoutGrid } from 'lucide-react';
 
-interface EnterpriseApp { id: 'bookingreports' | 'workflows' | 'itam'; name: string; feature: 'income' | 'workflow' | 'assets' }
-const APPS: EnterpriseApp[] = [
-  { id: 'bookingreports', name: 'DT Income Statement', feature: 'income' },
-  { id: 'workflows', name: 'DT Workflow', feature: 'workflow' },
-  { id: 'itam', name: 'DT Assets', feature: 'assets' },
-];
+const iconName = (value: string): FeatureIconName => value === 'tasks' || value in brandIconCells ? value as FeatureIconName : 'platform';
 
-export function AppLauncherWidget({ allowedApps, resultIds, detailed = false, onOpenAll }: {
-  allowedApps: string; resultIds?: string[]; detailed?: boolean; onOpenAll?: () => void;
+export function AppLauncherWidget({ resultIds, detailed = false, onOpenAll }: {
+  resultIds?: string[]; detailed?: boolean; onOpenAll?: () => void;
 }) {
-  const [launchingApp, setLaunchingApp] = useState<string | null>(null);
-  const launching = useRef(false);
+  const [apps, setApps] = useState<EnterpriseApp[]>([]);
+  const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [readyLink, setReadyLink] = useState<{ url: string; name: string }>();
-  const permissions = new Set(allowedApps.split(',').map(value => value.trim()));
-  const available = APPS.filter(app => permissions.has(app.id));
-  const filtered = resultIds ? available.filter(app => resultIds.includes(app.id)) : available;
-  const handleLaunch = async (app: EnterpriseApp) => {
-    if (launching.current) return;
-    launching.current = true; setLaunchingApp(app.id); setErrorMessage(''); setReadyLink(undefined);
-    // Open during the click so normal popup protection does not block the SSO tab.
-    let tab: Window | null = null;
-    try {
-      tab = window.open('about:blank', '_blank');
-      if (tab) { tab.opener = null; tab.document.title = app.name; tab.document.body.textContent = 'Đang kết nối ứng dụng…'; }
-      const result = await appsApi.launchSubApp(app.id, 15000);
-      if (tab && !tab.closed) tab.location.replace(result.launch_url);
-      else setReadyLink({ url: result.launch_url, name: app.name });
-    } catch (reason) {
-      tab?.close(); setErrorMessage(`Không thể mở ${app.name}: ${reason instanceof Error ? reason.message : 'Vui lòng thử lại.'}`);
-    } finally { launching.current = false; setLaunchingApp(null); }
+  useEffect(() => {
+    let active = true;
+    appsApi.listMine()
+      .then(result => { if (active) setApps(result); })
+      .catch(reason => { if (active) setErrorMessage(reason instanceof Error ? reason.message : 'Không thể tải danh sách ứng dụng.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+  const filtered = resultIds ? apps.filter(app => resultIds.includes(app.key)) : apps;
+  const handleLaunch = (app: EnterpriseApp) => {
+    setErrorMessage(''); setReadyLink(undefined);
+    const params = new URLSearchParams({ app: app.key, name: app.display_name, return_to: '/' });
+    const url = `/applications/connect?${params.toString()}`;
+    const tab = window.open(url, '_blank');
+    if (tab) tab.opener = null;
+    else setReadyLink({ url, name: app.display_name });
   };
   return <section className={`glass-panel widget-box enterprise-apps${detailed ? ' is-detailed' : ''}`} aria-label="Ứng dụng doanh nghiệp">
     <div className="widget-header"><div className="widget-title"><LayoutGrid size={19} className="widget-title-icon" /><span>Ứng dụng doanh nghiệp</span></div>
@@ -41,11 +36,12 @@ export function AppLauncherWidget({ allowedApps, resultIds, detailed = false, on
     </div>
     {errorMessage && <p className="alert-error" role="alert">{errorMessage}</p>}
     {readyLink && <p role="status">Trình duyệt chưa mở tab mới. <a className="workspace-text-link" href={readyLink.url} target="_blank" rel="noopener noreferrer">Mở {readyLink.name} <ExternalLink size={14} /></a></p>}
-    {!filtered.length && <p className="workspace-empty">{!available.length ? 'Bạn chưa được cấp quyền truy cập ứng dụng doanh nghiệp.' : 'Không tìm thấy ứng dụng phù hợp.'}</p>}
-    <div className="enterprise-app-grid">{filtered.map(app => <button type="button" key={app.id} className="enterprise-app-card" aria-label={`Mở ${app.name}`} disabled={launchingApp !== null} onClick={() => { void handleLaunch(app); }}>
-      <FeatureIcon name={app.feature} size={66} />
-      <strong>{app.name}</strong>
-      {launchingApp === app.id ? <Loader2 size={16} className="enterprise-app-progress" aria-label="Đang kết nối" /> : <ArrowUpRight size={15} className="enterprise-app-arrow" aria-hidden="true" />}
+    {loading && <p className="workspace-empty" role="status">Đang tải ứng dụng…</p>}
+    {!loading && !filtered.length && <p className="workspace-empty">{!apps.length ? 'Bạn chưa được cấp quyền truy cập ứng dụng doanh nghiệp.' : 'Không tìm thấy ứng dụng phù hợp.'}</p>}
+    <div className="enterprise-app-grid">{filtered.map(app => <button type="button" key={app.key} className="enterprise-app-card" aria-label={`Mở ${app.display_name}`} onClick={() => handleLaunch(app)}>
+      {app.icon_url ? <img className="feature-icon" src={app.icon_url} alt="" aria-hidden="true" width={66} height={66} /> : <FeatureIcon name={iconName(app.icon_key)} size={66} />}
+      <strong>{app.display_name}</strong>
+      <ArrowUpRight size={15} className="enterprise-app-arrow" aria-hidden="true" />
     </button>)}</div>
   </section>;
 }

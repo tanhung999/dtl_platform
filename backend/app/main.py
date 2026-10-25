@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from app.core.config import settings
@@ -13,6 +13,7 @@ from app.modules.search.router import router as search_router
 from app.modules.access.router import router as access_router
 from app.modules.calendar_sharing.router import router as sharing_router
 from app.modules.auth.router import router as auth_router
+from app.modules.auth.oidc import router as oidc_auth_router
 from app.modules.sso.router import router as sso_router
 from app.modules.notes.router import router as notes_router
 from app.modules.notes.collection import router as notes_collection_router
@@ -29,8 +30,13 @@ from app.modules.notifications.router import router as notifications_router
 from app.modules.notifications.integrations import router as notification_integrations_router
 from app.modules.notifications.external_router import router as notification_access_router
 from app.modules.notifications.worker import run_worker
+from app.modules.applications.router import router as applications_router, admin_router as applications_admin_router
+from app.modules.applications.integration import router as application_integrations_router
+from app.modules.users.router import router as user_admin_router
 from app.modules.notifications.scheduling import sync_task_jobs
 from app.modules.maintenance.cleanup import run_cleanup_worker
+
+settings.validate_production()
 
 
 async def seed_initial_data():
@@ -59,7 +65,12 @@ async def seed_initial_data():
             await session.flush()
 
             from app.db.access import UserRole
+            from app.db.applications import UserApplicationAccess
             session.add(UserRole(user_id=admin.id, role_id='access_admin'))
+            session.add_all([
+                UserApplicationAccess(user_id=admin.id, application_key=application_key, granted_by_id=admin.id)
+                for application_key in ('bookingreports', 'workflows', 'itam')
+            ])
 
             # Seed sample notes
             n1 = Note(
@@ -148,14 +159,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "frame-ancestors 'self'; base-uri 'self'",
+    )
+    if settings.APP_ENV.lower() == "production":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
+
 app.include_router(search_router)
 app.include_router(access_router)
 app.include_router(sharing_router)
 app.include_router(auth_router)
+app.include_router(oidc_auth_router)
 app.include_router(notifications_router)
 app.include_router(notification_integrations_router)
 app.include_router(notification_access_router)
 app.include_router(sso_router)
+app.include_router(applications_router)
+app.include_router(applications_admin_router)
+app.include_router(application_integrations_router)
+app.include_router(user_admin_router)
 app.include_router(calendar_collection_router)
 app.include_router(calendar_reminders_router)
 app.include_router(notes_collection_router)

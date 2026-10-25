@@ -15,7 +15,12 @@ export function useWorkspaceRealtime() {
       let lastRead = Date.now(); const began = lastRead;
       const watchdog = setInterval(() => { if (Date.now() - lastRead > 45000) current.abort(); }, 10000);
       try {
-        const response = await fetch('/api/workspace/stream', { headers: { Authorization: `Bearer ${getStoredToken()}` }, signal: current.signal });
+        const token = getStoredToken();
+        const response = await fetch('/api/workspace/stream', {
+          credentials: 'same-origin',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          signal: current.signal,
+        });
         if (!currentSession()) return;
         if (response.status === 401) { stopped = true; clearSession(); window.dispatchEvent(new Event('auth:unauthorized')); return; }
         if (!response.ok || !response.body) throw new Error('Realtime connection failed');

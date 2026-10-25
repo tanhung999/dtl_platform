@@ -82,7 +82,7 @@ export function SearchPage({ query, user }: { query: string; user: User }) {
       if (!group.total) return null;
       return <section className="search-result-group" key={type} aria-label={labels[type]}>
         <h2>{labels[type]} <span>({group.total})</span></h2>
-        {type === 'apps' ? <AppLauncherWidget allowedApps={user.allowed_apps ?? ''} resultIds={group.items.map(hit => hit.id)} /> : <div className="search-result-list">{group.items.map(hit => {
+        {type === 'apps' ? <AppLauncherWidget resultIds={group.items.map(hit => hit.id)} /> : <div className="search-result-list">{group.items.map(hit => {
           const Icon = icons[type];
           return <button type="button" className="search-result" key={hit.id} disabled={!!openingId} onClick={() => { void open(type, hit); }}>
             <Icon size={20} aria-hidden="true" /><span><strong>{hit.title || 'Ghi chú không có tiêu đề'}</strong>{hit.preview && <span className="search-preview">{hit.preview}</span>}<span className="search-meta">{meta(type, hit)}</span></span>

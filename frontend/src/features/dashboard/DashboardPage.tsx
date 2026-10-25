@@ -74,7 +74,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
             <Route path="/" element={<Navigate to={workspaceRoutes.dashboard.path} replace />} />
             <Route path={workspaceRoutes.dashboard.path} element={<WorkspaceWidgets user={user} linkRequest={linkRequest}
               onOpenApps={() => navigate(workspaceRoutes.apps.path)} onOpenTasks={() => navigate(workspaceRoutes.tasks.path)} onOpenNotes={() => navigate(workspaceRoutes.notes.path)} onOpenCalendar={openCalendar} />} />
-            <Route path={workspaceRoutes.apps.path} element={<section className="workspace-section-page" aria-label="Ứng dụng doanh nghiệp"><AppLauncherWidget allowedApps={user.allowed_apps ?? ''} detailed /></section>} />
+            <Route path={workspaceRoutes.apps.path} element={<section className="workspace-section-page" aria-label="Ứng dụng doanh nghiệp"><AppLauncherWidget detailed /></section>} />
             <Route path={workspaceRoutes.tasks.path} element={<TasksPage />} />
             <Route path={workspaceRoutes.notes.path} element={<NotesPage initialFilter="all" />} />
             <Route path={workspaceRoutes.calendar.path} element={<CalendarWorkspace key={`${user.id}:${sharedOwner ?? 'mine'}`} initialOwner={sharedOwner} initialDate={calendarDate} onDateChange={changeCalendarDate} onOwnerChange={changeCalendarOwner} userName={user.full_name} userId={user.id} />} />

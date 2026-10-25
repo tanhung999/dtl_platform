@@ -1,5 +1,6 @@
 """Versioned schema upgrades and workspace order data cleanup."""
 from sqlalchemy import inspect, text
+from app.core.config import settings
 from app.core.database import Base, engine
 from app.db import models, calendar
 from app.db import note_scheduling
@@ -11,6 +12,7 @@ from .sharing_reliability import migrate_sharing_reliability
 from .calendar_sharing import migrate_calendar_privacy, migrate_access_catalog
 from app.db import notifications
 from app.db import calendar_exceptions
+from app.db import applications
 from .notifications import migrate_notifications
 from .task_deadlines import migrate_task_deadlines
 from .note_versions import migrate_note_versions
@@ -114,6 +116,72 @@ async def upgrade(conn):
     version = 'access_002_sharing_reliability_audit'
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
         await migrate_sharing_reliability(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_001_dynamic_registry'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .application_registry import migrate_application_registry
+        await migrate_application_registry(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'identity_001_external_subject'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .external_identity import migrate_external_identity
+        await migrate_external_identity(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_002_workflows_oidc'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        await conn.execute(text("""
+            UPDATE applications
+            SET launch_url = :launch_url, callback_path = '/api/auth/oidc/login'
+            WHERE key = 'workflows'
+              AND callback_path = '/sso-callback'
+              AND launch_url IN ('http://localhost:8080', 'http://localhost:8082')
+        """), {'launch_url': settings.WORKFLOWS_URL})
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_003_bookingreports_oidc'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        await conn.execute(text("""
+            UPDATE applications
+            SET launch_url = :launch_url, callback_path = '/api/auth/oidc/login'
+            WHERE key = 'bookingreports'
+        """), {'launch_url': settings.BOOKING_REPORTS_URL})
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_004_per_application_authorization'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .application_authorization import migrate_application_authorization
+        await migrate_application_authorization(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_005_workflow_authorization'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .workflow_authorization import migrate_workflow_authorization
+        await migrate_workflow_authorization(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_006_asset_authorization'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .asset_authorization import migrate_asset_authorization
+        await migrate_asset_authorization(conn)
+        await conn.execute(text("UPDATE applications SET launch_url=:url, callback_path='/api/auth/oidc/login', oidc_client_id='asset-manager', oidc_audience='asset-manager' WHERE key='itam'"), {'url': settings.ASSET_MANAGER_URL})
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_007_asset_role_key_repair'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .asset_authorization import migrate_asset_authorization
+        await migrate_asset_authorization(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_008_backend_sso'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        await conn.execute(text("""
+            UPDATE applications
+            SET callback_path = '/api/auth/platform/callback'
+            WHERE key IN ('bookingreports', 'workflows', 'itam')
+        """))
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
     version = 'realtime_001_scope_versions'

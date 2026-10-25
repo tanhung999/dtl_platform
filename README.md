@@ -2,6 +2,8 @@
 
 Cổng làm việc tập trung cho cán bộ nhân viên **Đông Tây Land**, kết nối đăng nhập một lần (SSO) tới Booking Reports, Workflows và Asset Manager. Không gian cá nhân gồm Ghi chú, Công việc, Liên kết, Lịch cá nhân và Thông báo.
 
+Hướng dẫn tích hợp website mới, manifest role/permission và checklist production: [docs/central-identity-integration.md](docs/central-identity-integration.md).
+
 ## Kiến trúc và công nghệ
 
 - Giao diện: React 18, TypeScript, Vite, biểu tượng Lucide React; CSS hỗ trợ sáng/tối và nhiều kích thước màn hình. Điều hướng trang dùng React Router.
@@ -60,22 +62,19 @@ docker compose up -d --build platform-backend
 
 ## Đăng nhập một lần vào ứng dụng doanh nghiệp
 
-1. Người dùng bấm thẻ Booking Reports, Workflows hoặc Asset Manager.
-2. Giao diện gọi POST `/api/sso/launch` với `target_app`.
-3. Máy chủ ký vé JWT bằng `SSO_SECRET_KEY`, mặc định có hiệu lực 60 giây, trả `launch_url`.
-4. Trình duyệt mở `/sso-callback?ticket=...` của ứng dụng đích.
-5. Ứng dụng đích xác thực vé, đối chiếu tài khoản và tạo phiên nội bộ, rồi đưa người dùng vào ứng dụng.
+1. Người dùng luôn đăng nhập bằng form React gốc tại URL `/login` của Platform; trình duyệt không tải giao diện Keycloak.
+2. Backend Platform xác thực với Keycloak qua token API nội bộ, tạo phiên HttpOnly, đọc registry quyền và chỉ hiển thị ứng dụng được cấp.
+3. Khi mở ứng dụng, Platform gọi POST `/api/sso/launch` với `target_app` và `return_to` tương đối.
+4. Platform phát hành SSO ticket ký số, sống ngắn và chỉ dùng một lần. Ứng dụng đích đổi ticket qua back-channel, tạo phiên cục bộ và kiểm tra entitlement trực tiếp với Platform.
+5. Nếu mở URL ứng dụng con khi chưa đăng nhập, trình duyệt quay về `/login?app=...&return_to=...` của Platform; đăng nhập xong sẽ trở lại đúng ứng dụng và đường dẫn ban đầu.
 
-Ứng dụng đích có thể gọi POST `/api/sso/verify` để đối soát tập trung. Cần cấu hình đúng địa chỉ `BOOKING_REPORTS_URL`, `WORKFLOWS_URL`, `ASSET_MANAGER_URL` và triển khai phần nhận vé ở từng hệ thống. Luồng chi tiết và cách cấp phiên phải đối chiếu với mã nguồn của ứng dụng đích.
+Mỗi ứng dụng dùng một integration secret riêng (`BOOKINGREPORTS_INTEGRATION_SECRET`, `WORKFLOWS_INTEGRATION_SECRET`, `ITAM_INTEGRATION_SECRET`). SSO ticket là vé một lần có thời hạn 60 giây; Keycloak không xuất hiện trên trình duyệt.
 
 ## Phần tích hợp phía các ứng dụng doanh nghiệp
 
-Các mục dưới đây là phần việc tại hệ thống bên ngoài, không phải xác nhận rằng ba ứng dụng đã được kết nối đầy đủ trong kho mã này.
+Booking Reports, Workflows và Asset Manager đều dùng cùng danh tính Keycloak thông qua backend Platform và quyền do Platform quản lý. Mỗi ứng dụng vẫn duy trì hồ sơ nghiệp vụ/phiên cục bộ, nhưng không tự quản lý mật khẩu hay tự cấp role khi xác thực tập trung bật. Quyền bị thu hồi tại Platform có hiệu lực sau tối đa 30 giây theo cache entitlement mặc định.
 
-- Booking Reports: bổ sung POST `/api/auth/sso-login`, xác thực vé, tìm tài khoản theo email/tên đăng nhập và cấp phiên bằng luồng hiện có; trang `/sso-callback` nhận vé, gọi API rồi chuyển vào ứng dụng. Các hàm cấp phiên như `issue_refresh_token` và `auth_response` cần đối chiếu với dự án đích.
-- Workflows: bổ sung API nhận vé, tìm tài khoản theo thông tin đã xác thực, tạo phiên theo `auth_sessions`/`TokenResponse` của hệ thống; trang `/sso-callback` gọi API đăng nhập.
-- Asset Manager: bổ sung API nhận vé, ánh xạ tài khoản và tạo phiên theo cơ chế của ứng dụng; trang `/sso-callback` chuyển vào màn hình chính.
-- Thông báo: Platform đã có API tiếp nhận có chữ ký riêng cho từng nguồn. Phía ứng dụng cần gửi sự kiện và ánh xạ đúng ID người nhận. Hiện chưa xác nhận kết nối thực tế hoặc mở thẳng vào hồ sơ của ba ứng dụng.
+Website mới phải đăng ký application manifest, callback `/api/auth/platform/callback`, role/permission mapping và integration secret riêng theo [hướng dẫn tích hợp](docs/central-identity-integration.md). API thông báo cũng dùng khóa riêng cho từng nguồn, tách biệt khỏi khóa đăng nhập và entitlement.
 
 ## Chức năng chính
 
@@ -109,7 +108,7 @@ location / {
 }
 ```
 
-Cấu hình proxy `/api/` đến FastAPI riêng; không trả `index.html` cho yêu cầu API. Docker Compose hiện chạy Vite dev server để phát triển, không phải máy chủ phục vụ bản build production.
+Cấu hình proxy `/api/` đến FastAPI riêng; không trả `index.html` cho yêu cầu API. `docker-compose.yml` dành cho phát triển cục bộ. Production dùng `docker compose -f docker-compose.prod.yml up -d --build`; frontend được build tĩnh và phục vụ qua Nginx, Keycloak chạy chế độ production và database không publish ra máy chủ.
 
 Trước khi triển khai, đặt khóa JWT/SSO, mật khẩu cơ sở dữ liệu và URL ứng dụng phù hợp với môi trường; không sử dụng giá trị mẫu trong Compose. Tham khảo `.env.example` và `backend/app/core/config.py` cho cấu hình. Sao lưu cơ sở dữ liệu trước khi nâng cấp. Máy chủ áp dụng các migration đã đăng ký khi khởi động.
 

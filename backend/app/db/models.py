@@ -15,6 +15,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    identity_subject = Column(String(255), unique=True, index=True, nullable=True)
     username = Column(String(80), unique=True, index=True, nullable=False)
     email = Column(String(120), unique=True, index=True, nullable=False)
     full_name = Column(String(120), nullable=False)

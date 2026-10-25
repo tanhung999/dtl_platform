@@ -27,6 +27,12 @@ export default defineConfig({
         target: process.env.API_PROXY_TARGET || 'http://localhost:8000',
         changeOrigin: true,
       },
+      // Keep every browser-facing identity route on the Platform origin.
+      '/auth': {
+        target: process.env.IDENTITY_PROXY_TARGET || 'http://localhost:8081',
+        changeOrigin: false,
+        xfwd: true,
+      },
     },
   },
 })

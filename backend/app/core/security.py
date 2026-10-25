@@ -5,10 +5,12 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 import jwt
+from jwt import PyJWKClient
 
 from app.core.config import settings
 
 PASSWORD_ITERATIONS = 310_000
+_oidc_jwks_client: PyJWKClient | None = None
 
 
 def hash_password(password: str) -> str:
@@ -46,6 +48,44 @@ def decode_access_token(token: str) -> Dict[str, Any]:
     return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"], issuer="dtl-platform")
 
 
+def decode_oidc_access_token(token: str) -> Dict[str, Any]:
+    """Validate a Keycloak token using asymmetric keys and an app-specific audience."""
+    global _oidc_jwks_client
+    if not settings.OIDC_ENABLED:
+        raise ValueError("OIDC is disabled")
+    if _oidc_jwks_client is None:
+        _oidc_jwks_client = PyJWKClient(settings.OIDC_JWKS_URL, cache_keys=True, lifespan=300)
+    signing_key = _oidc_jwks_client.get_signing_key_from_jwt(token)
+    return jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=settings.OIDC_ALGORITHMS,
+        audience=settings.OIDC_AUDIENCE,
+        issuer=settings.OIDC_ISSUER,
+        options={"require": ["exp", "iat", "iss", "sub", "aud"]},
+    )
+
+
+def decode_oidc_id_token(token: str, expected_nonce: str) -> Dict[str, Any]:
+    global _oidc_jwks_client
+    if not settings.OIDC_ENABLED:
+        raise ValueError("OIDC is disabled")
+    if _oidc_jwks_client is None:
+        _oidc_jwks_client = PyJWKClient(settings.OIDC_JWKS_URL, cache_keys=True, lifespan=300)
+    signing_key = _oidc_jwks_client.get_signing_key_from_jwt(token)
+    claims = jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=settings.OIDC_ALGORITHMS,
+        audience=settings.OIDC_CLIENT_ID,
+        issuer=settings.OIDC_ISSUER,
+        options={"require": ["exp", "iat", "iss", "sub", "aud", "nonce"]},
+    )
+    if not secrets.compare_digest(str(claims.get("nonce", "")), expected_nonce):
+        raise ValueError("OIDC nonce mismatch")
+    return claims
+
+
 def create_sso_ticket(user: Dict[str, Any], target_app: str) -> str:
     """Generate a short-lived (60s) single-use SSO Ticket for launching sub-applications."""
     now = datetime.now(timezone.utc)
@@ -53,6 +93,7 @@ def create_sso_ticket(user: Dict[str, Any], target_app: str) -> str:
     payload = {
         "iss": "dtl-platform",
         "sub": user["username"],
+        "identity_subject": user.get("identity_subject"),
         "user_id": str(user["id"]),
         "email": user["email"],
         "full_name": user["full_name"],

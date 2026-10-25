@@ -5,6 +5,7 @@ from app.db.models import User, Task, Note
 from app.db.calendar import CalendarEvent
 from app.db.note_scheduling import NoteCalendarSchedule
 from app.db.migrations.event_search import migrate_event_search
+from app.db.applications import Application, UserApplicationAccess
 
 
 class WorkspaceSearchTests(ApiTestCase):
@@ -12,6 +13,9 @@ class WorkspaceSearchTests(ApiTestCase):
         async with self.sessions() as db:
             alice = await db.get(User, 'alice')
             alice.allowed_apps = 'workflows'
+            db.add(Application(key='workflows', display_name='DT Workflow', description='Hệ thống trình ký. Theo dõi luồng xử lý hồ sơ, phê duyệt chứng từ.',
+                icon_key='workflow', launch_url='http://workflows.test', permission_prefix='workflows'))
+            db.add(UserApplicationAccess(user_id='alice', application_key='workflows'))
             for owner in ('alice', 'bob'):
                 db.add(Task(user_id=owner, title='Công việc', description='Đánh giá ngân sách', is_private=True))
                 db.add(Note(user_id=owner, title='Ghi chú', content='Đánh giá ngân sách', is_private=True))

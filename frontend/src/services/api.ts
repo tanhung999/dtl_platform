@@ -13,7 +13,7 @@ let writeGeneration = 0;
 export const getSessionKey = () => `${sessionGeneration}:${getStoredToken() ?? ''}`;
 export function ensureWorkspaceSession() {
   const key = getSessionKey();
-  reads.setSession(key); workspaceBootstrap.setSession(getStoredToken() ? key : '');
+  reads.setSession(key); workspaceBootstrap.setSession(key);
   return key;
 }
 function sessionChanged() {
@@ -68,12 +68,13 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
     checkSession();
     const response = await fetch(endpoint, {
       ...options,
+      credentials: options.credentials ?? 'same-origin',
       signal,
       headers,
     });
     checkSession();
 
-    if (response.status === 401) {
+    if (response.status === 401 && endpoint !== '/api/auth/login') {
       clearSession();
       // Dispatch auth state change or reload
       window.dispatchEvent(new Event('auth:unauthorized'));

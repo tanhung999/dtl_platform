@@ -31,7 +31,7 @@ export function WorkspaceWidgets({ user, onOpenApps, onOpenCalendar, onOpenNotes
           <p>Một nền tảng thống nhất cho các công cụ và dữ liệu doanh nghiệp.</p></div>
         <div className="workspace-welcome-art" aria-hidden="true"><div className="welcome-sheet"><i /><i /><i /></div><div className="welcome-chart"><i /><i /><i /></div><div className="welcome-check"><CheckSquare size={29} /></div></div>
       </section>
-      <AppLauncherWidget allowedApps={user.allowed_apps ?? ''} onOpenAll={onOpenApps} />
+      <AppLauncherWidget onOpenAll={onOpenApps} />
       <section className="glass-panel widget-box workspace-shortcuts" aria-label="Truy cập nhanh">
         <div className="widget-header"><div className="widget-title"><Zap size={19} className="widget-title-icon" /><span>Truy cập nhanh</span></div></div>
         <div className="workspace-shortcut-grid">

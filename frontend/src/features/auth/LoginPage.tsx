@@ -1,6 +1,6 @@
 import { authApi } from './api';
 import React, { useState } from 'react';
-import { User, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
+import { User as UserIcon, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
 
 import { AuthSession } from '../../types';
 import { ThemeToggle } from '../../components/ThemeToggle';
@@ -11,12 +11,15 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+  const query = new URLSearchParams(window.location.search);
+  const targetApp = query.get('app')?.trim().toLowerCase() || '';
+  const requestedReturnTo = query.get('return_to') || '/';
+  const safeReturnTo = requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//') ? requestedReturnTo : '/';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
@@ -28,6 +31,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setLoading(true);
     try {
       const session = await authApi.login(username.trim(), password);
+      if (targetApp) {
+        onLoginSuccess(session);
+        const params = new URLSearchParams({ app: targetApp, return_to: safeReturnTo });
+        window.location.assign(`/applications/connect?${params.toString()}`);
+        return;
+      }
       onLoginSuccess(session);
     } catch (err: any) {
       setError(err?.message || 'Không thể đăng nhập. Vui lòng thử lại.');
@@ -52,7 +61,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           </p>
         </div>
 
-        {error && <div className="alert-error">{error}</div>}
+        <div className="login-error-slot" aria-live="polite">
+          {error && <div className="alert-error" role="alert">{error}</div>}
+        </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
@@ -68,7 +79,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 disabled={loading}
                 autoFocus
               />
-              <User
+              <UserIcon
                 size={16}
                 style={{ position: 'absolute', right: 12, top: 12, color: 'var(--text-muted)' }}
               />
