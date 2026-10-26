@@ -2,13 +2,13 @@
 
 import uuid
 
-from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, Text, select, event, inspect
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, Text, UniqueConstraint, select, event, inspect
 
 from app.db.types import UTCDateTime
 from app.core.database import Base
 from app.db.models import utcnow
 from app.db.note_scheduling import NoteCalendarSchedule
-from sqlalchemy.orm import column_property, deferred
+from sqlalchemy.orm import column_property, deferred, relationship
 
 
 class CalendarEvent(Base):
@@ -41,6 +41,26 @@ class CalendarEvent(Base):
     reminder_version = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(UTCDateTime(), nullable=False, default=utcnow)
     updated_at = Column(UTCDateTime(), nullable=False, default=utcnow, onupdate=utcnow)
+
+    follower_links = relationship("CalendarEventFollower", back_populates="event", cascade="all, delete-orphan")
+
+
+class CalendarEventFollower(Base):
+    __tablename__ = "calendar_event_followers"
+    __table_args__ = (
+        UniqueConstraint("event_id", "user_id", name="uq_calendar_event_followers_event_user"),
+        Index("ix_calendar_event_followers_user", "user_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    event_id = Column(String(36), ForeignKey("calendar_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    added_by_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(UTCDateTime(), default=utcnow, nullable=False)
+
+    event = relationship("CalendarEvent", back_populates="follower_links")
+    user = relationship("User", foreign_keys=[user_id])
+    added_by = relationship("User", foreign_keys=[added_by_id])
 
 
 @event.listens_for(CalendarEvent, "before_insert")

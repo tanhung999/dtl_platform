@@ -12,6 +12,7 @@ import { TasksProvider } from '../tasks/context/TasksContext';
 import { NotificationsProvider } from '../notifications/NotificationsProvider';
 import { dateKey, parseDate } from '../calendar/dateUtils';
 import { isDay } from '../../services/viewMemory';
+import { APP_VERSION } from '../../config';
 import './dashboard.css';
 
 const SearchPage = lazy(() => import('../search/SearchPage').then(module => ({ default: module.SearchPage })));
@@ -63,14 +64,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
 
   return (
-    <SharingCapabilityContext.Provider value={access.can_share && !access.loading && !access.error}><TasksProvider key={user.id} fullPage={activeTab === 'tasks'} collectionEnabled={activeTab === 'dashboard' || activeTab === 'tasks' || activeTab === 'calendar'}><NotificationsProvider userId={user.id}><div className={`dashboard-app${activeTab === 'calendar' ? ' calendar-is-active' : ''}`}>
+    <SharingCapabilityContext.Provider value={access.can_share && !access.loading && !access.error}><TasksProvider key={user.id} canAssignTasks={access.can_assign_tasks && !access.loading && !access.error} fullPage={activeTab === 'tasks'} collectionEnabled={activeTab === 'dashboard' || activeTab === 'tasks' || activeTab === 'calendar'}><NotificationsProvider userId={user.id}><div className={`dashboard-app${activeTab === 'calendar' ? ' calendar-is-active' : ''}`}>
       <PageBranding page={activeTab} notFound={!activeTab && location.pathname !== '/'} />
       <RescheduleToast />
       <Navbar canManage={access.can_manage && !access.loading && !access.error} user={user} query={searchQuery} onSearch={search}
         onOpenProfile={() => navigate(workspaceRoutes.profile.path)} onOpenNotifications={() => navigate(workspaceRoutes.notifications.path)} onLogout={onLogout} />
       <div className="workspace-shell">
         <div className="workspace-content"><main className="workspace-main" id="workspace-main">
-          <PageLoadBoundary key={location.pathname}><Suspense fallback={<PageLoading />}><Routes>
+          <PageLoadBoundary><Suspense fallback={<PageLoading />}><Routes>
             <Route path="/" element={<Navigate to={workspaceRoutes.dashboard.path} replace />} />
             <Route path={workspaceRoutes.dashboard.path} element={<WorkspaceWidgets user={user} linkRequest={linkRequest}
               onOpenApps={() => navigate(workspaceRoutes.apps.path)} onOpenTasks={() => navigate(workspaceRoutes.tasks.path)} onOpenNotes={() => navigate(workspaceRoutes.notes.path)} onOpenCalendar={openCalendar} />} />
@@ -80,14 +81,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
             <Route path={workspaceRoutes.calendar.path} element={<CalendarWorkspace key={`${user.id}:${sharedOwner ?? 'mine'}`} initialOwner={sharedOwner} initialDate={calendarDate} onDateChange={changeCalendarDate} onOwnerChange={changeCalendarOwner} userName={user.full_name} userId={user.id} />} />
             <Route path={workspaceRoutes.profile.path} element={<ProfileTab user={user} onUserUpdated={onUserUpdated} canManage={access.can_manage && !access.loading && !access.error} />} />
             <Route path={workspaceRoutes.notifications.path} element={<NotificationsPage />} />
-            <Route path={workspaceRoutes.admin.path} element={<AdminPage revision={access.revision} allowed={access.can_manage} loading={access.loading} error={access.error} onChanged={access.refresh} />} />
+            <Route path={`${workspaceRoutes.admin.path}/*`} element={<AdminPage revision={access.revision} allowed={access.can_manage} loading={access.loading} error={access.error} onChanged={access.refresh} />} />
             <Route path={workspaceRoutes.search.path} element={<SearchPage query={searchQuery} user={user} />} />
             <Route path="*" element={<section className="workspace-section-page workspace-not-found" aria-labelledby="not-found-title"><h1 id="not-found-title">Không tìm thấy trang</h1><p>Đường dẫn này không tồn tại. Bạn có thể trở về trang chủ.</p><Link className="btn btn-primary" to={workspaceRoutes.dashboard.path}>Về trang chủ</Link></section>} />
           </Routes></Suspense></PageLoadBoundary>
         </main>
         <footer className="platform-footer">
           <div>Designed by <strong>Phòng CN & CĐS - Đông Tây Land</strong></div>
-          <div style={{ fontSize: '0.725rem', color: 'var(--text-sub)' }}>v 1.0.0</div>
+          <div style={{ fontSize: '0.725rem', color: 'var(--text-sub)' }}>v {APP_VERSION}</div>
         </footer></div>
       </div>
     </div></NotificationsProvider></TasksProvider></SharingCapabilityContext.Provider>

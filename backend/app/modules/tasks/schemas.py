@@ -16,6 +16,8 @@ class TaskCreate(ReminderFields):
     priority: PriorityType = "MEDIUM"
     due_date: date | None = None
     due_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    assignee_id: str | None = Field(default=None, max_length=36)
+    follower_ids: list[str] = Field(default_factory=list, max_length=50)
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -38,6 +40,8 @@ class TaskUpdate(ReminderFields):
     due_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     is_completed: bool | None = None
     expected_deadline_version: int | None = Field(default=None, ge=0)
+    assignee_id: str | None = Field(default=None, max_length=36)
+    follower_ids: list[str] | None = Field(default=None, max_length=50)
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -70,6 +74,7 @@ class TaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     user_id: str
+    assignee_id: str
     title: str
     description: str | None
     priority: PriorityType
@@ -80,3 +85,12 @@ class TaskResponse(BaseModel):
     is_completed: bool
     created_at: datetime
     updated_at: datetime
+    creator: dict | None = None
+    assignee: dict | None = None
+    followers: list[dict] = []
+    is_following: bool = False
+    relationship: Literal["OWNER", "ASSIGNEE", "FOLLOWER"] | None = None
+    can_edit: bool = False
+    can_complete: bool = False
+    can_delete: bool = False
+    can_assign: bool = False

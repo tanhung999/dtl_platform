@@ -7,10 +7,29 @@ from app.db.access import AccessPermission, AccessRole, RolePermission, UserRole
 from app.modules.access.service import APPLICATIONS_MANAGE
 from app.core.config import settings
 from app.db.models import User
+from app.db.migrations.development_applications import migrate_development_applications
 from urllib.parse import parse_qs, urlsplit
 
 
 class ApplicationRegistryTests(ApiTestCase):
+    async def test_development_apps_are_seeded_idempotently_and_visible(self):
+        async with self.engine.begin() as conn:
+            await migrate_development_applications(conn)
+            await migrate_development_applications(conn)
+
+        status, apps = await self.request('GET', '/api/applications/me')
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            [(app['key'], app['display_name'], app['icon_key'], app['is_active']) for app in apps],
+            [
+                ('hrm', 'DT HRM', 'hrm', False),
+                ('sales-commission', 'DT Sales Commission', 'salesCommission', False),
+            ],
+        )
+        status, result = await self.request('POST', '/api/sso/launch', payload={'target_app': 'hrm'})
+        self.assertEqual(status, 503)
+        self.assertIn('giai đoạn phát triển', result['detail'])
+
     async def seed(self):
         async with self.sessions() as db:
             db.add_all([
@@ -23,6 +42,9 @@ class ApplicationRegistryTests(ApiTestCase):
                 Application(key='development', display_name='Development app', description='Coming soon',
                     icon_key='platform', launch_url='https://development.test', permission_prefix='development',
                     is_active=False),
+                Application(key='coming-soon', display_name='Coming soon', description='Visible placeholder',
+                    icon_key='hrm', launch_url='', callback_path='', permission_prefix='coming-soon',
+                    is_active=False, sort_order=190),
                 UserApplicationAccess(user_id='alice', application_key='allowed'),
                 UserApplicationAccess(user_id='alice', application_key='development'),
             ])
@@ -33,11 +55,11 @@ class ApplicationRegistryTests(ApiTestCase):
             ])
             await db.commit()
 
-    async def test_registry_only_returns_granted_apps_and_launch_is_enforced(self):
+    async def test_registry_returns_all_active_apps_and_launch_is_enforced(self):
         await self.seed()
         status, apps = await self.request('GET', '/api/applications/me')
         self.assertEqual(status, 200)
-        self.assertEqual([app['key'] for app in apps], ['allowed'])
+        self.assertEqual([app['key'] for app in apps], ['allowed', 'denied', 'coming-soon'])
 
         status, result = await self.request('POST', '/api/sso/launch', payload={'target_app': 'allowed'})
         self.assertEqual(status, 200)
@@ -90,6 +112,10 @@ class ApplicationRegistryTests(ApiTestCase):
         self.assertEqual(status, 503)
         self.assertIn('giai đoạn phát triển', development['detail'])
 
+        status, coming_soon = await self.request('POST', '/api/sso/launch', payload={'target_app': 'coming-soon'})
+        self.assertEqual(status, 503)
+        self.assertIn('giai đoạn phát triển', coming_soon['detail'])
+
         status, access = await self.request('GET', '/api/admin/applications/users/bob/access')
         self.assertEqual(status, 200)
         self.assertFalse(any(item['enabled'] for item in access))
@@ -98,7 +124,7 @@ class ApplicationRegistryTests(ApiTestCase):
         self.assertTrue(changed['enabled'])
         status, bob_apps = await self.request('GET', '/api/applications/me', user='bob')
         self.assertEqual(status, 200)
-        self.assertEqual([app['key'] for app in bob_apps], ['allowed'])
+        self.assertEqual([app['key'] for app in bob_apps], ['allowed', 'denied', 'oidc-app', 'coming-soon'])
 
     async def test_private_entitlement_contract_fails_closed(self):
         await self.seed()

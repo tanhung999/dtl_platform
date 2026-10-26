@@ -27,6 +27,7 @@ class Application(Base):
     oidc_audience = Column(String(160), nullable=True)
     permission_prefix = Column(String(100), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
+    legacy_login_enabled = Column(Boolean, nullable=False, default=False)
     sort_order = Column(Integer, nullable=False, default=100)
     created_at = Column(UTCDateTime(), nullable=False, default=utcnow)
     updated_at = Column(UTCDateTime(), nullable=False, default=utcnow, onupdate=utcnow)

@@ -50,6 +50,8 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
   const completedTasks = deadlines.filter(task => task.is_completed);
   const hasOverdue = isToday ? tasksData.counts.OVERDUE > 0 : overdueTasks.length > 0;
   const events = eventsOnDay(data.events, date);
+  const initialCalendarLoading = data.loading && !data.page;
+  const initialDeadlineLoading = deadlineData.loading && !deadlineData.page;
   const renderEvent = (event: CalendarEvent) => {
     const status = eventStatus(event, tasksData.now, dateKey(date));
     return <button type="button" key={event.id} data-event-id={event.id} data-event-status={status.key} className={`calendar-widget-event ${event.scheduled_note_id ? 'is-note' : ''}`} data-tooltip={eventTooltip(event, tasksData.now)} style={{ '--event-color': status.color } as CSSProperties}
@@ -86,11 +88,11 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
       {tasksData.error && <p role="alert" className="calendar-error-state">{tasksData.error}</p>}
       <OverdueGroup title="Việc quá hạn" items={isToday ? undefined : overdueTasks} />
       {renderTasks('deadlines', 'Công việc', pendingTasks)}
-      {data.loading || deadlineData.loading ? <p className="calendar-widget-message">Đang tải lịch…</p>
+      {initialCalendarLoading || initialDeadlineLoading ? <p className="calendar-widget-message">Đang tải lịch…</p>
         : data.error ? <div role="alert" className="calendar-error-state"><p>{data.error}</p><button type="button" className="btn btn-outline btn-sm" onClick={data.refresh}>Thử lại</button></div>
         : eventGroups.map(group => group.items.length > 0 && <section key={group.key} className="calendar-widget-group" data-calendar-group={group.key} aria-label={group.title}><h4>{group.title}<span><AnimatedCount value={group.items.length} /></span></h4>{group.items.map(renderEvent)}</section>)}
       {renderTasks('completed', 'Việc đã xong', completedTasks)}
-      {!data.loading && !deadlineData.loading && !data.error && !deadlineData.error && !events.length && !deadlines.length && !hasOverdue && <div className="calendar-widget-empty"><CalendarDays size={26} /><p>Chưa có sự kiện, ghi chú hoặc hạn công việc trong ngày</p><button type="button" className="calendar-text-button" onClick={() => setDraft({ date })}>+ Thêm lịch cho ngày này</button></div>}
+      {!initialCalendarLoading && !initialDeadlineLoading && !data.error && !deadlineData.error && !events.length && !deadlines.length && !hasOverdue && <div className="calendar-widget-empty"><CalendarDays size={26} /><p>Chưa có sự kiện, ghi chú hoặc hạn công việc trong ngày</p><button type="button" className="calendar-text-button" onClick={() => setDraft({ date })}>+ Thêm lịch cho ngày này</button></div>}
     </div>
     <div className="calendar-widget-footer"><button type="button" className="calendar-text-button" onClick={() => setDate(today())}>Về hôm nay</button><button type="button" className="calendar-text-button" onClick={() => onOpenCalendar(date)}>Mở lịch đầy đủ <ArrowUpRight size={15} /></button></div>
     {draft && <CalendarItemModal event={selected} draft={draft} onClose={close} onSave={data.save} onDelete={data.remove} />}

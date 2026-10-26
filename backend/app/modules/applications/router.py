@@ -4,7 +4,7 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -39,6 +39,7 @@ class ApplicationView(BaseModel):
     launch_url: str
     permission_prefix: str
     is_active: bool
+    legacy_login_enabled: bool
     sort_order: int
 
 
@@ -57,7 +58,9 @@ class ApplicationInput(BaseModel):
     oidc_audience: str | None = Field(default=None, max_length=160)
     permission_prefix: str = Field(min_length=2, max_length=100)
     is_active: bool = True
+    legacy_login_enabled: bool = False
     sort_order: int = Field(default=100, ge=0, le=10000)
+
 
     @field_validator("key", "permission_prefix")
     @classmethod
@@ -83,6 +86,11 @@ class ApplicationInput(BaseModel):
         if not value.startswith("/") or value.startswith("//") or "?" in value or "#" in value:
             raise ValueError("Callback path không hợp lệ.")
         return value
+
+
+class LegacyLoginPolicyInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
 
 
 class AccessInput(BaseModel):
@@ -220,7 +228,9 @@ async def my_applications(user: CurrentUser, db: Database):
     return list(
         (
             await db.scalars(
-                accessible_applications_query(user.id).order_by(
+                select(Application)
+                .where(or_(Application.is_active.is_(True), Application.launch_url == ""))
+                .order_by(
                     Application.sort_order, Application.display_name, Application.key
                 )
             )
@@ -251,6 +261,23 @@ async def upsert_application(
     return application
 
 
+@admin_router.patch("/{application_key}/legacy-login", response_model=ApplicationView)
+async def update_legacy_login_policy(
+    application_key: str, payload: LegacyLoginPolicyInput, user: CurrentUser, db: Database
+):
+    await require(db, user.id, APPLICATIONS_MANAGE)
+    application = await db.get(Application, application_key)
+    if application is None:
+        raise HTTPException(404, "Ứng dụng không tồn tại.")
+    application.legacy_login_enabled = payload.enabled
+    record(db, user, user, "application.legacy_login.updated", {
+        "application": application_key,
+        "enabled": payload.enabled,
+    })
+    await db.flush()
+    return application
+
+
 @admin_router.put("/{application_key}/manifest", response_model=ApplicationView)
 async def apply_application_manifest(
     application_key: str,
@@ -266,7 +293,12 @@ async def apply_application_manifest(
     if application is None:
         application = Application()
         db.add(application)
-    for key, value in payload.application.model_dump().items():
+    application_values = payload.application.model_dump()
+    if application.key:
+        # The manifest owns application metadata, while this policy is managed
+        # explicitly by Platform administrators and must survive re-registration.
+        application_values.pop("legacy_login_enabled", None)
+    for key, value in application_values.items():
         setattr(application, key, value)
     await db.flush()
 

@@ -39,3 +39,9 @@ class BookmarkProfileTests(ApiTestCase):
         self.assertEqual(code, 200, row)
         self.assertEqual(row['full_name'], 'Alice Updated')
         self.assertEqual(row['phone'], '123')
+
+    async def test_profile_cannot_change_organization_assignment(self):
+        code, _ = await self.request('PUT', '/api/auth/profile', payload={'job_title':'Tự đặt chức danh'})
+        self.assertEqual(code, 403)
+        code, _ = await self.request('PUT', '/api/auth/profile', payload={'position_id':str(uuid4())})
+        self.assertEqual(code, 403)

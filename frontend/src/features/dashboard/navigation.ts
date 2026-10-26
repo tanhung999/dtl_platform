@@ -19,8 +19,16 @@ export const workspaceRoutes: Record<RoutedPage, WorkspaceRoute> = {
   search: { path: '/search', title: 'Tìm kiếm' },
 };
 
+export const adminRoutes = {
+  users: '/admin/users',
+  organization: '/admin/organization',
+  permissions: '/admin/permissions',
+  applications: '/admin/applications',
+} as const;
+
 export function pageForPath(pathname: string): RoutedPage | undefined {
   const path = pathname.replace(/\/+$/, '').toLowerCase() || '/';
+  if (path === workspaceRoutes.admin.path || path.startsWith(`${workspaceRoutes.admin.path}/`)) return 'admin';
   return (Object.keys(workspaceRoutes) as RoutedPage[]).find(page => workspaceRoutes[page].path === path);
 }
 

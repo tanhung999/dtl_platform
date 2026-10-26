@@ -38,6 +38,11 @@ class EntitlementView(BaseModel):
     project_names: list[str] = Field(default_factory=list)
 
 
+class AuthenticationPolicyView(BaseModel):
+    application: str
+    legacy_login_enabled: bool
+
+
 def _authorize(application_key: str, secret: str | None) -> None:
     application_secrets = {
         "bookingreports": settings.INTEGRATION_BOOKINGREPORTS_SECRET,
@@ -51,6 +56,22 @@ def _authorize(application_key: str, secret: str | None) -> None:
         raise HTTPException(503, "Kênh kiểm tra quyền ứng dụng chưa được cấu hình.")
     if not secret or not secrets.compare_digest(secret, expected):
         raise HTTPException(401, "Thông tin xác thực tích hợp không hợp lệ.")
+
+
+@router.get("/applications/{application_key}/auth-policy", response_model=AuthenticationPolicyView)
+async def application_authentication_policy(
+    application_key: str,
+    db: Database,
+    integration_secret: Annotated[str | None, Header(alias="X-DTL-Integration-Secret")] = None,
+):
+    _authorize(application_key, integration_secret)
+    application = await db.get(Application, application_key)
+    if application is None or not application.is_active:
+        raise HTTPException(404, "Ứng dụng không tồn tại hoặc chưa hoạt động.")
+    return AuthenticationPolicyView(
+        application=application_key,
+        legacy_login_enabled=application.legacy_login_enabled,
+    )
 
 
 @router.get("/applications/{application_key}/subjects/{subject}", response_model=EntitlementView)

@@ -5,6 +5,7 @@ const path = require('node:path');
 const createScript = `import asyncio,json,sys
 from app.core.database import async_session_maker
 from app.core.security import hash_password
+from app.db import organization
 from app.db.models import User
 async def run():
     accounts=json.load(sys.stdin)

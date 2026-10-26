@@ -1,5 +1,5 @@
 import { Task } from '../../types';
-import { TaskInput, TaskFilter, TaskCollection } from './types';
+import { TaskInput, TaskFilter, TaskCollection, TaskScope } from './types';
 import { requestWithTimeout } from '../../services/requestTimeout';
 import { CreateAttempt, createWithRecovery, deleteWithRecovery, recoverMutation } from '../../services/mutationRecovery';
 
@@ -9,14 +9,15 @@ const matchesTask = (task: Task, payload: Partial<TaskInput> & { is_completed?: 
   if (key === 'description') return (task.description ?? '') === (value ?? '');
   if (key === 'reminder_at') return (task.reminder_at ? Date.parse(task.reminder_at) : null) === (value ? Date.parse(String(value)) : null);
   if (key === 'title') return task.title === String(value).trim();
+  if (key === 'follower_ids') return JSON.stringify((task.followers ?? []).map(item => item.id).sort()) === JSON.stringify([...(value as string[])].sort());
   if (key === 'due_date' && !value && payload.due_time) return task.due_date === new Date(task.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
   return task[key as keyof Task] === value;
 });
 
 export const tasksApi = {
   get(id: string, signal?: AbortSignal) { return requestWithTimeout<Task>(`/api/tasks/${encodeURIComponent(id)}`, { cache: 'no-store', signal }, 5000); },
-  collection(filter: TaskFilter, offset: number, overdueOffset: number, signal?: AbortSignal, after?: string, overdueAfter?: string, limit = 8, query = '') {
-    const params = new URLSearchParams({ filter, offset: String(offset), overdue_offset: String(overdueOffset), limit: String(limit), q: query });
+  collection(filter: TaskFilter, scope: TaskScope, offset: number, overdueOffset: number, signal?: AbortSignal, after?: string, overdueAfter?: string, limit = 8, query = '') {
+    const params = new URLSearchParams({ filter, scope, offset: String(offset), overdue_offset: String(overdueOffset), limit: String(limit), q: query });
     if (after) params.set('after', after); if (overdueAfter) params.set('overdue_after', overdueAfter);
     return requestWithTimeout<TaskCollection>(`/api/tasks/collection?${params}`, { signal });
   },

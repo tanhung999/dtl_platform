@@ -9,9 +9,12 @@ export interface TaskInput extends ReminderValue {
   priority: TaskPriority;
   due_date: string | null;
   due_time: string | null;
+  assignee_id?: string | null;
+  follower_ids?: string[];
 }
 
 export type TaskFilter = 'ALL' | 'PENDING' | 'DONE' | 'OVERDUE';
+export type TaskScope = 'all' | 'assigned_to_me' | 'created_by_me' | 'following';
 export interface TaskCollection {
   server_now: string; next_refresh_at: string | null;
   next_cursor: string | null; overdue_next_cursor: string | null;

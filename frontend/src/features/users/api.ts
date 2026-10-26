@@ -14,11 +14,20 @@ export interface ManagedUser {
   is_active: boolean;
   platform_admin: boolean;
   created_at: string;
+  position_id?: string | null;
+  manager_id?: string | null;
+  work_location_id?: string | null;
+  position_name?: string | null;
+  job_level_name?: string | null;
+  department_id?: string | null;
+  job_level_id?: string | null;
+  is_management?: boolean;
+  work_location_name?: string | null;
 }
 
 export interface ManagedUserPage { items: ManagedUser[]; total: number; page: number; has_more: boolean }
 export type ManagedUserCreate = Omit<ManagedUser, 'id' | 'identity_subject' | 'is_active' | 'created_at'> & { password: string };
-export type ManagedUserUpdate = Pick<ManagedUser, 'email' | 'full_name' | 'department' | 'job_title' | 'employee_code' | 'phone' | 'office_location' | 'is_active' | 'platform_admin'>;
+export type ManagedUserUpdate = Pick<ManagedUser, 'email' | 'full_name' | 'department' | 'job_title' | 'employee_code' | 'phone' | 'office_location' | 'is_active' | 'platform_admin' | 'position_id' | 'manager_id' | 'work_location_id'>;
 
 const json = (method: string, body: unknown) => ({ method, body: JSON.stringify(body) });
 export const usersApi = {

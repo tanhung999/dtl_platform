@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, CheckCircle2, ChevronDown, LayoutGrid, Save, UserRound } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, History, LayoutGrid, Save, UserRound } from 'lucide-react';
 import { accessApi, Account } from './api';
 import { AccessAccountList } from './components/AccessAccountList';
 import { AccessHistory } from './components/AccessHistory';
@@ -15,6 +15,7 @@ export function AccessManagement({ onChanged, revision }: { onChanged: () => voi
   const [applications, setApplications] = useState<UserApplicationAccess[]>([]);
   const [applicationBusy, setApplicationBusy] = useState<string>();
   const [configuredApp, setConfiguredApp] = useState<string>();
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [projectDrafts, setProjectDrafts] = useState<Record<string, string>>({});
   const targetRef=useRef(target);targetRef.current=target;
   useEffect(()=>{
@@ -106,5 +107,7 @@ export function AccessManagement({ onChanged, revision }: { onChanged: () => voi
       {checking&&busy&&<p role="status">Đang kiểm tra lại kết quả…</p>}
       {error && <p className="alert-error" role="alert">{error}</p>}
     </section>
-  </div><AccessHistory targetId={target?.id} revision={revision}/></>;
+  </div>
+    <div className="access-history-toggle-row"><button type="button" className="btn btn-outline access-history-toggle" aria-expanded={historyOpen} aria-controls="access-history-panel" onClick={()=>setHistoryOpen(value=>!value)}><History size={16}/>{historyOpen?'Ẩn lịch sử thay đổi':'Xem lịch sử thay đổi'}{historyOpen?<ChevronUp size={15}/>:<ChevronDown size={15}/>}</button></div>
+    {historyOpen&&<AccessHistory id="access-history-panel" targetId={target?.id} revision={revision}/>}</>;
 }

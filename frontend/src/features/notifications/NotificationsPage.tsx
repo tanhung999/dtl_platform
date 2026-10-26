@@ -18,7 +18,8 @@ export function NotificationsPage() {
       {feed.index > 0 && <button type="button" className="notification-text-button" onClick={feed.newest}>Xem mới nhất</button>}
     </div>
     {(feed.error || data.error || error) && <p role="alert" className="notification-error">{feed.error || data.error || error}<button type="button" onClick={data.refresh}>Thử lại</button></p>}
-    <div className="notifications-feed">{feed.loading ? <p className="notification-empty">Đang tải thông báo…</p> : !feed.page?.items.length ? <p className="notification-empty">Không có thông báo trong nhóm này.</p> : feed.page.items.map(item => {
+    {feed.loading && <p className="collection-loading-status" role="status">Đang tải thông báo…</p>}
+    <div className="notifications-feed" aria-busy={feed.loading}>{!feed.page?.items.length && !feed.loading ? <p className="notification-empty">Không có thông báo trong nhóm này.</p> : feed.page?.items.map(item => {
       const day = new Date(item.created_at).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }), heading = previousDay !== day; previousDay = day;
       return <div key={item.id}>{heading && <h2 className="notification-day-heading">{day === today ? 'Hôm nay' : day}</h2>}<NotificationCard item={item} /></div>;
     })}</div>

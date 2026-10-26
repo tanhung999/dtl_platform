@@ -1,4 +1,4 @@
-import { CalendarDays, Lock, StickyNote } from 'lucide-react';
+import { CalendarDays, Eye, Lock, StickyNote } from 'lucide-react';
 import { CalendarEvent } from '../types';
 
 export function calendarItemType(event: CalendarEvent): string {
@@ -10,6 +10,7 @@ export function CalendarItemTitle({ event, continuation }: { event: CalendarEven
   return <span className="calendar-item-title">
     {continuation && <span className="calendar-event-continuation" role="img" aria-label={continuation} data-tooltip={continuation}>↑</span>}
     {event.is_private && <Lock size={14} aria-label="Riêng tư" />}
+    {event.is_following && <Eye size={13} aria-label="Đang theo dõi" />}
     <Icon className="calendar-item-icon" size={14} role="img" aria-label={calendarItemType(event)} />
     <span className="calendar-item-name">{event.title}</span>
   </span>;

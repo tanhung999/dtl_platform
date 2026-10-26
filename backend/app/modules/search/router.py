@@ -31,7 +31,9 @@ async def search(
     if kind in ('all', 'apps'):
         registered = (
             await db.scalars(
-                accessible_applications_query(user.id).order_by(
+                select(Application)
+                .where(Application.is_active.is_(True))
+                .order_by(
                     Application.sort_order, Application.display_name, Application.key
                 )
             )

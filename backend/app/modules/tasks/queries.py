@@ -33,7 +33,7 @@ async def after_task(db, user_id, anchor_id):
         if not revision.isdigit():
             raise HTTPException(422, "Mốc phân trang không hợp lệ.")
     columns = task_sort_columns(db)
-    condition = (Task.user_id == user_id, Task.id == anchor_id)
+    condition = (Task.id == anchor_id,)
     if revision is not None:
         condition += (Task.version == int(revision),)
     anchor = (await db.execute(select(*columns).where(*condition))).one_or_none()

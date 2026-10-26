@@ -19,6 +19,8 @@ class UserResponse(BaseModel):
     employee_code: Optional[str] = None
     phone: Optional[str] = None
     office_location: Optional[str] = None
+    position_id: Optional[str] = None
+    work_location_id: Optional[str] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
     allowed_apps: Optional[str] = "bookingreports,workflows,itam"
@@ -34,6 +36,8 @@ class ProfileUpdate(BaseModel):
     phone: Optional[str] = Field(default=None, max_length=30)
     job_title: Optional[str] = Field(default=None, max_length=100)
     office_location: Optional[str] = Field(default=None, max_length=150)
+    position_id: Optional[str] = None
+    work_location_id: Optional[str] = None
     bio: Optional[str] = Field(default=None, max_length=10000)
 
     @field_validator('full_name', 'phone', 'job_title', 'office_location', 'bio', mode='before')

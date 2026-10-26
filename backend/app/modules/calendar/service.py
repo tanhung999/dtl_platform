@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.realtime import mark_changed
 from app.db.models import User, utcnow
+from app.db.calendar import CalendarEventFollower
 from app.modules.calendar.schemas import EventUpdate
 
 from .ownership import find_owned_event
@@ -30,10 +31,12 @@ async def update_event_service(event_id: str, payload: EventUpdate, user: User, 
         modified = modified.replace(tzinfo=timezone.utc)
     if modified != payload.expected_updated_at:
         raise HTTPException(409, "Sự kiện đã thay đổi. Nội dung đang sửa được giữ; hãy mở lại bản mới trước khi lưu.")
-    data = payload.model_dump(exclude={"expected_updated_at", "reminder_minutes", "reminder_at"} | ({key for key in ("is_private", "recurrence") if key not in payload.model_fields_set}))
+    data = payload.model_dump(exclude={"expected_updated_at", "reminder_minutes", "reminder_at", "follower_ids"} | ({key for key in ("is_private", "recurrence") if key not in payload.model_fields_set}))
     data.update(reminder_update(payload))
     data = {key: value for key, value in data.items() if getattr(event, key) != value}
-    if not data:
+    from .access import sync_followers
+    added, removed = await sync_followers(db,event,user,payload.follower_ids) if payload.follower_ids is not None else (set(), set())
+    if not data and not added and not removed:
         return event
     if "is_private" in payload.model_fields_set and payload.is_private != event.is_private:
         from app.modules.access.privacy import require_privacy_change
@@ -55,6 +58,17 @@ async def update_event_service(event_id: str, payload: EventUpdate, user: User, 
     await db.refresh(event)
     mark_changed(db, user.id, "calendar")
     mark_changed(db, user.id, "notifications")
+    from app.modules.collaboration_notifications import notify
+    for recipient in added:
+        notify(db,recipient,'event_followed',f'Bạn được thêm vào sự kiện: {event.title}',f'{user.full_name} đã thêm bạn vào danh sách theo dõi.','event',event.id,event_id=event.id,revision=str(event.updated_at))
+        mark_changed(db,recipient,'calendar'); mark_changed(db,recipient,'notifications')
+    for recipient in removed: mark_changed(db,recipient,'calendar')
+    current_followers = (await db.scalars(select(CalendarEventFollower.user_id).where(CalendarEventFollower.event_id==event.id))).all()
+    for recipient in current_followers:
+        if data:
+            notify(db,recipient,'event_changed',f'Sự kiện đã cập nhật: {event.title}',f'{user.full_name} đã cập nhật sự kiện bạn đang theo dõi.','event',event.id,event_id=event.id,revision=str(event.updated_at))
+            mark_changed(db,recipient,'notifications')
+        mark_changed(db,recipient,'calendar')
     if has_note: mark_changed(db, user.id, "notes")
     if record_history:
         from app.modules.rescheduling.service import record_change

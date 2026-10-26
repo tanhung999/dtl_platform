@@ -1,3 +1,5 @@
+:root { --tracking-bg:rgba(244,63,94,.10);--tracking-border:rgba(244,63,94,.28);--tracking-text:#be123c;--tracking-accent:#f43f5e; }
+[data-color-mode="dark"] { --tracking-bg:rgba(244,63,94,.16);--tracking-border:rgba(251,113,133,.32);--tracking-text:#fb7185; }
 .tasks-widget { min-width: 0; }
 .priority-tag { display: inline-flex; align-items: center; gap: 4px; padding: .1rem .4rem; border-radius: 4px; font-weight: 700; font-size: .65rem; background: var(--priority-bg); color: var(--priority-fg); }
 .tasks-widget .task-item.completed .priority-tag { --priority-bg: #e2e8f0; --priority-fg: #334155; opacity: .85; }
@@ -7,6 +9,8 @@
 .task-pending-badge { padding: 3px 8px; background: var(--primary-light); color: var(--accent-text); border-radius: 12px; font-size: 0.65rem; font-weight: 700; white-space: nowrap; }
 .task-overdue-badge { align-self: flex-start; border: 1px solid #ef444440; border-radius: 8px; padding: 0.4rem 0.7rem; background: #ef444415; color: var(--error); font: 700 0.75rem var(--font-family); cursor: pointer; }
 .task-quick-form { display: flex; flex-direction: column; gap: 0.6rem; }
+.task-create-actions { display:flex; justify-content:flex-end; padding-top:.15rem; }
+.task-create-actions .btn { min-width:132px; }
 .task-time-default-hint { font-size: 11px; color: var(--text-muted); }
 .tasks-widget .quick-input-bar input { min-width: 0; }
 .task-quick-deadline { display: flex; flex-wrap: wrap; gap: 0.6rem; }
@@ -46,23 +50,29 @@
 .task-dialog .app-date-picker, .task-dialog .app-time-picker { width: 100%; }
 .task-dialog-error, .task-delete-confirm { margin: 0 1.25rem 1rem; }
 .task-delete-confirm { padding: 0.8rem; border: 1px solid #ef444450; border-radius: 8px; background: #ef444410; font-size: 0.8rem; }
-.task-delete-confirm > div { display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.8rem; }
+.task-dialog-footer.is-delete-confirm { justify-content:flex-end; }
+.task-dialog-footer .btn-danger-confirm { border-color:#dc2626; background:#dc2626; color:#fff; }
+.task-dialog-footer .btn-danger-confirm:hover:not(:disabled) { border-color:#b91c1c; background:#b91c1c; }
 .tasks-widget { scroll-margin-top: 100px; }
 .task-dialog input[type="date"], .task-dialog input[type="time"], .task-quick-deadline input { color-scheme: light; }
 [data-color-mode="dark"] .task-dialog input[type="date"], [data-color-mode="dark"] .task-dialog input[type="time"], [data-color-mode="dark"] .task-quick-deadline input { color-scheme: dark; }
 [data-color-mode="dark"] .task-overdue-badge, [data-color-mode="dark"] .task-overdue-text { color: var(--error); }
 .tasks-widget button:focus-visible, .task-dialog button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 768px) { .tasks-widget { scroll-margin-top: 190px; } }
-
 .task-pagination { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-top: 12px; font-size: 12px; color: var(--text-secondary); }
 .tasks-view-all { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; margin-top:14px; padding:12px 0 0; border:0; border-top:1px solid var(--border); background:transparent; color:var(--accent-text); font:600 12px var(--font-family); cursor:pointer; }
 .tasks-page { max-width:1100px; margin:0 auto; padding:24px; }
 .tasks-page-heading { display:flex; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:20px; }
 .tasks-page-heading h1 { display:flex; align-items:center; gap:10px; font-size:22px; }
-.tasks-search { display:grid; gap:6px; margin-bottom:14px; color:var(--text-secondary); font-size:13px; }
+.tasks-search { display:grid; width:100%; max-width:560px; gap:6px; margin-bottom:14px; color:var(--text-secondary); font-size:13px; }
 .task-search-hint { margin-bottom:12px; color:var(--text-muted); font-size:12px; }
 .tasks-full-collection .task-quick-form { max-width:720px; }
-@media (max-width:600px) { .tasks-page { padding:16px; } }
+@media (max-width:600px) {
+  .tasks-page { padding:16px; }
+  .task-create-actions .btn { width:100%; }
+  .task-dialog-footer { flex-wrap:wrap; }
+  .task-dialog-footer.is-delete-confirm .btn { flex:1 1 auto; }
+}
 
 .tasks-widget .task-item.completed .priority-tag { --priority-accent:var(--completed-accent); }
 
@@ -70,3 +80,21 @@
 .task-dialog-fields .task-priority-picker { width:156px; max-width:100%; }
 .task-dialog-fields .task-priority-select { justify-content:flex-start; }
 .task-dialog-fields .task-priority-select > svg:last-child { margin-left:auto; }
+.task-item.is-tracking { border-left:3px solid var(--tracking-accent); background:var(--tracking-bg); }
+.tracking-badge { display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border:1px solid var(--tracking-border);border-radius:999px;color:var(--tracking-text);background:var(--tracking-bg);font-size:11px;font-weight:700; }
+.tracking-filter { color:var(--tracking-text);border-color:var(--tracking-border);display:inline-flex;align-items:center;gap:4px; }
+.task-scope-filters { display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px; }
+.people-picker { position:relative;display:grid;gap:6px; }
+.people-picker-chips { display:flex;flex-wrap:wrap;gap:5px; }
+.people-chip { display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:999px;background:var(--primary-light);font-size:12px; }
+.people-chip button { border:0;background:none;cursor:pointer;color:inherit; }
+.people-picker-results { position:absolute;z-index:20;top:100%;left:0;right:0;background:var(--bg-card-solid);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-md);max-height:220px;overflow:auto; }
+.people-picker-results button { display:flex;width:100%;flex-direction:column;align-items:flex-start;padding:8px;border:0;border-bottom:1px solid var(--border);background:none;color:var(--text-main);cursor:pointer; }
+.people-picker-results span { color:var(--text-secondary);font-size:11px; }
+
+.tasks-list > .task-item {
+  transition: box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+}
+.tasks-list > .task-item:hover {
+  box-shadow: var(--shadow-sm);
+}

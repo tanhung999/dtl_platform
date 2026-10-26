@@ -10,6 +10,8 @@ export interface User {
   employee_code?: string;
   phone?: string;
   office_location?: string;
+  position_id?: string;
+  work_location_id?: string;
   avatar_url?: string;
   bio?: string;
   allowed_apps?: string;
@@ -48,6 +50,16 @@ export interface Task extends ReminderValue {
   version: number;
   id: string;
   user_id: string;
+  assignee_id?: string;
+  creator?: UserBrief | null;
+  assignee?: UserBrief | null;
+  followers?: UserBrief[];
+  is_following?: boolean;
+  relationship?: 'OWNER' | 'ASSIGNEE' | 'FOLLOWER' | null;
+  can_edit?: boolean;
+  can_complete?: boolean;
+  can_delete?: boolean;
+  can_assign?: boolean;
   title: string;
   description?: string;
   priority: TaskPriority;
@@ -59,6 +71,8 @@ export interface Task extends ReminderValue {
   created_at: string;
   updated_at: string;
 }
+
+export interface UserBrief { id: string; full_name: string; username: string; department?: string; job_title?: string; avatar_url?: string | null; }
 
 export interface Bookmark {
   id: string;

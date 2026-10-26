@@ -593,6 +593,7 @@ body {
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 4;
+  line-clamp: 4;
   -webkit-box-orient: vertical;
 }
 
@@ -839,6 +840,43 @@ body {
   border-radius: var(--radius-md);
 }
 
+/* Operation feedback stays above the page instead of changing the layout height. */
+.dashboard-app :is(.alert-error, .access-success, .profile-feedback-toast, .notification-error, .notification-action-error) {
+  position: fixed;
+  inset: 84px 18px auto auto;
+  z-index: 15000;
+  width: max-content;
+  max-width: min(390px, calc(100vw - 24px));
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  border-radius: 12px;
+  box-shadow: var(--shadow-xl);
+  background: var(--bg-card-solid);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-app :is(.alert-error, .notification-error, .notification-action-error, .profile-feedback-toast.is-error) {
+  color: var(--error);
+  border: 1px solid color-mix(in srgb, var(--error) 38%, var(--border));
+  background: color-mix(in srgb, var(--error-bg) 88%, var(--bg-card-solid));
+}
+
+.dashboard-app :is(.access-success, .profile-feedback-toast.is-success) {
+  color: var(--success-text);
+  border: 1px solid color-mix(in srgb, var(--success-text) 32%, var(--border));
+  background: color-mix(in srgb, var(--success-bg) 88%, var(--bg-card-solid));
+}
+
+@media (max-width: 600px) {
+  .dashboard-app :is(.alert-error, .access-success, .profile-feedback-toast, .notification-error, .notification-action-error) {
+    inset: 72px 12px auto 12px;
+    width: auto;
+    max-width: none;
+  }
+}
+
 /* Footer */
 .platform-footer {
   border-top: 1px solid var(--border);
@@ -862,3 +900,58 @@ body {
 .page-loading.is-startup { min-height:100dvh; }
 .page-loading-spinner { color:var(--accent-text); animation:spin 1s linear infinite; }
 @media(prefers-reduced-motion:reduce) { .page-loading-spinner { animation:none; } }
+
+/* Smooth Global DOM Entry Animations */
+@keyframes dtlFadeSlideUp {
+  0% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dtlFadeScaleIn {
+  0% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes dtlFadeIn {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.workspace-section-page {
+  animation: dtlFadeSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.application-status-card {
+  animation: dtlFadeScaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.login-card {
+  animation: dtlFadeScaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Data refreshes stay in-flow. This compact status does not replace collections,
+   so filters and pagination never collapse a page while a request is pending. */
+.collection-loading-status {
+  min-height: 20px;
+  margin: 8px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 20px;
+}
+[aria-busy="true"] { cursor: progress; }

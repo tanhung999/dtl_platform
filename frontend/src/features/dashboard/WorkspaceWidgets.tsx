@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AppLauncherWidget } from '../apps/AppLauncherWidget';
 import { BookmarksWidget } from '../bookmarks/BookmarksWidget';
 import { CalendarWidget } from '../calendar/CalendarWidget';
+import { PinnedNotesWidget } from '../notes/PinnedNotesWidget';
 import { FeatureIcon } from '../../components/FeatureIcon';
 import { User } from '../../types';
 import { today } from '../calendar/dateUtils';
@@ -28,7 +29,7 @@ export function WorkspaceWidgets({ user, onOpenApps, onOpenCalendar, onOpenNotes
     <div className="workspace-home-main">
       <section className="workspace-welcome" aria-label="Chào mừng">
         <div className="workspace-welcome-copy"><h1>Chào mừng bạn trở lại,{' '}<span>{user.full_name}!</span></h1>
-          <p>Một nền tảng thống nhất cho các công cụ và dữ liệu doanh nghiệp.</p></div>
+          <p>Một nền tảng thống nhất cho các công cụ và dữ liệu của Đông Tây Land.</p></div>
         <div className="workspace-welcome-art" aria-hidden="true"><div className="welcome-sheet"><i /><i /><i /></div><div className="welcome-chart"><i /><i /><i /></div><div className="welcome-check"><CheckSquare size={29} /></div></div>
       </section>
       <AppLauncherWidget onOpenAll={onOpenApps} />
@@ -43,6 +44,9 @@ export function WorkspaceWidgets({ user, onOpenApps, onOpenCalendar, onOpenNotes
       </section>
       {linksOpen && <div ref={links} id="dt-link-panel" className="workspace-link-panel" role="region" aria-label="DT Link" tabIndex={-1}><BookmarksWidget /></div>}
     </div>
-    <aside className="workspace-home-calendar" aria-label="Lịch cá nhân"><CalendarWidget onOpenCalendar={onOpenCalendar} /></aside>
+    <aside className="workspace-home-calendar" aria-label="Lịch cá nhân">
+      <CalendarWidget onOpenCalendar={onOpenCalendar} />
+      <PinnedNotesWidget onOpenAll={onOpenNotes} />
+    </aside>
   </div>;
 }

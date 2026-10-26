@@ -18,7 +18,7 @@ from app.modules.sso.router import router as sso_router
 from app.modules.notes.router import router as notes_router
 from app.modules.notes.collection import router as notes_collection_router
 from app.modules.tasks.collection import router as task_collection_router
-from app.modules.tasks.router import router as tasks_router
+from app.modules.tasks.router import router as tasks_router, directory_router as task_directory_router, colleagues_router
 from app.modules.rescheduling.router import router as rescheduling_router
 from app.modules.bookmarks.router import router as bookmarks_router
 from app.modules.calendar.router import router as calendar_router
@@ -33,6 +33,7 @@ from app.modules.notifications.worker import run_worker
 from app.modules.applications.router import router as applications_router, admin_router as applications_admin_router
 from app.modules.applications.integration import router as application_integrations_router
 from app.modules.users.router import router as user_admin_router
+from app.modules.organization.router import router as organization_router
 from app.modules.notifications.scheduling import sync_task_jobs
 from app.modules.maintenance.cleanup import run_cleanup_worker
 
@@ -92,6 +93,7 @@ async def seed_initial_data():
             # Seed sample tasks
             t1 = Task(
                 user_id=admin.id,
+                assignee_id=admin.id,
                 title="Kiểm tra hệ thống báo cáo dự án tuần mới",
                 priority="HIGH",
                 due_date=datetime.now(VN).date().isoformat(),
@@ -99,6 +101,7 @@ async def seed_initial_data():
             )
             t2 = Task(
                 user_id=admin.id,
+                assignee_id=admin.id,
                 title="Duyệt hồ sơ trình ký trên Workflows",
                 priority="URGENT",
                 due_date=datetime.now(VN).date().isoformat(),
@@ -106,6 +109,7 @@ async def seed_initial_data():
             )
             t3 = Task(
                 user_id=admin.id,
+                assignee_id=admin.id,
                 title="Bàn giao tài sản thiết bị tháng này",
                 priority="MEDIUM",
                 due_date=(datetime.now(VN).date() + timedelta(days=6 - datetime.now(VN).weekday())).isoformat(),
@@ -188,12 +192,15 @@ app.include_router(applications_router)
 app.include_router(applications_admin_router)
 app.include_router(application_integrations_router)
 app.include_router(user_admin_router)
+app.include_router(organization_router)
 app.include_router(calendar_collection_router)
 app.include_router(calendar_reminders_router)
 app.include_router(notes_collection_router)
 app.include_router(task_collection_router)
 app.include_router(notes_router)
 app.include_router(tasks_router)
+app.include_router(task_directory_router)
+app.include_router(colleagues_router)
 app.include_router(rescheduling_router)
 app.include_router(bookmarks_router)
 app.include_router(calendar_router)

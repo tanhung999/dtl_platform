@@ -6,6 +6,7 @@ from app.db.access import AccessRole, AccessPermission, RolePermission, UserRole
 MANAGE = 'access.assignments.manage'
 SHARE = 'calendar.share.manage'
 APPLICATIONS_MANAGE = 'applications.manage'
+TASKS_ASSIGN = 'tasks.assign'
 
 def permission_users(code):
     return select(UserRole.user_id).join(RolePermission, RolePermission.role_id == UserRole.role_id).where(RolePermission.permission_code == code)
@@ -24,12 +25,14 @@ async def seed_catalog(db):
         (MANAGE, 'Cấp quyền chia sẻ lịch'),
         (SHARE, 'Chia sẻ lịch của mình'),
         (APPLICATIONS_MANAGE, 'Quản lý ứng dụng và quyền truy cập ứng dụng'),
+        (TASKS_ASSIGN, 'Giao công việc cho nhân viên'),
     ]:
         if not await db.get(AccessPermission, code): db.add(AccessPermission(code=code, name=name))
     await db.flush()
     for role, code in [
         ('access_admin', MANAGE),
         ('access_admin', APPLICATIONS_MANAGE),
+        ('access_admin', TASKS_ASSIGN),
         ('calendar_sharer', SHARE),
     ]:
         if not await db.get(RolePermission, (role, code)): db.add(RolePermission(role_id=role, permission_code=code))

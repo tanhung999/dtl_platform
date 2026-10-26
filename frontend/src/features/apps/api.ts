@@ -10,6 +10,7 @@ export interface EnterpriseApp {
   launch_url: string;
   permission_prefix: string;
   is_active: boolean;
+  legacy_login_enabled: boolean;
   sort_order: number;
 }
 export interface UserApplicationAccess {
@@ -32,6 +33,14 @@ export interface UserApplicationAccessInput {
   project_names?: string[];
 }
 export const appsApi = {
+  listAdmin(): Promise<EnterpriseApp[]> {
+    return request('/api/admin/applications', { cache: 'no-store' });
+  },
+  setLegacyLogin(applicationKey: string, enabled: boolean): Promise<EnterpriseApp> {
+    return request(`/api/admin/applications/${encodeURIComponent(applicationKey)}/legacy-login`, {
+      method: 'PATCH', body: JSON.stringify({ enabled }),
+    });
+  },
   listMine(): Promise<EnterpriseApp[]> {
     return request('/api/applications/me');
   },

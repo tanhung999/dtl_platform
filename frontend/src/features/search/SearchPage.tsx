@@ -47,8 +47,8 @@ export function SearchPage({ query, user }: { query: string; user: User }) {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    setData(undefined); setError('');
-    if (query.trim().length < 2) { setLoading(false); return () => controller.abort(); }
+    setError('');
+    if (query.trim().length < 2) { setData(undefined); setLoading(false); return () => controller.abort(); }
     setLoading(true);
     const timer = setTimeout(() => {
       const params = new URLSearchParams({ q: query.trim(), kind, offset: String(offset), limit: kind === 'all' ? '5' : '20' });
@@ -59,8 +59,8 @@ export function SearchPage({ query, user }: { query: string; user: User }) {
     }, 300);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [query, kind, offset, revision, user.id, user.allowed_apps]);
-  const filter = (value: Kind | 'all') => { if (value === kind && !offset) return; setData(undefined); setLoading(query.trim().length >= 2); setKind(value); setOffset(0); };
-  const paginate = (value: number) => { setData(undefined); setLoading(true); setOffset(value); };
+  const filter = (value: Kind | 'all') => { if (value === kind && !offset) return; setLoading(query.trim().length >= 2); setKind(value); setOffset(0); };
+  const paginate = (value: number) => { setLoading(true); setOffset(value); };
   const open = async (type: Kind, hit: Hit) => {
     const controller = opening.start(); setOpenError(''); setOpeningId(`${type}:${hit.id}`);
     try {
@@ -75,9 +75,9 @@ export function SearchPage({ query, user }: { query: string; user: User }) {
   return <section className="workspace-section-page workspace-search-page" aria-label="Kết quả tìm kiếm">
     <h1>Tìm kiếm</h1>
     <div className="search-filters" aria-label="Loại kết quả">{(['all', ...kinds] as const).map(value => <button type="button" key={value} aria-pressed={kind === value} onClick={() => filter(value)}>{labels[value]}</button>)}</div>
-    {query.trim().length < 2 ? <p role="status">Nhập ít nhất 2 ký tự để tìm kiếm.</p> : loading ? <p role="status">Đang tìm kiếm…</p> : error ? <p role="alert" className="alert-error">{error} <button type="button" className="btn btn-outline btn-sm" onClick={() => setRevision(value => value + 1)}>Thử lại</button></p> : data && total === 0 ? <p role="status">Không tìm thấy kết quả phù hợp.</p> : null}
+    {query.trim().length < 2 ? <p role="status">Nhập ít nhất 2 ký tự để tìm kiếm.</p> : loading ? <p className="collection-loading-status" role="status">Đang tìm kiếm…</p> : error ? <p role="alert" className="alert-error">{error} <button type="button" className="btn btn-outline btn-sm" onClick={() => setRevision(value => value + 1)}>Thử lại</button></p> : data && total === 0 ? <p role="status">Không tìm thấy kết quả phù hợp.</p> : null}
     {openError && <p role="alert" className="alert-error">{openError}</p>}
-    {!loading && data && kinds.filter(type => kind === 'all' || kind === type).map(type => {
+    {data && <div aria-busy={loading}>{kinds.filter(type => kind === 'all' || kind === type).map(type => {
       const group = data.groups[type];
       if (!group.total) return null;
       return <section className="search-result-group" key={type} aria-label={labels[type]}>
@@ -91,7 +91,7 @@ export function SearchPage({ query, user }: { query: string; user: User }) {
         {kind === 'all' && group.total > group.items.length && <button type="button" className="workspace-text-link" onClick={() => filter(type)}>Xem tất cả {labels[type].toLowerCase()} ({group.total})</button>}
         {kind !== 'all' && group.total > data.limit && <div className="search-pagination"><button type="button" className="btn btn-outline btn-sm" disabled={!offset} onClick={() => paginate(Math.max(0, offset - data.limit))}>Trang trước</button><span>{group.items.length ? offset + 1 : 0}–{offset + group.items.length} / {group.total}</span><button type="button" className="btn btn-outline btn-sm" disabled={offset + data.limit >= group.total} onClick={() => paginate(offset + data.limit)}>Trang sau</button></div>}
       </section>;
-    })}
+    })}</div>}
     {noteId && <CalendarNoteModal key={noteId} noteId={noteId} onClose={() => setNoteId(undefined)} />}
     {event && <EventModal key={event.id} event={event} draft={{ date: eventDate(event.starts_at) }} onClose={() => setEvent(undefined)}
       onSave={async (payload, id) => { await calendarApi.update(id!, payload); changedCalendar(); }}

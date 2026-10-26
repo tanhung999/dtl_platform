@@ -1,7 +1,7 @@
 import { recoverMutation } from '../../services/mutationRecovery';
 import { requestWithTimeout } from '../../services/requestTimeout';
 
-export interface Capabilities { can_share: boolean; can_manage: boolean }
+export interface Capabilities { can_share: boolean; can_manage: boolean; can_assign_tasks: boolean }
 export interface Account { id: string; full_name: string; username: string; can_share: boolean; access_version: number; is_active: boolean; department?: string }
 export interface AccountPage { items: Account[]; total: number; page: number; has_more: boolean }
 export interface AuditEntry { id: string; actor_name: string; actor_username: string; subject_name: string; subject_username: string; subject_id: string; action: string; changes: { before?: unknown; after?: unknown }; created_at: string }

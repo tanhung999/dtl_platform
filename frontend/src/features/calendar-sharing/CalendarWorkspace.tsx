@@ -9,7 +9,7 @@ import { ManageSharing } from './SharingDialog';
 import { SharedCalendarView } from './SharedCalendarView';
 import './calendar-sharing.css';
 export function CalendarWorkspace({ userId, userName, initialDate, initialOwner, onDateChange, onOwnerChange }: { userId: string; userName: string; initialDate?: Date; initialOwner?: string; onDateChange?: (date: Date) => void; onOwnerChange?: (owner?: string) => void }) {
-  const [caps, setCaps] = useState<Capabilities>({ can_share: false, can_manage: false }), [received, setReceived] = useState<Share[]>([]), [owner, setOwner] = useState(initialOwner), [dialog, setDialog] = useState<'share'>(), [error, setError] = useState('');
+  const [caps, setCaps] = useState<Capabilities>({ can_share: false, can_manage: false, can_assign_tasks: false }), [received, setReceived] = useState<Share[]>([]), [owner, setOwner] = useState(initialOwner), [dialog, setDialog] = useState<'share'>(), [error, setError] = useState('');
   const [revision, refresh] = useInvalidation(), [dataRevision, refreshData] = useInvalidation();
   const [accessEpoch, setAccessEpoch] = useState(0), [accessPending, setAccessPending] = useState(false), [loaded, setLoaded] = useState(false);
   const ownerRef = useRef(owner); ownerRef.current = owner;
@@ -31,7 +31,7 @@ export function CalendarWorkspace({ userId, userName, initialDate, initialOwner,
       setCaps(capabilities);setReceived(rows);setLoaded(true);setAccessPending(false);setError('');
       if(ownerRef.current&&!rows.some(row=>row.owner_id===ownerRef.current)){setOwner(undefined);setError('Lịch không còn được chia sẻ với bạn.');}
     }).catch(reason=>{
-      if(!controller.signal.aborted){setCaps({can_share:false,can_manage:false});setReceived([]);setAccessPending(false);setError(reason.message);}
+      if(!controller.signal.aborted){setCaps({can_share:false,can_manage:false,can_assign_tasks:false});setReceived([]);setAccessPending(false);setError(reason.message);}
     });
     return ()=>controller.abort();
   },[revision,userId]);

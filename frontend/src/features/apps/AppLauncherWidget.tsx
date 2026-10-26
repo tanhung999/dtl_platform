@@ -3,20 +3,22 @@ import { FeatureIcon } from '../../components/FeatureIcon';
 import { FeatureIconName, brandIconCells } from '../../assets/featureIcons';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, ExternalLink, LayoutGrid } from 'lucide-react';
+import { applicationHomePath } from './navigation';
 
 const iconName = (value: string): FeatureIconName => value === 'tasks' || value in brandIconCells ? value as FeatureIconName : 'platform';
+let appsCache: EnterpriseApp[] | undefined;
 
 export function AppLauncherWidget({ resultIds, detailed = false, onOpenAll }: {
   resultIds?: string[]; detailed?: boolean; onOpenAll?: () => void;
 }) {
-  const [apps, setApps] = useState<EnterpriseApp[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [apps, setApps] = useState<EnterpriseApp[]>(() => appsCache ?? []);
+  const [loading, setLoading] = useState(!appsCache);
   const [errorMessage, setErrorMessage] = useState('');
   const [readyLink, setReadyLink] = useState<{ url: string; name: string }>();
   useEffect(() => {
     let active = true;
     appsApi.listMine()
-      .then(result => { if (active) setApps(result); })
+      .then(result => { if (active) { appsCache = result; setApps(result); } })
       .catch(reason => { if (active) setErrorMessage(reason instanceof Error ? reason.message : 'Không thể tải danh sách ứng dụng.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -24,7 +26,11 @@ export function AppLauncherWidget({ resultIds, detailed = false, onOpenAll }: {
   const filtered = resultIds ? apps.filter(app => resultIds.includes(app.key)) : apps;
   const handleLaunch = (app: EnterpriseApp) => {
     setErrorMessage(''); setReadyLink(undefined);
-    const params = new URLSearchParams({ app: app.key, name: app.display_name, return_to: '/' });
+    const params = new URLSearchParams({
+      app: app.key,
+      name: app.display_name,
+      return_to: applicationHomePath(app.key),
+    });
     const url = `/applications/connect?${params.toString()}`;
     const tab = window.open(url, '_blank');
     if (tab) tab.opener = null;

@@ -1,4 +1,5 @@
 import type { ReminderValue } from '../reminders/ReminderFields';
+import type { UserBrief } from '../../types';
 export type Recurrence = 'NONE' | 'DAILY' | 'WEEKLY';
 export type CalendarView = 'week' | 'month' | 'agenda';
 
@@ -13,6 +14,7 @@ export interface CalendarEventInput extends ReminderValue {
   is_private?: boolean;
   is_all_day: boolean;
   color: string;
+  follower_ids?: string[];
 }
 
 export interface CalendarEvent extends CalendarEventInput {
@@ -25,6 +27,11 @@ export interface CalendarEvent extends CalendarEventInput {
   user_id: string;
   created_at: string;
   updated_at: string;
+  followers?: UserBrief[];
+  is_following?: boolean;
+  can_edit?: boolean;
+  can_delete?: boolean;
+  owner?: UserBrief | null;
 }
 
 export interface EventDraft {

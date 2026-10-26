@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, CheckConstraint, Index, event, inspect
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, CheckConstraint, Index, UniqueConstraint, event, inspect
 from sqlalchemy.orm import deferred, relationship
 
 from app.core.database import Base
@@ -22,6 +22,9 @@ class User(Base):
     role = Column(String(50), default="admin")  # admin, manager, user
     department = Column(String(100), default="Công Nghệ & Chuyển Đổi Số")
     job_title = Column(String(100), default="Quản Trị Viên Hệ Thống")
+    position_id = Column(String(36), ForeignKey("positions.id", ondelete="SET NULL"), nullable=True, index=True)
+    manager_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    work_location_id = Column(String(36), ForeignKey("work_locations.id", ondelete="SET NULL"), nullable=True, index=True)
     employee_code = Column(String(50), default="DTL-001")
     phone = Column(String(30), default="0901.525.178")
     office_location = Column(String(150), default="Trụ sở chính - TP. Hồ Chí Minh")
@@ -35,7 +38,8 @@ class User(Base):
 
     # Relationships
     notes = relationship("Note", back_populates="user", cascade="all, delete-orphan")
-    tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
+    tasks = relationship("Task", foreign_keys="Task.user_id", back_populates="user", cascade="all, delete-orphan")
+    assigned_tasks = relationship("Task", foreign_keys="Task.assignee_id", back_populates="assigned_user")
     bookmarks = relationship("Bookmark", back_populates="user", cascade="all, delete-orphan")
 
 
@@ -77,6 +81,9 @@ class Task(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    # SQLite cannot add this FK as NOT NULL without rebuilding the table. The
+    # migration enforces NOT NULL on PostgreSQL; API/ORM writes always set it.
+    assignee_id = Column(String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True)
     version = Column(Integer, nullable=False, default=0, server_default="0")
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -94,7 +101,27 @@ class Task(Base):
     created_at = Column(UTCDateTime(), default=utcnow, nullable=False)
     updated_at = Column(UTCDateTime(), default=utcnow, onupdate=utcnow, nullable=False)
 
-    user = relationship("User", back_populates="tasks")
+    user = relationship("User", foreign_keys=[user_id], back_populates="tasks")
+    assigned_user = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_tasks")
+    follower_links = relationship("TaskFollower", back_populates="task", cascade="all, delete-orphan")
+
+
+class TaskFollower(Base):
+    __tablename__ = "task_followers"
+    __table_args__ = (
+        UniqueConstraint("task_id", "user_id", name="uq_task_followers_task_user"),
+        Index("ix_task_followers_user", "user_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    added_by_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(UTCDateTime(), default=utcnow, nullable=False)
+
+    task = relationship("Task", back_populates="follower_links")
+    user = relationship("User", foreign_keys=[user_id])
+    added_by = relationship("User", foreign_keys=[added_by_id])
 
 
 class Bookmark(Base):
@@ -128,3 +155,11 @@ def task_search_text(mapper, connection, task):
     state = inspect(task)
     if state.pending or state.attrs.title.history.has_changes() or state.attrs.description.history.has_changes():
         task.search_text = fold_text(f"{task.title or ''}\n{task.description or ''}")
+
+
+@event.listens_for(Task, "before_insert")
+def task_default_assignee(mapper, connection, task):
+    # Keep ORM-created fixtures and internal jobs compatible with the new
+    # required column; public creation still validates an explicit assignee.
+    if not task.assignee_id:
+        task.assignee_id = task.user_id

@@ -12,6 +12,8 @@ import { PrivacyToggle } from '../../access/PrivacyToggle';
 import { RescheduleControl } from '../../rescheduling/RescheduleControl';
 import { sameFields } from '../../../services/unchanged';
 import { reminderValue, sameReminder } from '../../reminders/ReminderFields';
+import { UserPicker } from '../../collaboration/UserPicker';
+import type { UserBrief } from '../../../types';
 
 interface Props {
   task: Task;
@@ -26,6 +28,8 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   const [description, setDescription] = useState(task.description ?? '');
   const [priority, setPriority] = useState(task.priority);
   const [isPrivate, setIsPrivate] = useState(task.is_private ?? false);
+  const [assignee,setAssignee]=useState<UserBrief[]>(task.assignee?[task.assignee]:[]);
+  const [followers,setFollowers]=useState<UserBrief[]>((task.followers??[]).filter(item=>item.id!==task.user_id&&item.id!==task.assignee_id));
   const [dueDate, setDueDate] = useState(task.due_date ?? '');
   const [dueTime, setDueTime] = useState(task.due_time ?? '');
   const [reminder, setReminder] = useState(() => reminderValue(task));
@@ -50,10 +54,11 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (submitting.current || confirm) return;
-    if (sameFields({ title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate, due_time: dueTime },
-      { ...task, ...savedDeadline, title: task.title.trim(), is_private: task.is_private ?? false }) && sameReminder(reminder, savedReminder)) { onClose(); return; }
+    if (sameFields({ title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate, due_time: dueTime, assignee_id:assignee[0]?.id??task.assignee_id, follower_ids:followers.map(item=>item.id).sort() },
+      { ...task, ...savedDeadline, title: task.title.trim(), is_private: task.is_private ?? false,
+        follower_ids:(task.followers??[]).filter(item=>item.id!==task.user_id&&item.id!==task.assignee_id).map(item=>item.id).sort() }) && sameReminder(reminder, savedReminder)) { onClose(); return; }
     submitting.current = true; setBusy(true); setError('');
-    try { await onSave(task.id, { title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, expected_version: version, ...reminder }); if (mounted.current) onClose(); }
+    try { await onSave(task.id, { title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, assignee_id:assignee[0]?.id??task.assignee_id, follower_ids:followers.map(item=>item.id), expected_version: version, ...reminder }); if (mounted.current) onClose(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể lưu công việc.'); }
     finally { submitting.current = false; if (mounted.current) setBusy(false); }
   };
@@ -72,7 +77,7 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   return <dialog className="task-dialog" ref={dialog} aria-labelledby="task-dialog-title" onCancel={e => { e.preventDefault(); e.stopPropagation(); }}>
     <form onSubmit={submit} aria-busy={busy}>
       <header className="task-dialog-header"><h2 id="task-dialog-title">Chi tiết công việc</h2><button type="button" className="task-icon-button" aria-label="Đóng công việc" disabled={busy} onClick={onClose}><X size={18} /></button></header>
-      <fieldset disabled={busy} className="task-dialog-fields">
+      <fieldset disabled={busy||confirm||!task.can_edit} className="task-dialog-fields">
         <label>Tên công việc<input className="form-input" value={title} required maxLength={255} autoFocus onChange={e => setTitle(e.target.value)} /></label>
         <div className="task-priority-field"><span>Ưu tiên</span><PrioritySelect label="Ưu tiên" value={priority} disabled={busy} onChange={setPriority} /></div>
         <div className="task-form-row"><div className="task-date-field"><span>Ngày đến hạn</span><DatePicker label="Ngày đến hạn" value={dueDate} disabled onChange={setDueDate} /></div><div className="task-date-field"><span>Giờ đến hạn</span><TimePicker label="Giờ đến hạn" value={dueTime} disabled onChange={setDueTime} /></div></div>
@@ -84,11 +89,16 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
         }}/>
         <label>Mô tả công việc<textarea className="form-input" rows={3} maxLength={10000} value={description} onChange={e => setDescription(e.target.value)} /></label>
         <PrivacyToggle label="Công việc riêng tư" value={isPrivate} onChange={setIsPrivate} />
+        {task.can_assign&&<UserPicker label="Giao cho" endpoint="/api/task-assignees" value={assignee} onChange={setAssignee} disabled={busy}/>}
+        {task.can_edit&&<UserPicker multiple label="Người theo dõi" value={followers} onChange={setFollowers} disabled={busy}/>}
       </fieldset>
       {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
       {error && <p className="alert-error task-dialog-error" role="alert">{error}</p>}
-      {confirm && <div className="task-delete-confirm" role="alert"><p>Xóa công việc “{task.title}”? Hạn công việc sẽ được gỡ khỏi lịch và các thông báo còn chờ sẽ bị hủy. Thao tác này không thể hoàn tác.</p><div><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirm(false)}>Giữ lại</button><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={remove}>Xác nhận xóa công việc</button></div></div>}
-      <footer className="task-dialog-footer"><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={() => setConfirm(true)}><Trash2 size={14} /> Xóa công việc</button><button type="submit" className="btn btn-primary btn-sm" disabled={busy || confirm || !title.trim()}>{busy ? 'Đang lưu…' : 'Lưu công việc'}</button></footer>
+      {confirm && <div className="task-delete-confirm" role="alert"><p>Xóa công việc “{task.title}”? Hạn công việc sẽ được gỡ khỏi lịch và các thông báo còn chờ sẽ bị hủy. Thao tác này không thể hoàn tác.</p></div>}
+      <footer className={`task-dialog-footer${confirm ? ' is-delete-confirm' : ''}`}>
+        {confirm ? <><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirm(false)}>Giữ lại</button><button type="button" className="btn btn-danger-confirm btn-sm" disabled={busy} onClick={remove}><Trash2 size={14} />{busy ? 'Đang xóa…' : 'Xác nhận xóa'}</button></>
+          : <>{task.can_delete&&<button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={() => setConfirm(true)}><Trash2 size={14} /> Xóa công việc</button>}{task.can_edit&&<button type="submit" className="btn btn-primary btn-sm" disabled={busy || !title.trim()}>{busy ? 'Đang lưu…' : 'Lưu công việc'}</button>}</>}
+      </footer>
     </form>
   </dialog>;
 }

@@ -3,7 +3,7 @@ import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useSt
 import { Task } from '../../../types';
 import { useLatestRequest } from '../../../services/useLatestRequest';
 import { tasksApi } from '../api';
-import { TaskCollection, TaskFilter, TaskInput } from '../types';
+import { TaskCollection, TaskFilter, TaskInput, TaskScope } from '../types';
 import { sortTasks } from '../deadlineUtils';
 import { TaskModal } from '../components/TaskModal';
 import '../tasks.css';
@@ -17,6 +17,7 @@ interface TasksState {
   tasks: Task[]; overdue: Task[]; now: Date;
   loading: boolean; error: string; busyIds: string[]; revision: number;
   counts: Record<TaskFilter, number>; filter: TaskFilter; setFilter: (filter: TaskFilter) => void;
+  scope: TaskScope; setScope: (scope: TaskScope) => void;
   query: string; setQuery: (query: string) => void;
   page?: TaskCollection; setOffset: (value: number) => void; setOverdueOffset: (value: number) => void;
   refresh: () => void; edit: (task: Task) => void; openTask: (id: string, signal?: AbortSignal) => Promise<void>;
@@ -24,12 +25,14 @@ interface TasksState {
   update: (id: string, payload: Partial<TaskInput> & { is_completed?: boolean }) => Promise<void>;
   toggle: (task: Task) => Promise<void>; remove: (id: string, version?: number) => Promise<void>;
   overdueRequest: number; showOverdue: () => void; acknowledgeOverdue: () => void;
+  canAssignTasks: boolean;
 }
 const Context = createContext<TasksState | null>(null);
 const emptyCounts = { ALL: 0, PENDING: 0, DONE: 0, OVERDUE: 0 };
-export function TasksProvider({ children, fullPage = false, collectionEnabled = true }: { children: ReactNode; fullPage?: boolean; collectionEnabled?: boolean }) {
+export function TasksProvider({ children, fullPage = false, collectionEnabled = true, canAssignTasks = false }: { children: ReactNode; fullPage?: boolean; collectionEnabled?: boolean; canAssignTasks?: boolean }) {
   useWorkspaceRealtime();
   const [page, setPage] = useState<TaskCollection>();
+  const [taskScope,setTaskScope] = useState<TaskScope>('all');
   const view = fullPage ? 'full' : 'widget', limit = fullPage ? 25 : 8;
   const [views, setViews] = useViewMemory<Record<'widget' | 'full', { filter: TaskFilter; offset: number; query: string }>>('tasks', () => ({ widget: { filter: 'ALL', offset: 0, query: '' }, full: { filter: 'ALL', offset: 0, query: '' } }), value => !!value && typeof value === 'object' && ['widget', 'full'].every(name => { const state = (value as any)[name]; return state && ['ALL', 'PENDING', 'DONE', 'OVERDUE'].includes(state.filter) && isOffset(state.offset) && isText(state.query); }));
   const { filter, offset, query } = views[view];
@@ -38,7 +41,7 @@ export function TasksProvider({ children, fullPage = false, collectionEnabled = 
   const search = fullPage ? debounced : '';
   const [overdueOffset, setOverdueOffset] = useState(0);
   const cursors = useRef<Record<string, Record<number, string>>>({}), overdueCursors = useRef<Record<number, string>>({});
-  const cursorScope = `${view}/${filter}/${search}`;
+  const cursorScope = `${view}/${taskScope}/${filter}/${search}`;
   const setOffset = (value: number) => setViews(previous => ({ ...previous, [view]: { ...previous[view], offset: value } }));
   const setQuery = (value: string) => { cursors.current = {}; setViews(previous => ({ ...previous, [view]: { ...previous[view], query: value, offset: 0 } })); };
   const [loading, setLoading] = useState(true), [error, setError] = useState(''), [busyIds, setBusyIds] = useState<string[]>([]);
@@ -58,13 +61,14 @@ export function TasksProvider({ children, fullPage = false, collectionEnabled = 
   const [revision, refresh] = useInvalidation();
   const busy = useRef(new Set<string>()), mutation = useRef(0);
   const setFilter = (value: TaskFilter) => { cursors.current = {}; setViews(previous => ({ ...previous, [view]: { ...previous[view], filter: value, offset: 0 } })); };
+  const setScope = (value:TaskScope) => { cursors.current={}; setOffset(0); setTaskScope(value); };
   useEffect(() => {
     if (!collectionEnabled) { setLoading(false); setError(''); return; }
     if (fullPage && query !== debounced) { setLoading(true); return; }
     const controller = new AbortController(), version = mutation.current;
     setLoading(true);
     const anchors = cursors.current[cursorScope] ??= {};
-    tasksApi.collection(filter, offset, overdueOffset, controller.signal, anchors[offset], overdueCursors.current[overdueOffset], limit, search).then(value => {
+    tasksApi.collection(filter, taskScope, offset, overdueOffset, controller.signal, anchors[offset], overdueCursors.current[overdueOffset], limit, search).then(value => {
       if (!controller.signal.aborted && version === mutation.current) {
         if (value.next_cursor) anchors[value.offset + value.limit] = value.next_cursor;
         if (value.overdue_next_cursor) overdueCursors.current[value.overdue_offset + 25] = value.overdue_next_cursor;
@@ -76,7 +80,7 @@ export function TasksProvider({ children, fullPage = false, collectionEnabled = 
     } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [filter, offset, overdueOffset, revision, view, limit, search, query, collectionEnabled]);
+  }, [filter, taskScope, offset, overdueOffset, revision, view, limit, search, query, collectionEnabled]);
   useEffect(() => {
     // Deadlines and form input use minute precision. No whole-workspace rerender every second.
     let timer: ReturnType<typeof setTimeout>, onlineTimer: ReturnType<typeof setTimeout>;
@@ -118,14 +122,16 @@ export function TasksProvider({ children, fullPage = false, collectionEnabled = 
     try { await tasksApi.remove(id, version ?? task!.version); setPage(value => value && ({ ...value, items: value.items.filter(t => t.id !== id), overdue: value.overdue.filter(t => t.id !== id) })); }
     finally { changed(); }
   };
-  const currentPage = loadedScope === scope && (!fullPage || query === debounced) ? page : undefined;
+  // Keep the last successful page mounted while another scope/page is loading.
+  // Replacing the whole list with a loading paragraph caused a large layout jump.
+  const currentPage = page;
   const tasks = useMemo(() => sortTasks(currentPage?.items ?? []), [currentPage?.items]);
-  return <Context.Provider value={{ tasks, overdue: page?.overdue ?? [], now, page: currentPage, counts: page?.counts ?? emptyCounts, filter, setFilter, query, setQuery, setOffset, setOverdueOffset,
-    revision, loading: collectionEnabled && (fullPage && query !== debounced || (!page || loadedScope !== scope) && (loading || !error)), error, busyIds, refresh, create, update, remove,
+  return <Context.Provider value={{ tasks, overdue: page?.overdue ?? [], now, page: currentPage, counts: page?.counts ?? emptyCounts, filter, setFilter, scope:taskScope, setScope, query, setQuery, setOffset, setOverdueOffset,
+    revision, loading: collectionEnabled && (fullPage && query !== debounced || loadedScope !== scope || loading), error, busyIds, refresh, create, update, remove,
     openTask,
     edit: task => { openTask(task.id).catch(reason => setError(reason.message)); },
     toggle: async task => { await mutate(task, { is_completed: !task.is_completed }); },
-    overdueRequest, showOverdue: () => setOverdueRequest(v => v + 1), acknowledgeOverdue: () => setOverdueRequest(0) }}>
+    overdueRequest, showOverdue: () => setOverdueRequest(v => v + 1), acknowledgeOverdue: () => setOverdueRequest(0), canAssignTasks }}>
     {children}<MutationStatus />{editing && <TaskModal key={editing.id} task={editing} onClose={() => { opening.cancel(); setEditing(undefined); }} onSave={update} onDelete={remove} />}
   </Context.Provider>;
 }

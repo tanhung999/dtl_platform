@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select, delete, update
 from app.core.datetime_utils import database_utc
 from app.core.realtime import mark_changed
-from app.db.calendar import CalendarEvent
+from app.db.calendar import CalendarEvent, CalendarEventFollower
 from app.db.calendar_exceptions import CalendarException
 from app.db.models import Note, utcnow
 from app.db.note_scheduling import NoteCalendarSchedule
@@ -127,6 +127,10 @@ async def scoped_move(db, event, scope, at, target):
         child.recurrence_until = database_utc(event.recurrence_until) + (data['starts_at'] - at)
     db.add(child)
     await db.flush()
+    if not note:
+        follower_ids = (await db.scalars(select(CalendarEventFollower.user_id).where(CalendarEventFollower.event_id == event.id))).all()
+        for follower_id in follower_ids:
+            db.add(CalendarEventFollower(event_id=child.id, user_id=follower_id, added_by_id=event.user_id))
     child_note = None
     if note:
         child_note = Note(user_id=note.user_id, title=note.title, content=note.content, color=note.color,

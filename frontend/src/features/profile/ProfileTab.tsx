@@ -2,7 +2,7 @@ import './profile.css';
 import { profileApi } from './api';
 import { sameFields } from '../../services/unchanged';
 import { FeatureIcon } from '../../components/FeatureIcon';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   User as UserIcon,
   Mail,
@@ -25,13 +25,18 @@ interface ProfileTabProps {
   canManage?: boolean;
 }
 
+type ProfileOptions = Awaited<ReturnType<typeof profileApi.options>>;
+let profileOptionsCache: ProfileOptions | null = null;
+
 export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, canManage = false }) => {
   const allowedApps = new Set((user.allowed_apps ?? '').split(',').map(value => value.trim()));
   // Profile edit form state
   const [fullName, setFullName] = useState(user.full_name || '');
   const [phone, setPhone] = useState(user.phone || '');
-  const [jobTitle, setJobTitle] = useState(user.job_title || '');
-  const [officeLocation, setOfficeLocation] = useState(user.office_location || '');
+  const [positionId, setPositionId] = useState(user.position_id || '');
+  const [workLocationId, setWorkLocationId] = useState(user.work_location_id || '');
+  const [profileOptions, setProfileOptions] = useState<ProfileOptions | null>(profileOptionsCache);
+  const [optionsError, setOptionsError] = useState('');
   const [bio, setBio] = useState(user.bio || '');
 
   const [savingProfile, setSavingProfile] = useState(false);
@@ -44,10 +49,22 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  useEffect(() => {
+    profileApi.options().then(options => {
+      profileOptionsCache = options;
+      setProfileOptions(options);
+      if (!positionId) setPositionId(options.positions.find(item => item.name === user.job_title)?.id || '');
+      if (!workLocationId) setWorkLocationId(options.work_locations.find(item => item.name === user.office_location)?.id || '');
+    }).catch(error => setOptionsError(error instanceof Error ? error.message : 'Không thể tải danh mục tổ chức.'));
+  }, []);
+
+  const selectedPosition = useMemo(() => profileOptions?.positions.find(item => item.id === positionId), [profileOptions, positionId]);
+  const selectedDepartment = useMemo(() => profileOptions?.departments.find(item => item.id === selectedPosition?.department_id), [profileOptions, selectedPosition]);
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (savingProfile) return;
-    const payload = { full_name: fullName.trim(), phone: phone.trim(), job_title: jobTitle.trim(), office_location: officeLocation.trim(), bio: bio.trim() };
+    const payload = { full_name: fullName.trim(), phone: phone.trim(), work_location_id: workLocationId, bio: bio.trim() };
     if (sameFields(payload, { ...user })) { setProfileMessage({ type: 'success', text: 'Thông tin chưa thay đổi.' }); return; }
     setSavingProfile(true);
     setProfileMessage(null);
@@ -180,7 +197,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
 
           {profileMessage && (
             <div
-              className={profileMessage.type === 'success' ? 'glass-panel' : 'alert-error'}
+              className={`profile-feedback-toast is-${profileMessage.type}`}
               style={{
                 marginBottom: '1rem',
                 padding: '0.75rem 1rem',
@@ -198,6 +215,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
               <span>{profileMessage.text}</span>
             </div>
           )}
+          {optionsError && <div className="alert-error" role="alert">{optionsError}</div>}
 
           <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="profile-fields">
@@ -253,38 +271,31 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
             <div className="profile-fields">
               <div className="form-group">
                 <label htmlFor="profile-field-5">Chức danh / Vị trí</label>
-                <input id="profile-field-5" disabled={savingProfile}
-                  type="text"
+                <select id="profile-field-5" disabled
                   className="form-input"
-                  placeholder="Chức danh hiện tại..."
-                  maxLength={100}
-                value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                />
+                  value={positionId}
+                  title="Chức danh do quản trị viên thiết lập"
+                ><option value="">Chọn vị trí / chức danh</option>{profileOptions?.positions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
               </div>
 
               <div className="form-group">
                 <label htmlFor="profile-field-6">Phòng ban / Khối</label>
-                <input id="profile-field-6"
-                  type="text"
+                <select id="profile-field-6"
                   className="form-input"
-                  value={user.department}
+                  value={selectedDepartment?.id || ''}
                   disabled
                   style={{ background: 'var(--input-disabled-bg)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
-                />
+                ><option value="">Chọn phòng ban</option>{profileOptions?.departments.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
               </div>
             </div>
 
             <div className="form-group">
               <label htmlFor="profile-field-7">Chi nhánh / Địa điểm làm việc</label>
-              <input id="profile-field-7" disabled={savingProfile}
-                type="text"
+              <select id="profile-field-7" disabled={savingProfile || !profileOptions}
                 className="form-input"
-                placeholder="Địa chỉ trụ sở hoặc văn phòng làm việc..."
-                maxLength={150}
-                value={officeLocation}
-                onChange={(e) => setOfficeLocation(e.target.value)}
-              />
+                value={workLocationId}
+                onChange={(e) => setWorkLocationId(e.target.value)}
+              ><option value="">Chọn địa điểm làm việc</option>{profileOptions?.work_locations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
             </div>
 
             <div className="form-group">
@@ -348,7 +359,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
 
             {passwordMessage && (
               <div
-                className={passwordMessage.type === 'success' ? 'glass-panel' : 'alert-error'}
+                className={`profile-feedback-toast is-${passwordMessage.type}`}
                 style={{
                   marginBottom: '1rem',
                   padding: '0.65rem 0.85rem',

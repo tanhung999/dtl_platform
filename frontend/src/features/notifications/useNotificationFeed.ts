@@ -16,7 +16,7 @@ export function useNotificationFeed(enabled = true) {
       .finally(() => { if (!controller.signal.aborted) setPending(false); });
     return () => controller.abort();
   }, [key, revision, enabled]);
-  return { page: data?.key === key ? data.page : undefined, loading: enabled && !error && data?.key !== key, pending, error, filter, source, index,
+  return { page: data?.page, loading: enabled && !error && data?.key !== key, pending, error, filter, source, index,
     setFilter: (value: NotificationFilter) => { chooseFilter(value); setIndex(0); setCursors([undefined]); },
     setSource: (value: NotificationSource | '') => { chooseSource(value); setIndex(0); setCursors([undefined]); },
     newest: () => { setIndex(0); setCursors([undefined]); }, previous: () => setIndex(value => Math.max(0, value - 1)),

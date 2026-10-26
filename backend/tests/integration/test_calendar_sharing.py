@@ -32,7 +32,11 @@ class CalendarSharingTests(ApiTestCase):
 
     async def test_explicit_capability_required_and_admin_has_no_implicit_visibility(self):
         code, caps = await self.request('GET','/api/access/me')
-        self.assertEqual(caps,{'can_share':False,'can_manage':True})
+        self.assertEqual(caps,{
+            'can_share':False,
+            'can_manage':True,
+            'can_assign_tasks':True,
+        })
         code, _ = await self.request('PUT','/api/calendar-sharing/mine/bob',payload={'expected_version':0})
         self.assertEqual(code,403)
         code, _ = await self.request('PUT','/api/access/users/alice/calendar-sharing',user='bob',payload={'enabled':True,'expected_enabled':False,'expected_version':0})
@@ -167,9 +171,9 @@ class CalendarSharingTests(ApiTestCase):
             stamp=utcnow()
             db.add_all([AccessAuditLog(id=f'{i:036}',actor_id='alice',subject_id='bob',actor_name='Alice',subject_name='Bob',actor_username='alice',subject_username='bob',action='calendar_shared',changes={},created_at=stamp) for i in range(25)])
             await db.commit()
-        _,first=await self.request('GET','/api/access/history');self.assertEqual(len(first['items']),20);self.assertTrue(first['next_cursor'])
-        _,last=await self.request('GET','/api/access/history',query={'before':first['next_cursor']});self.assertEqual(len(last['items']),5)
-        self.assertFalse({row['id'] for row in first['items']} & {row['id'] for row in last['items']})
+        _,first=await self.request('GET','/api/access/history');self.assertEqual(len(first['items']),5);self.assertTrue(first['next_cursor'])
+        _,second=await self.request('GET','/api/access/history',query={'before':first['next_cursor']});self.assertEqual(len(second['items']),5);self.assertTrue(second['next_cursor'])
+        self.assertFalse({row['id'] for row in first['items']} & {row['id'] for row in second['items']})
         code,_=await self.request('GET','/api/access/history',query={'before':'garbage'});self.assertEqual(code,422)
 
     async def test_private_change_requires_immediate_access_recheck_and_inactive_grants_do_not_fanout(self):

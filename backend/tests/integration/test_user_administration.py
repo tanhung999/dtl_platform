@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, patch
 
 from app.db.access import AccessPermission, AccessRole, RolePermission, UserRole
 from app.modules.access.service import MANAGE
+from app.db.models import User
 from tests.support.api_case import ApiTestCase
 
 
@@ -53,7 +54,10 @@ class UserAdministrationTests(ApiTestCase):
         logout.assert_awaited_once_with('kc-new-user')
 
         reset = AsyncMock()
-        with patch('app.modules.users.router.keycloak_user_admin.reset_password', new=reset):
+        repair_profile = AsyncMock()
+        with patch('app.modules.users.router.keycloak_user_admin.reset_password', new=reset), patch(
+            'app.modules.users.router.keycloak_user_admin.update_user', new=repair_profile
+        ):
             status, body = await self.request(
                 'PUT', f"/api/admin/users/{created['id']}/password",
                 payload={'password': 'another-safe-password'},
@@ -61,6 +65,7 @@ class UserAdministrationTests(ApiTestCase):
         self.assertEqual(status, 204)
         self.assertIsNone(body)
         reset.assert_awaited_once_with('kc-new-user', 'another-safe-password')
+        repair_profile.assert_awaited_once()
 
     async def test_cannot_disable_own_admin_account(self):
         await self.seed_admin()
@@ -72,3 +77,21 @@ class UserAdministrationTests(ApiTestCase):
         status, result = await self.request('PUT', '/api/admin/users/alice', payload=payload)
         self.assertEqual(status, 422)
         self.assertIn('chính mình', result['detail'])
+
+    async def test_organization_hierarchy_locations_and_manager_candidates(self):
+        await self.seed_admin()
+        _, department = await self.request('POST', '/api/admin/organization/departments', payload={'code':'TECH','name':'Công nghệ'})
+        _, director = await self.request('POST', '/api/admin/organization/job-levels', payload={'code':'DIRECTOR','name':'Giám đốc','rank':1,'is_management':True})
+        _, lead = await self.request('POST', '/api/admin/organization/job-levels', payload={'code':'LEAD','name':'Trưởng nhóm','rank':5,'is_management':True,'report_to_level_ids':[director['id']]})
+        _, staff = await self.request('POST', '/api/admin/organization/job-levels', payload={'code':'STAFF2','name':'Nhân viên','rank':10,'is_management':False,'report_to_level_ids':[lead['id'],director['id']]})
+        _, manager_position = await self.request('POST', '/api/admin/organization/positions', payload={'code':'TECH-DIR','name':'Giám đốc công nghệ','department_id':department['id'],'job_level_id':director['id']})
+        _, staff_position = await self.request('POST', '/api/admin/organization/positions', payload={'code':'TECH-STAFF','name':'Chuyên viên công nghệ','department_id':department['id'],'job_level_id':staff['id']})
+        _, location = await self.request('POST', '/api/admin/organization/work-locations', payload={'code':'HCM','name':'Trụ sở TP. Hồ Chí Minh'})
+        async with self.sessions() as db:
+            alice = await db.get(User, 'alice'); alice.position_id = manager_position['id']; await db.commit()
+        status, managers = await self.request('GET', '/api/admin/users/manager-candidates', query={'position_id':staff_position['id']})
+        self.assertEqual(status, 200); self.assertEqual([item['id'] for item in managers], ['alice'])
+        _, catalog = await self.request('GET', '/api/admin/organization')
+        self.assertEqual(catalog['work_locations'][0]['id'], location['id'])
+        self.assertTrue(next(item for item in catalog['job_levels'] if item['id']==director['id'])['is_management'])
+        self.assertEqual(set(next(item for item in catalog['job_levels'] if item['id']==staff['id'])['report_to_level_ids']), {lead['id'],director['id']})

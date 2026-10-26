@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, verify_password, hash_password
 from app.db.models import User, utcnow
+from app.db.organization import Department, Position, WorkLocation
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.schemas import (
     LoginRequest,
@@ -87,6 +88,21 @@ async def get_me(user: Annotated[User, Depends(get_current_user)]):
     return UserResponse.model_validate(user)
 
 
+@router.get("/profile-options")
+async def profile_options(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
+):
+    departments = (await db.scalars(select(Department).where(Department.is_active.is_(True)).order_by(Department.name))).all()
+    positions = (await db.scalars(select(Position).where(Position.is_active.is_(True)).order_by(Position.name))).all()
+    locations = (await db.scalars(select(WorkLocation).where(WorkLocation.is_active.is_(True)).order_by(WorkLocation.name))).all()
+    return {
+        "departments": [{"id": row.id, "name": row.name} for row in departments],
+        "positions": [{"id": row.id, "name": row.name, "department_id": row.department_id} for row in positions],
+        "work_locations": [{"id": row.id, "name": row.name} for row in locations],
+    }
+
+
 @router.put("/profile", response_model=UserResponse)
 async def update_profile(
     payload: ProfileUpdate,
@@ -94,6 +110,15 @@ async def update_profile(
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     data = payload.model_dump(exclude_unset=True)
+    if "position_id" in data and (data["position_id"] or None) != (user.position_id or None):
+        raise HTTPException(status_code=403, detail="Chức danh chỉ có thể được thay đổi bởi quản trị viên.")
+    if "job_title" in data and (data["job_title"] or "") != (user.job_title or ""):
+        raise HTTPException(status_code=403, detail="Chức danh chỉ có thể được thay đổi bởi quản trị viên.")
+    if "work_location_id" in data:
+        location = await db.get(WorkLocation, data["work_location_id"]) if data["work_location_id"] else None
+        if data["work_location_id"] and (not location or not location.is_active):
+            raise HTTPException(status_code=422, detail="Địa điểm làm việc không hợp lệ.")
+        data["office_location"] = location.name if location else ""
     data = {key: value.strip() if isinstance(value, str) else value for key, value in data.items() if value is not None}
     data = {key: value for key, value in data.items() if (getattr(user, key) or '') != (value or '')}
     if not data:

@@ -2,13 +2,11 @@
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models import User, Task
+from app.db.models import User
+from .access import accessible_task
 
 async def owned_task(task_id: str, user: User, db: AsyncSession, *, lock=False):
-    stmt = select(Task).where(Task.id == task_id, Task.user_id == user.id)
-    if lock:
-        stmt = stmt.with_for_update()
-    task = (await db.execute(stmt)).scalar_one_or_none()
-    if task is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy công việc.")
+    task = await accessible_task(task_id, user, db, lock=lock)
+    if task.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Chỉ người tạo được thực hiện thao tác này.")
     return task

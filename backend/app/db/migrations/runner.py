@@ -2,7 +2,7 @@
 from sqlalchemy import inspect, text
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.db import models, calendar
+from app.db import models, calendar, organization
 from app.db import note_scheduling
 from app.db import create_requests
 from app.db import access
@@ -184,6 +184,28 @@ async def upgrade(conn):
         """))
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
+    version = 'applications_009_development_apps'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .development_applications import migrate_development_applications
+        await migrate_development_applications(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_010_legacy_login_policy'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        application_columns = await conn.run_sync(
+            lambda sync: {column['name'] for column in inspect(sync).get_columns('applications')}
+        )
+        if 'legacy_login_enabled' not in application_columns:
+            await conn.execute(text(
+                'ALTER TABLE applications ADD COLUMN legacy_login_enabled BOOLEAN NOT NULL DEFAULT FALSE'
+            ))
+        await conn.execute(text("""
+            UPDATE applications
+            SET legacy_login_enabled = TRUE
+            WHERE key IN ('bookingreports', 'workflows', 'itam')
+        """))
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
     version = 'realtime_001_scope_versions'
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
         await conn.run_sync(lambda sync: workspace_versions.WorkspaceVersion.__table__.create(sync, checkfirst=True))
@@ -258,6 +280,30 @@ async def upgrade(conn):
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
         from .resolved_legacy_dates import migrate_resolved_legacy_dates
         await migrate_resolved_legacy_dates(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'tasks_005_delegation_and_followers'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .task_delegation_and_followers import migrate_task_delegation_and_followers
+        await migrate_task_delegation_and_followers(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'organization_001_catalog'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .organization_catalog import migrate_organization_catalog
+        await migrate_organization_catalog(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'organization_002_hierarchy_locations'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .organization_hierarchy_locations import migrate_organization_hierarchy_locations
+        await migrate_organization_hierarchy_locations(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'organization_003_multiple_report_targets'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .organization_multiple_report_targets import migrate_organization_multiple_report_targets
+        await migrate_organization_multiple_report_targets(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
 async def run():

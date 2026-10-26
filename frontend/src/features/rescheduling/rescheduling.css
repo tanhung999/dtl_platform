@@ -16,10 +16,10 @@
 .reschedule-history article { padding:12px 0; border-bottom:1px solid var(--border); font-size:13px; overflow-wrap:anywhere; white-space:pre-wrap; }
 .reschedule-history article p { margin-bottom:6px; }
 .reschedule-history small { color:var(--text-muted); }
-.reschedule-toast { position:fixed; inset:auto; margin:0; bottom:24px; left:50%; transform:translateX(-50%); z-index:10000; display:flex; align-items:center; gap:14px; width:max-content; max-width:calc(100vw - 24px); padding:14px 18px; background:var(--bg-card-solid); color:var(--text-main); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-xl); font-size:13px; }
+.reschedule-toast { position:fixed; inset:84px 18px auto auto; margin:0; z-index:15000; display:flex; align-items:center; gap:14px; width:max-content; max-width:min(390px,calc(100vw - 24px)); padding:14px 18px; background:var(--bg-card-solid); color:var(--text-main); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-xl); font-size:13px; }
 .reschedule-toast button { flex-shrink:0; border:0; background:transparent; color:var(--accent-text); cursor:pointer; font:inherit; font-weight:600; }
 .reschedule-toast.has-error { border-color:#b91c1c; }
-@media(max-width:600px) { .reschedule-dialog header p { max-width:240px; } .reschedule-toast { bottom:12px; gap:8px; padding:12px; } }
+@media(max-width:600px) { .reschedule-dialog header p { max-width:240px; } .reschedule-toast { inset:72px 12px auto 12px; width:auto; gap:8px; padding:12px; } }
 
 .btn.reschedule-open { background:var(--primary-light); color:var(--accent-text); border-color:color-mix(in srgb,var(--accent) 35%,var(--border)); font-weight:600; }
 .btn.reschedule-open:hover { background:var(--primary-light); color:var(--accent-text); border-color:var(--accent); }

@@ -18,6 +18,8 @@ import { TimePicker } from '../../../components/date-time/TimePicker';
 import { RescheduleControl } from '../../rescheduling/RescheduleControl';
 import { sameFields } from '../../../services/unchanged';
 import { ReminderFields, reminderValue, sameReminder } from '../../reminders/ReminderFields';
+import { UserPicker } from '../../collaboration/UserPicker';
+import type { UserBrief } from '../../../types';
 
 interface Props {
   event?: CalendarEvent;
@@ -36,6 +38,7 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
   const [description, setDescription] = useState(event?.description ?? '');
   const [location, setLocation] = useState(event?.location ?? '');
   const [isPrivate, setIsPrivate] = useState(event?.is_private ?? false);
+  const [followers,setFollowers]=useState<UserBrief[]>(event?.followers??[]);
   const [recurrence, setRecurrence] = useState<Recurrence>(event?.recurrence ?? 'NONE');
   const [allDay, setAllDay] = useState(event?.is_all_day ?? draft.allDay ?? false);
   const [reminder, setReminder] = useState(() => reminderValue(event ?? {}));
@@ -93,7 +96,7 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
     if (Date.parse(ends) <= Date.parse(starts)) { setError('Thời gian kết thúc phải sau thời gian bắt đầu.'); return; }
     submitting.current = true; setBusy(true);
     try {
-      const payload: CalendarEventInput = { title: title.trim(), description, location, starts_at: starts, ends_at: ends, is_all_day: allDay, recurrence, is_private: isPrivate, color: event?.color ?? '#2563eb', ...reminder, ...(event ? { expected_updated_at: updatedAt } : {}) };
+      const payload: CalendarEventInput = { title: title.trim(), description, location, starts_at: starts, ends_at: ends, is_all_day: allDay, recurrence, is_private: isPrivate, color: event?.color ?? '#2563eb', follower_ids:followers.map(item=>item.id), ...reminder, ...(event ? { expected_updated_at: updatedAt } : {}) };
       if (!event) attempt.current ??= { requestId: createRequestId(), original: payload };
       await onSave(payload, event?.id, attempt.current);
       if (mounted.current) onClose();
@@ -128,7 +131,7 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
           <div><span className="calendar-eyebrow">LỊCH CÁ NHÂN</span><h2 id="calendar-dialog-title">{event ? 'Chi tiết sự kiện' : 'Tạo sự kiện mới'}</h2></div>
           <button type="button" className="calendar-icon-button" onClick={onClose} disabled={busy} aria-label="Đóng"><X size={20} /></button>
         </header>
-        <fieldset disabled={busy} className="calendar-dialog-fields">
+        <fieldset disabled={busy||!!event&&!event.can_edit} className="calendar-dialog-fields">
           {status && <div style={{ '--event-color': status.color } as CSSProperties}><EventStatusBadge status={status} /></div>}
           <label className="calendar-field">Tên sự kiện
             <input className="form-input calendar-title-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Thêm tiêu đề" required maxLength={200} autoFocus />
@@ -168,6 +171,7 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
           <label className="calendar-field"><span><MapPin size={15} /> Địa điểm</span><input className="form-input" value={location} onChange={e => setLocation(e.target.value)} placeholder="Thêm địa điểm" maxLength={255} /></label>
           <label className="calendar-field">Mô tả<textarea className="form-input" value={description} onChange={e => setDescription(e.target.value)} placeholder="Ghi chú cho sự kiện…" rows={3} maxLength={10000} /></label>
           <PrivacyToggle label="Sự kiện riêng tư" value={isPrivate} onChange={setIsPrivate} />
+          {(!event||event.can_edit)&&<UserPicker multiple label="Người theo dõi" value={followers} onChange={setFollowers} disabled={busy}/>}
           {!event && <ReminderFields recurrence={recurrence} value={reminder} onChange={setReminder} anchor={startDate && (allDay || startTime) ? toTimestamp(parseDate(startDate), allDay ? '00:00' : startTime) : null} endsAt={endDate && (allDay || endTime) ? toTimestamp(allDay ? addDays(parseDate(endDate), 1) : parseDate(endDate), allDay ? '00:00' : endTime) : null} allDay={allDay} disabled={busy} />}
 
           <div className="calendar-field"><span>Màu tự đổi theo thời gian</span><EventStatusLegend /></div>
@@ -180,8 +184,8 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
           <div className="calendar-inline-actions"><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirmDelete(false)}>Giữ lại</button><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || deleteUncertain} onClick={remove}>{busy ? 'Đang xóa…' : 'Xác nhận xóa'}</button></div>
         </div>}
         <footer className="calendar-dialog-footer">
-          {event && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || deleteUncertain} onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Xóa</button>}
-          <div className="calendar-inline-actions"><button type="submit" className="btn btn-primary" disabled={busy || confirmDelete || deleteUncertain}>{busy ? 'Đang lưu…' : 'Lưu sự kiện'}</button></div>
+          {event?.can_delete && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || deleteUncertain} onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Xóa</button>}
+          {(!event||event.can_edit)&&<div className="calendar-inline-actions"><button type="submit" className="btn btn-primary" disabled={busy || confirmDelete || deleteUncertain}>{busy ? 'Đang lưu…' : 'Lưu sự kiện'}</button></div>}
         </footer>
       </form>
     </dialog>

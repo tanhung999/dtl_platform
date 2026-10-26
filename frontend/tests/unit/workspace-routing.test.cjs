@@ -13,6 +13,9 @@ test('login return destination keeps known internal deep links and their query',
   assert.equal(loginDestination('/search?q=project%20report'), '/search?q=project%20report');
   assert.equal(pageForPath('/CALENDAR/'), 'calendar');
   assert.equal(pageForPath('/calendar/unknown'), undefined);
+  assert.equal(pageForPath('/admin/users'), 'admin');
+  assert.equal(pageForPath('/admin/organization'), 'admin');
+  assert.equal(loginDestination('/admin/permissions'), '/admin/permissions');
 });
 
 test('login cannot redirect outside the workspace or back into the login screen', () => {

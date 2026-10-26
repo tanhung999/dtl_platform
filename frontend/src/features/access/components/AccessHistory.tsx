@@ -1,49 +1,328 @@
 import { useEffect, useState } from 'react';
-import { History } from 'lucide-react';
-import { accessApi, AuditPage } from '../api';
-const labels:Record<string,string>={
-  sharing_capability_granted:'Cấp quyền chia sẻ lịch',sharing_capability_revoked:'Thu hồi quyền chia sẻ lịch',
-  calendar_shared:'Chia sẻ lịch cho người xem',calendar_scope_changed:'Đổi phạm vi xem lịch',calendar_revoked:'Thu hồi quyền xem lịch',
-  application_access_updated:'Cập nhật quyền ứng dụng',user_created:'Tạo tài khoản',user_updated:'Cập nhật tài khoản',
-  user_password_reset:'Đặt lại mật khẩu',
+import { History, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { accessApi, AuditPage, AuditEntry } from '../api';
+const labels: Record<string, string> = {
+  sharing_capability_granted: 'Cấp quyền chia sẻ lịch',
+  sharing_capability_revoked: 'Thu hồi quyền chia sẻ lịch',
+  calendar_shared: 'Chia sẻ lịch cho người xem',
+  calendar_scope_changed: 'Đổi phạm vi xem lịch',
+  calendar_revoked: 'Thu hồi quyền xem lịch',
+  application_access_updated: 'Cập nhật quyền ứng dụng',
+  user_created: 'Tạo tài khoản',
+  user_updated: 'Cập nhật tài khoản',
+  user_password_reset: 'Đặt lại mật khẩu',
 };
-const applicationNames:Record<string,string>={bookingreports:'DT Income Statement',workflows:'DT Workflow',itam:'DT Assets'};
-function scope(value:unknown) {
-  if(!value||typeof value!=='object')return '';
-  const flags=value as Record<string,boolean>;
-  return [flags.share_events?'Sự kiện':'',flags.share_tasks?'Công việc':'',flags.share_notes?'Ghi chú':''].filter(Boolean).join(', ');
+
+const applicationNames: Record<string, string> = {
+  bookingreports: 'DT Income Statement',
+  workflows: 'DT Workflow',
+  itam: 'DT Assets',
+};
+
+function formatScope(value: unknown) {
+  if (!value || typeof value !== 'object') return '';
+  const flags = value as Record<string, boolean>;
+  return [
+    flags.share_events ? 'Sự kiện' : '',
+    flags.share_tasks ? 'Công việc' : '',
+    flags.share_notes ? 'Ghi chú' : '',
+  ].filter(Boolean).join(', ');
 }
-function details(entry: AuditPage['items'][number]) {
-  const changes=entry.changes as Record<string,unknown>;
-  if(entry.action==='application_access_updated') {
-    const app=String(changes.application||'');
-    const after=(changes.after||{}) as Record<string,unknown>;
-    const before=(changes.before||{}) as Record<string,unknown>;
-    const state=after.enabled?'Đã cấp':'Đã thu hồi';
-    const roleParts=String(after.role_id||'').split(':');
-    const changedRole=before.role_id!==after.role_id&&after.role_id?` · Role: ${roleParts[roleParts.length-1]}`:'';
-    return `${applicationNames[app]||app}: ${state}${changedRole}`;
-  }
-  if(entry.action==='user_created') return 'Tài khoản hệ thống đã được tạo thành công.';
-  if(entry.action==='user_password_reset') return 'Mật khẩu đã được đặt lại và có hiệu lực ngay.';
-  if(entry.action==='user_updated') {
-    const after=(changes.after||{}) as Record<string,unknown>;
-    return `Trạng thái: ${after.is_active?'Hoạt động':'Đã khóa'} · Quản trị Platform: ${after.platform_admin?'Có':'Không'}`;
-  }
-  return scope(changes.after)?`Phạm vi: ${scope(changes.after)}`:'';
+
+interface ParsedAudit {
+  category: string;
+  target: string;
+  statusText: string;
+  statusType: 'success' | 'danger' | 'info' | 'neutral';
+  role?: string;
+  details?: string;
 }
-export function AccessHistory({ targetId, revision }: {targetId?:string;revision:number}) {
-  const [cursors,setCursors]=useState<(string|undefined)[]>([undefined]),[index,setIndex]=useState(0),[data,setData]=useState<AuditPage>(),[error,setError]=useState(''),[pending,setPending]=useState(false),[retry,setRetry]=useState(0);
-  useEffect(()=>{setCursors([undefined]);setIndex(0);setData(undefined);},[targetId,revision]);
-  const cursor=cursors[index];
-  useEffect(()=>{
-    const controller=new AbortController();setPending(true);setError('');
-    accessApi.history(targetId,cursor,controller.signal).then(value=>{if(!controller.signal.aborted)setData(value);}).catch(reason=>{if(!controller.signal.aborted)setError(reason.message);}).finally(()=>{if(!controller.signal.aborted)setPending(false);});
-    return()=>controller.abort();
-  },[targetId,revision,cursor,retry]);
-  return <section className="admin-card access-history"><h2><History size={17}/> Lịch sử thay đổi{targetId?' của tài khoản':''}</h2>{pending&&<p role="status">Đang cập nhật lịch sử…</p>}{error&&<div role="alert"><p>{error}</p><button type="button" className="btn btn-outline btn-sm" onClick={()=>setRetry(value=>value+1)}>Thử lại</button></div>}
-    {!pending&&!error&&!data?.items.length&&<p>Chưa có thay đổi được ghi nhận.</p>}
-    <ol>{data?.items.map(entry=>{const detail=details(entry);return <li key={entry.id}><div><strong>{labels[entry.action]??'Thay đổi quyền'}</strong><time dateTime={entry.created_at}>{new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Ho_Chi_Minh',hourCycle:'h23'}).format(new Date(entry.created_at))}</time></div><p>{entry.actor_name} <span>(@{entry.actor_username})</span> → {entry.subject_name} <span>(@{entry.subject_username})</span></p>{detail&&<small>{detail}</small>}</li>})}</ol>
-    {(index>0||data?.next_cursor)&&<div className="access-pagination"><button type="button" className="btn btn-outline btn-sm" disabled={pending||index===0} onClick={()=>setIndex(value=>value-1)}>Mới hơn</button><span>Trang {index+1}</span><button type="button" className="btn btn-outline btn-sm" disabled={pending||!data?.next_cursor} onClick={()=>{setCursors(values=>[...values.slice(0,index+1),data!.next_cursor!]);setIndex(value=>value+1);}}>Cũ hơn</button></div>}
-  </section>;
+
+function parseAuditEntry(entry: AuditEntry): ParsedAudit {
+  const changes = (entry.changes || {}) as Record<string, unknown>;
+  const after = (changes.after || {}) as Record<string, unknown>;
+  const before = (changes.before || {}) as Record<string, unknown>;
+
+  if (entry.action === 'application_access_updated') {
+    const appKey = String(changes.application || '');
+    const appName = applicationNames[appKey] || appKey || 'Ứng dụng';
+    const isGranted = Boolean(after.enabled);
+    const roleId = String(after.role_id || '');
+    const roleParts = roleId ? roleId.split(':') : [];
+    const roleName = roleParts.length > 0 ? roleParts[roleParts.length - 1] : '';
+    const roleChanged = before.role_id !== after.role_id && Boolean(roleName);
+
+    return {
+      category: 'Ứng dụng',
+      target: appName,
+      statusText: isGranted ? 'Đã cấp' : 'Đã thu hồi',
+      statusType: isGranted ? 'success' : 'danger',
+      role: isGranted && roleName ? `Role: ${roleName}` : (roleChanged ? `Đổi role: ${roleName}` : undefined),
+    };
+  }
+
+  if (entry.action === 'sharing_capability_granted') {
+    return {
+      category: 'Lịch',
+      target: 'Quyền chia sẻ lịch',
+      statusText: 'Đã cấp',
+      statusType: 'success',
+    };
+  }
+
+  if (entry.action === 'sharing_capability_revoked') {
+    return {
+      category: 'Lịch',
+      target: 'Quyền chia sẻ lịch',
+      statusText: 'Đã thu hồi',
+      statusType: 'danger',
+    };
+  }
+
+  if (entry.action === 'calendar_shared') {
+    const s = formatScope(after);
+    return {
+      category: 'Lịch',
+      target: 'Chia sẻ lịch xem',
+      statusText: 'Đã chia sẻ',
+      statusType: 'success',
+      details: s ? `Phạm vi: ${s}` : undefined,
+    };
+  }
+
+  if (entry.action === 'calendar_scope_changed') {
+    const s = formatScope(after);
+    return {
+      category: 'Lịch',
+      target: 'Phạm vi xem lịch',
+      statusText: 'Đổi phạm vi',
+      statusType: 'info',
+      details: s ? `Phạm vi: ${s}` : undefined,
+    };
+  }
+
+  if (entry.action === 'calendar_revoked') {
+    return {
+      category: 'Lịch',
+      target: 'Quyền xem lịch',
+      statusText: 'Đã thu hồi',
+      statusType: 'danger',
+    };
+  }
+
+  if (entry.action === 'user_created') {
+    return {
+      category: 'Tài khoản',
+      target: 'Tài khoản hệ thống',
+      statusText: 'Đã tạo mới',
+      statusType: 'success',
+    };
+  }
+
+  if (entry.action === 'user_password_reset') {
+    return {
+      category: 'Bảo mật',
+      target: 'Mật khẩu tài khoản',
+      statusText: 'Đã đặt lại',
+      statusType: 'info',
+    };
+  }
+
+  if (entry.action === 'user_updated') {
+    const isLocked = after.is_active === false;
+    return {
+      category: 'Tài khoản',
+      target: 'Thông tin tài khoản',
+      statusText: isLocked ? 'Đã khóa' : 'Cập nhật',
+      statusType: isLocked ? 'danger' : 'info',
+      details: after.platform_admin ? 'Quản trị Platform' : undefined,
+    };
+  }
+
+  return {
+    category: 'Hệ thống',
+    target: labels[entry.action] ?? 'Thay đổi quyền',
+    statusText: 'Ghi nhận',
+    statusType: 'neutral',
+  };
+}
+
+function formatAuditTime(isoString: string) {
+  try {
+    const date = new Date(isoString);
+    const timeStr = new Intl.DateTimeFormat('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hourCycle: 'h23',
+    }).format(date);
+    const dateStr = new Intl.DateTimeFormat('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'Asia/Ho_Chi_Minh',
+    }).format(date);
+    return `${timeStr} · ${dateStr}`;
+  } catch {
+    return isoString;
+  }
+}
+
+export function AccessHistory({ id, targetId, revision }: { id?: string; targetId?: string; revision: number }) {
+  const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
+  const [index, setIndex] = useState(0);
+  const [data, setData] = useState<AuditPage>();
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    setCursors([undefined]);
+    setIndex(0);
+    setData(undefined);
+  }, [targetId]);
+
+  const cursor = cursors[index];
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setPending(true);
+    setError('');
+    accessApi.history(targetId, cursor, controller.signal)
+      .then(value => {
+        if (!controller.signal.aborted) setData(value);
+      })
+      .catch(reason => {
+        if (!controller.signal.aborted) setError(reason.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPending(false);
+      });
+    return () => controller.abort();
+  }, [targetId, revision, cursor, retry]);
+
+  const items = data?.items || [];
+
+  return (
+    <section id={id} className="admin-card access-history" aria-busy={pending}>
+      <div className="access-history-header">
+        <div className="access-history-title-group">
+          <h2>
+            <History size={16} /> Lịch sử thay đổi{targetId ? ' của tài khoản' : ''}
+          </h2>
+          <span className="access-history-subtitle">
+            Nhật ký phân quyền ứng dụng và thiết lập bảo mật
+          </span>
+        </div>
+        {items.length > 0 && (
+          <span className="access-history-counter">
+            {items.length} bản ghi trên trang
+          </span>
+        )}
+      </div>
+
+      {pending && !data && (
+        <div className="access-history-loading" role="status">
+          <Clock size={15} className="spin-slow" />
+          <span>Đang cập nhật lịch sử…</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="access-history-error" role="alert">
+          <p>{error}</p>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setRetry(value => value + 1)}>
+            Thử lại
+          </button>
+        </div>
+      )}
+
+      {!pending && !error && items.length === 0 && (
+        <div className="access-history-empty">
+          <History size={26} />
+          <p>Chưa có thay đổi nào được ghi nhận cho tài khoản này.</p>
+        </div>
+      )}
+
+      {!error && items.length > 0 && (
+        <ol className="access-history-list">
+          {items.map(entry => {
+            const info = parseAuditEntry(entry);
+            const timeFormatted = formatAuditTime(entry.created_at);
+            const isSelf = entry.actor_username === entry.subject_username;
+
+            return (
+              <li key={entry.id} className={`access-history-item is-${info.statusType}`}>
+                <div className="access-history-col-status">
+                  <span className={`access-history-dot is-${info.statusType}`} aria-hidden="true" />
+                </div>
+
+                <div className="access-history-col-main">
+                  <div className="access-history-row-primary">
+                    <span className="access-history-category-tag">{info.category}</span>
+                    <strong className="access-history-target-name">{info.target}</strong>
+                    <span className={`access-history-status-badge is-${info.statusType}`}>
+                      {info.statusText}
+                    </span>
+                    {info.role && (
+                      <span className="access-history-role-badge">{info.role}</span>
+                    )}
+                    {info.details && (
+                      <span className="access-history-detail-badge">{info.details}</span>
+                    )}
+                  </div>
+
+                  <div className="access-history-row-secondary">
+                    <span className="access-history-actor-text">
+                      {isSelf ? (
+                        <>
+                          Bởi <strong>{entry.actor_name}</strong> <span className="access-history-username">(@{entry.actor_username})</span>
+                        </>
+                      ) : (
+                        <>
+                          <strong>{entry.actor_name}</strong> <span className="access-history-username">(@{entry.actor_username})</span>
+                          <span className="access-history-arrow">→</span>
+                          <strong>{entry.subject_name}</strong> <span className="access-history-username">(@{entry.subject_username})</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="access-history-col-time">
+                  <Clock size={12} className="access-history-time-icon" />
+                  <time dateTime={entry.created_at}>{timeFormatted}</time>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      {(index > 0 || data?.next_cursor) && (
+        <div className="access-pagination">
+          <button
+            type="button"
+            className="btn btn-outline btn-sm access-page-btn"
+            disabled={pending || index === 0}
+            onClick={() => setIndex(value => value - 1)}
+          >
+            <ChevronLeft size={14} /> Mới hơn
+          </button>
+          <span className="access-page-indicator">Trang {index + 1}</span>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm access-page-btn"
+            disabled={pending || !data?.next_cursor}
+            onClick={() => {
+              setCursors(values => [...values.slice(0, index + 1), data!.next_cursor!]);
+              setIndex(value => value + 1);
+            }}
+          >
+            Cũ hơn <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
+    </section>
+  );
 }

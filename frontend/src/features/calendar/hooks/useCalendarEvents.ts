@@ -9,7 +9,7 @@ import { CreateAttempt } from '../../../services/mutationRecovery';
 export function useCalendarEvents(start: string, end: string, includeEvents = true, includeNotes = true) {
   const [revision, refresh] = useInvalidation();
   const fetchPage = useCallback((offset: number, signal: AbortSignal) => calendarApi.list(start, end, signal, includeEvents, includeNotes, offset), [start, end, includeEvents, includeNotes]);
-  const data = useRangeCollection<CalendarEvent, EventRange>(`${start}/${end}/${includeEvents}/${includeNotes}`, revision, fetchPage);
+  const data = useRangeCollection<CalendarEvent, EventRange>(`calendar/${start}/${end}/${includeEvents}/${includeNotes}`, revision, fetchPage);
   useEffect(() => {
     const onChange = (event: Event) => { if ((event as CustomEvent<string[]>).detail.includes('calendar')) refresh(); };
     window.addEventListener(WORKSPACE_CHANGED, onChange);

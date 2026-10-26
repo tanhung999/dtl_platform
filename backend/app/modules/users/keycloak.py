@@ -71,7 +71,7 @@ class KeycloakUserAdmin:
         return response
 
     async def create_user(self, *, username: str, email: str, full_name: str, password: str) -> str:
-        first_name, _, last_name = full_name.strip().partition(' ')
+        first_name, last_name = self._name_parts(full_name)
         response = await self._request('POST', '/users', json={
             'username': username,
             'email': email,
@@ -92,7 +92,7 @@ class KeycloakUserAdmin:
         return subject
 
     async def update_user(self, subject: str, *, email: str, full_name: str, enabled: bool) -> None:
-        first_name, _, last_name = full_name.strip().partition(' ')
+        first_name, last_name = self._name_parts(full_name)
         response = await self._request('PUT', f'/users/{quote(subject, safe="")}', json={
             'email': email,
             'firstName': first_name,
@@ -106,6 +106,15 @@ class KeycloakUserAdmin:
             raise HTTPException(409, 'Tài khoản không còn tồn tại trên Keycloak.')
         if response.status_code != 204:
             raise HTTPException(502, 'Keycloak không thể cập nhật tài khoản.')
+
+    @staticmethod
+    def _name_parts(full_name: str) -> tuple[str, str]:
+        parts = full_name.strip().split()
+        first_name = parts[0]
+        # Realm dtl yêu cầu cả firstName và lastName. Tài khoản có tên một từ
+        # nếu thiếu lastName sẽ bị Keycloak chặn với resolve_required_actions.
+        last_name = ' '.join(parts[1:]) or first_name
+        return first_name, last_name
 
     async def reset_password(self, subject: str, password: str) -> None:
         response = await self._request(

@@ -192,8 +192,12 @@ async def destination(id: str, user: UserArg, db: DbArg):
             from app.modules.calendar_sharing.service import grant_for
             await grant_for(db, row.resource_id, user.id)
             return {'calendar_owner_id': row.resource_id}
-        task = await db.get(Task, row.task_id) if row.task_id else None
-        if not task or task.user_id != user.id: raise HTTPException(404, 'Công việc đã bị xóa.')
+        if not row.task_id:
+            raise HTTPException(404, 'Công việc đã bị xóa.')
+        from app.modules.tasks.access import visible_tasks
+        task = await db.scalar(select(Task).where(Task.id == row.task_id, visible_tasks(user.id)))
+        if not task:
+            raise HTTPException(404, 'Công việc đã bị xóa hoặc bạn không còn quyền truy cập.')
         return {'task_id': task.id}
     if row.source not in (user.allowed_apps or '').split(','):
         raise HTTPException(403, 'Bạn không còn quyền truy cập ứng dụng này.')

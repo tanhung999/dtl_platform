@@ -5,6 +5,7 @@ import { User as UserIcon, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-r
 import { AuthSession } from '../../types';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import brandLogo from '../../assets/logo.png';
+import { APP_VERSION } from '../../config';
 
 interface LoginPageProps {
   onLoginSuccess: (session: AuthSession) => void;
@@ -140,7 +141,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           </div>
           <div>Liên hệ quản trị viên nếu bạn chưa có tài khoản.</div>
           <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
-            Designed by <strong>Phòng CN & CĐS - Đông Tây Land</strong> &bull; v 1.0.0
+            Designed by <strong>Phòng CN & CĐS - Đông Tây Land</strong> &bull; v {APP_VERSION}
           </div>
         </div>
       </div>

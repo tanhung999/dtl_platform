@@ -18,9 +18,9 @@ export function NotificationCard({ item, onOpened }: { item: NotificationItem; o
       </div>
     </div></div>
     <div className="notification-card-actions">
-      <button type="button" disabled={busy} title={item.read_at ? 'Đánh dấu chưa đọc' : 'Đánh dấu đã đọc'} aria-label={`${item.read_at ? 'Đánh dấu chưa đọc' : 'Đánh dấu đã đọc'}: ${item.title}`} onClick={() => { void action(() => data.state(item, { read: !item.read_at })); }}><CheckCheck size={16} /></button>
-      {canSnooze && <button type="button" disabled={busy} title="Thông báo lại sau 1 giờ" aria-label={`Thông báo lại sau 1 giờ: ${item.title}`} onClick={() => { void action(() => data.snooze(item)); }}><Clock3 size={16} /></button>}
-      <button type="button" disabled={busy} title={item.dismissed_at ? 'Khôi phục thông báo' : 'Ẩn thông báo'} aria-label={`${item.dismissed_at ? 'Khôi phục thông báo' : 'Ẩn thông báo'}: ${item.title}`} onClick={() => { void action(() => data.state(item, { dismissed: !item.dismissed_at })); }}>{item.dismissed_at ? <RotateCcw size={16} /> : <EyeOff size={16} />}</button>
+      <button type="button" disabled={busy} title={item.read_at ? 'Đánh dấu chưa đọc' : 'Đánh dấu đã đọc'} aria-label={`${item.read_at ? 'Đánh dấu chưa đọc' : 'Đánh dấu đã đọc'}: ${item.title}`} onClick={event => { event.stopPropagation(); void action(() => data.state(item, { read: !item.read_at })); }}><CheckCheck size={16} /></button>
+      {canSnooze && <button type="button" disabled={busy} title="Thông báo lại sau 1 giờ" aria-label={`Thông báo lại sau 1 giờ: ${item.title}`} onClick={event => { event.stopPropagation(); void action(() => data.snooze(item)); }}><Clock3 size={16} /></button>}
+      <button type="button" disabled={busy} title={item.dismissed_at ? 'Khôi phục thông báo' : 'Ẩn thông báo'} aria-label={`${item.dismissed_at ? 'Khôi phục thông báo' : 'Ẩn thông báo'}: ${item.title}`} onClick={event => { event.stopPropagation(); void action(() => data.state(item, { dismissed: !item.dismissed_at })); }}>{item.dismissed_at ? <RotateCcw size={16} /> : <EyeOff size={16} />}</button>
     </div>
     {error && <p className="notification-action-error" role="alert">{error}</p>}
   </article>;

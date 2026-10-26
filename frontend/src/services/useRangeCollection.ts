@@ -2,12 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 
 interface RangePage<T> { items: T[]; total: number; truncated: boolean }
 const identity = (item: { id: string }) => 'kind' in item ? `${item.kind}:${item.id}` : item.id;
+const rangeCache = new Map<string, { page: RangePage<{ id: string }>; items: { id: string }[]; nextOffset: number }>();
 
 /** Keep the current grid mounted during refresh; all pages still come from the server. */
 export function useRangeCollection<T extends { id: string }, P extends RangePage<T>>(
   key: string, revision: number, fetchPage: (offset: number, signal: AbortSignal) => Promise<P>, enabled = true,
 ) {
-  const [saved, setSaved] = useState<{ key: string; page: P; items: T[]; nextOffset: number }>();
+  const [saved, setSaved] = useState<{ key: string; page: P; items: T[]; nextOffset: number } | undefined>(() => {
+    const cached = rangeCache.get(key);
+    return cached ? { key, page: cached.page as P, items: cached.items as T[], nextOffset: cached.nextOffset } : undefined;
+  });
   const [pending, setPending] = useState(true);
   const [failure, setFailure] = useState<{ key: string; message: string }>();
   const error = failure?.key === key ? failure.message : '';
@@ -31,7 +35,11 @@ export function useRangeCollection<T extends { id: string }, P extends RangePage
         nextOffset += page.items.length;
         page.items.forEach(item => items.set(identity(item), item));
       }
-      if (!controller.signal.aborted) setSaved({ key, page, items: [...items.values()], nextOffset });
+      if (!controller.signal.aborted) {
+        const next = { key, page, items: [...items.values()], nextOffset };
+        rangeCache.set(key, next as { page: RangePage<{ id: string }>; items: { id: string }[]; nextOffset: number });
+        setSaved(next);
+      }
     };
     read().catch(reason => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Không tải được dữ liệu.'); })
       .finally(() => { if (!controller.signal.aborted) setPending(false); });
@@ -50,7 +58,9 @@ export function useRangeCollection<T extends { id: string }, P extends RangePage
         if (!previous || previous.key !== key) return previous;
         const merged = new Map(previous.items.map(item => [identity(item), item]));
         page.items.forEach(item => merged.set(identity(item), item));
-        return { key, page, items: [...merged.values()], nextOffset: current.nextOffset + page.items.length };
+        const next = { key, page, items: [...merged.values()], nextOffset: current.nextOffset + page.items.length };
+        rangeCache.set(key, next as { page: RangePage<{ id: string }>; items: { id: string }[]; nextOffset: number });
+        return next;
       });
     } catch (reason) { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Không tải thêm được dữ liệu.'); }
     finally { moreBusy.current = false; if (!controller.signal.aborted) setPending(false); }

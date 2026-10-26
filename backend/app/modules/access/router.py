@@ -14,8 +14,10 @@ from app.db.access import CalendarShare, UserRole, AccessAccountVersion, AccessA
 from app.modules.auth.dependencies import get_current_user
 from .audit import record
 from .service import has_permission, require, MANAGE, SHARE, permission_users
+from app.modules.tasks.permissions import can_assign_tasks
 
 router = APIRouter(prefix='/api/access', tags=['Access'])
+HISTORY_PAGE_SIZE = 5
 UserArg = Annotated[User, Depends(get_current_user)]
 DbArg = Annotated[AsyncSession, Depends(get_db, scope='function')]
 
@@ -33,7 +35,8 @@ def search_condition(value):
 
 @router.get('/me')
 async def me(user: UserArg, db: DbArg):
-    return {'can_share': await has_permission(db, user.id, SHARE), 'can_manage': await has_permission(db, user.id, MANAGE)}
+    return {'can_share': await has_permission(db, user.id, SHARE), 'can_manage': await has_permission(db, user.id, MANAGE),
+            'can_assign_tasks': await can_assign_tasks(db, user)}
 
 
 @router.get('/users')
@@ -80,10 +83,11 @@ async def history(user: UserArg, db: DbArg, target_id: str | None = Query(None, 
             if not stamp.tzinfo or not isinstance(identifier, str) or len(identifier) > 36: raise ValueError()
         except (ValueError, TypeError, UnicodeError): raise HTTPException(422, 'Mốc lịch sử không hợp lệ.')
         statement = statement.where(or_(AccessAuditLog.created_at < stamp, and_(AccessAuditLog.created_at == stamp, AccessAuditLog.id < identifier)))
-    rows = (await db.scalars(statement.order_by(AccessAuditLog.created_at.desc(), AccessAuditLog.id.desc()).limit(21))).all()
+    rows = (await db.scalars(statement.order_by(AccessAuditLog.created_at.desc(), AccessAuditLog.id.desc()).limit(HISTORY_PAGE_SIZE + 1))).all()
     utc = lambda value: value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
-    items = [{key: getattr(row, key) for key in ('id', 'actor_name', 'actor_username', 'subject_name', 'subject_username', 'subject_id', 'action', 'changes')} | {'created_at': utc(row.created_at)} for row in rows[:20]]
-    cursor = base64.urlsafe_b64encode(json.dumps([utc(rows[19].created_at).isoformat(), rows[19].id]).encode()).decode() if len(rows)>20 else None
+    items = [{key: getattr(row, key) for key in ('id', 'actor_name', 'actor_username', 'subject_name', 'subject_username', 'subject_id', 'action', 'changes')} | {'created_at': utc(row.created_at)} for row in rows[:HISTORY_PAGE_SIZE]]
+    cursor_row = rows[HISTORY_PAGE_SIZE - 1] if len(rows) > HISTORY_PAGE_SIZE else None
+    cursor = base64.urlsafe_b64encode(json.dumps([utc(cursor_row.created_at).isoformat(), cursor_row.id]).encode()).decode() if cursor_row else None
     return {'items': items, 'next_cursor': cursor}
 
 

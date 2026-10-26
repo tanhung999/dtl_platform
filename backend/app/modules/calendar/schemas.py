@@ -21,6 +21,7 @@ class EventWrite(ReminderFields):
     is_private: bool = False
     is_all_day: bool = False
     color: str = Field(default="#2563eb", pattern=r"^#[0-9a-fA-F]{6}$")
+    follower_ids: list[str] = Field(default_factory=list, max_length=100)
 
     @field_validator("title", "description", "location", mode="before")
     @classmethod
@@ -71,6 +72,11 @@ class EventResponse(BaseModel):
     color: str
     created_at: datetime
     updated_at: datetime
+    followers: list[dict] = []
+    is_following: bool = False
+    can_edit: bool = False
+    can_delete: bool = False
+    owner: dict | None = None
 
     @field_validator("starts_at", "ends_at", "created_at", "updated_at")
     @classmethod
@@ -86,6 +92,7 @@ class EventCreate(EventWrite):
 
 
 class EventUpdate(EventWrite):
+    follower_ids: list[str] | None = Field(default=None, max_length=100)
     expected_updated_at: datetime
 
     @field_validator("expected_updated_at")
