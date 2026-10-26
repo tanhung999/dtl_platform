@@ -93,7 +93,7 @@ def create_sso_ticket(user: Dict[str, Any], target_app: str) -> str:
     payload = {
         "iss": "dtl-platform",
         "sub": user["username"],
-        "identity_subject": user.get("identity_subject"),
+        "identity_subject": user.get("identity_subject") or f"platform:{user['id']}",
         "user_id": str(user["id"]),
         "email": user["email"],
         "full_name": user["full_name"],

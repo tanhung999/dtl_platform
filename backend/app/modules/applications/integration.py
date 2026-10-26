@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -82,6 +82,7 @@ async def check_subject_entitlement(
     integration_secret: Annotated[str | None, Header(alias="X-DTL-Integration-Secret")] = None,
 ):
     _authorize(application_key, integration_secret)
+    local_user_id = subject.removeprefix("platform:") if subject.startswith("platform:") else None
     row = (
         await db.execute(
             select(User, UserApplicationAccess)
@@ -91,7 +92,10 @@ async def check_subject_entitlement(
             )
             .join(Application, Application.key == UserApplicationAccess.application_key)
             .where(
-                User.identity_subject == subject,
+                or_(
+                    User.identity_subject == subject,
+                    User.id == local_user_id if local_user_id else User.id.is_(None),
+                ),
                 User.is_active.is_(True),
                 UserApplicationAccess.application_key == application_key,
                 UserApplicationAccess.enabled.is_(True),

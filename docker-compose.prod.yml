@@ -1,140 +1,87 @@
 services:
-  platform-db:
+  db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: platform
-      POSTGRES_PASSWORD: ${PLATFORM_DB_PASSWORD:?set PLATFORM_DB_PASSWORD}
-      POSTGRES_DB: dtl_platform
+      POSTGRES_USER: platform_user
+      POSTGRES_PASSWORD: ${PLATFORM_POSTGRES_PASSWORD:?set PLATFORM_POSTGRES_PASSWORD}
+      POSTGRES_DB: dtl_platform_db
     volumes:
-      - platform-db-data:/var/lib/postgresql/data
-    command: >
-      postgres -c max_connections=160 -c shared_buffers=256MB
-      -c effective_cache_size=768MB -c work_mem=4MB
-      -c maintenance_work_mem=64MB -c checkpoint_completion_target=0.9
+      - platform-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U platform -d dtl_platform"]
+      test: ["CMD-SHELL", "pg_isready -U platform_user -d dtl_platform_db"]
       interval: 10s
       timeout: 5s
       retries: 10
-    networks: [internal]
+    networks:
+      - internal
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
-  keycloak-db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD}
-      POSTGRES_DB: keycloak
-    volumes:
-      - keycloak-db-data:/var/lib/postgresql/data
-    command: >
-      postgres -c max_connections=100 -c shared_buffers=256MB
-      -c effective_cache_size=768MB -c work_mem=4MB
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    networks: [internal]
-
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.8.1
-    restart: unless-stopped
-    command: start --import-realm --http-enabled=true
-    environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:?set KEYCLOAK_ADMIN_USERNAME}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD}
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD}
-      KC_HTTP_RELATIVE_PATH: /auth
-      KC_HOSTNAME: ${PLATFORM_PUBLIC_URL:?set PLATFORM_PUBLIC_URL}/auth
-      KC_PROXY_HEADERS: xforwarded
-      KC_HEALTH_ENABLED: "true"
-      KC_DB_POOL_INITIAL_SIZE: "10"
-      KC_DB_POOL_MIN_SIZE: "10"
-      KC_DB_POOL_MAX_SIZE: "40"
-      KC_HTTP_POOL_MAX_THREADS: "100"
-      KC_CACHE: ispn
-      JAVA_OPTS_KC_HEAP: "-Xms512m -Xmx1536m"
-      PLATFORM_OIDC_CLIENT_SECRET: ${PLATFORM_OIDC_CLIENT_SECRET:?set PLATFORM_OIDC_CLIENT_SECRET}
-      BOOKINGREPORTS_OIDC_CLIENT_SECRET: ${BOOKINGREPORTS_OIDC_CLIENT_SECRET:?set BOOKINGREPORTS_OIDC_CLIENT_SECRET}
-      WORKFLOWS_OIDC_CLIENT_SECRET: ${WORKFLOWS_OIDC_CLIENT_SECRET:?set WORKFLOWS_OIDC_CLIENT_SECRET}
-      ASSET_MANAGER_OIDC_CLIENT_SECRET: ${ASSET_MANAGER_OIDC_CLIENT_SECRET:?set ASSET_MANAGER_OIDC_CLIENT_SECRET}
-      KEYCLOAK_USER_ADMIN_CLIENT_SECRET: ${KEYCLOAK_USER_ADMIN_CLIENT_SECRET:?set KEYCLOAK_USER_ADMIN_CLIENT_SECRET}
-    volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:ro
-      - ./keycloak/themes:/opt/keycloak/themes:ro
-      - ./frontend/src/assets/logo.png:/opt/keycloak/themes/dtl/login/resources/img/logo.png:ro
-    depends_on:
-      keycloak-db:
-        condition: service_healthy
-    networks: [internal]
-
-  platform-backend:
-    build: ./backend
+  backend:
+    build:
+      context: ./backend
     restart: unless-stopped
     environment:
       APP_ENV: production
       DEBUG: "false"
       ALLOW_INSECURE_LOCAL_CONFIG: "false"
-      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
-      SSO_SECRET_KEY: ${SSO_SECRET_KEY:?set SSO_SECRET_KEY}
-      DATABASE_URL: postgresql+asyncpg://platform:${PLATFORM_DB_PASSWORD:?set PLATFORM_DB_PASSWORD}@platform-db:5432/dtl_platform
-      DB_POOL_SIZE: "10"
-      DB_MAX_OVERFLOW: "2"
-      DB_POOL_TIMEOUT: "10"
-      OIDC_ENABLED: "true"
-      OIDC_ISSUER: ${PLATFORM_PUBLIC_URL:?set PLATFORM_PUBLIC_URL}/auth/realms/dtl
-      OIDC_AUTHORIZATION_URL: ${PLATFORM_PUBLIC_URL:?set PLATFORM_PUBLIC_URL}/auth/realms/dtl/protocol/openid-connect/auth
-      OIDC_TOKEN_URL: http://keycloak:8080/auth/realms/dtl/protocol/openid-connect/token
-      OIDC_JWKS_URL: http://keycloak:8080/auth/realms/dtl/protocol/openid-connect/certs
-      OIDC_END_SESSION_URL: ${PLATFORM_PUBLIC_URL:?set PLATFORM_PUBLIC_URL}/auth/realms/dtl/protocol/openid-connect/logout
+      SECRET_KEY: ${PLATFORM_SECRET_KEY:?set PLATFORM_SECRET_KEY}
+      SSO_SECRET_KEY: ${PLATFORM_SSO_SECRET_KEY:?set PLATFORM_SSO_SECRET_KEY}
+      DATABASE_URL: postgresql+asyncpg://platform_user:${PLATFORM_POSTGRES_PASSWORD:?set PLATFORM_POSTGRES_PASSWORD}@db:5432/dtl_platform_db
+      CORS_ORIGINS: '["https://platform.dongtayland.vn","http://platform.dongtayland.vn:8080"]'
+      BOOKING_REPORTS_URL: http://incomestatement.dongtayland.vn:8080
+      WORKFLOWS_URL: http://workflow.dongtayland.vn:8080
+      ASSET_MANAGER_URL: http://qlts.dongtayland.vn:8080
+      OIDC_ENABLED: "false"
       OIDC_CLIENT_SECRET: ${PLATFORM_OIDC_CLIENT_SECRET:?set PLATFORM_OIDC_CLIENT_SECRET}
-      OIDC_SESSION_ENCRYPTION_SECRET: ${OIDC_SESSION_ENCRYPTION_SECRET:?set OIDC_SESSION_ENCRYPTION_SECRET}
-      OIDC_REDIRECT_URI: ${PLATFORM_PUBLIC_URL:?set PLATFORM_PUBLIC_URL}/api/auth/oidc/callback
-      OIDC_FRONTEND_URL: ${PLATFORM_PUBLIC_URL:?set PLATFORM_PUBLIC_URL}
-      OIDC_POST_LOGOUT_REDIRECT_URI: ${PLATFORM_PUBLIC_URL:?set PLATFORM_PUBLIC_URL}/login
-      OIDC_SESSION_COOKIE_SECURE: "true"
+      OIDC_SESSION_ENCRYPTION_SECRET: ${PLATFORM_OIDC_SESSION_ENCRYPTION_SECRET:?set PLATFORM_OIDC_SESSION_ENCRYPTION_SECRET}
       INTEGRATION_BOOKINGREPORTS_SECRET: ${BOOKINGREPORTS_INTEGRATION_SECRET:?set BOOKINGREPORTS_INTEGRATION_SECRET}
       INTEGRATION_WORKFLOWS_SECRET: ${WORKFLOWS_INTEGRATION_SECRET:?set WORKFLOWS_INTEGRATION_SECRET}
       INTEGRATION_ITAM_SECRET: ${ITAM_INTEGRATION_SECRET:?set ITAM_INTEGRATION_SECRET}
-      KEYCLOAK_ADMIN_BASE_URL: http://keycloak:8080/auth
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_USER_ADMIN_CLIENT_SECRET:?set KEYCLOAK_USER_ADMIN_CLIENT_SECRET}
-      BOOKING_REPORTS_URL: ${BOOKING_REPORTS_URL:?set BOOKING_REPORTS_URL}
-      WORKFLOWS_URL: ${WORKFLOWS_URL:?set WORKFLOWS_URL}
-      ASSET_MANAGER_URL: ${ASSET_MANAGER_URL:?set ASSET_MANAGER_URL}
-    command: >
-      uvicorn app.main:app --host 0.0.0.0 --port 8000
-      --workers ${PLATFORM_API_WORKERS:-4}
-      --limit-concurrency ${PLATFORM_WORKER_CONCURRENCY:-400}
-      --backlog 2048 --timeout-keep-alive 10 --proxy-headers
+      NOTIFICATIONS_WORKER_ENABLED: "true"
+      MAINTENANCE_ENABLED: "true"
+    expose:
+      - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      internal:
+      proxy:
+        aliases:
+          - platform-api
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/health >/dev/null"]
       interval: 20s
       timeout: 5s
       retries: 10
-      start_period: 20s
-    depends_on:
-      platform-db:
-        condition: service_healthy
-      keycloak:
-        condition: service_started
-    networks: [internal]
+      start_period: 30s
+    logging: *default-logging
 
-  platform-frontend:
-    build: ./frontend
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.production
     restart: unless-stopped
-    ports:
-      - "${PLATFORM_PUBLIC_PORT:-5173}:80"
-    depends_on: [platform-backend, keycloak]
-    networks: [internal]
+    expose:
+      - "80"
+    networks:
+      proxy:
+        aliases:
+          - platform-web
+    logging: *default-logging
 
 networks:
   internal:
+  proxy:
+    name: dtl-proxy
+    external: true
 
 volumes:
-  platform-db-data:
-  keycloak-db-data:
+  platform-postgres-data:
+    name: platform-postgres-data

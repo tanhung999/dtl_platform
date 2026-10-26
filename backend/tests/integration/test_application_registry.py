@@ -67,6 +67,7 @@ class ApplicationRegistryTests(ApiTestCase):
         status, verified = await self.request('POST', '/api/sso/verify', user=None, payload={'ticket': result['ticket'], 'expected_app': 'allowed'})
         self.assertEqual(status, 200)
         self.assertTrue(verified['valid'])
+        self.assertEqual(verified['claims']['identity_subject'], 'platform:alice')
         status, _ = await self.request('POST', '/api/sso/verify', user=None, payload={'ticket': result['ticket'], 'expected_app': 'allowed'})
         self.assertEqual(status, 409)
 
@@ -163,6 +164,16 @@ class ApplicationRegistryTests(ApiTestCase):
             self.assertEqual(result['role_key'], 'viewer')
             self.assertEqual(result['permission_keys'], ['read'])
             self.assertEqual(result['project_names'], ['Project A'])
+
+            status, local_identity = await self.request(
+                'GET',
+                '/api/integrations/applications/allowed/subjects/platform:alice',
+                user=None,
+                headers_extra={'X-DTL-Integration-Secret': 'integration-test-secret'},
+            )
+            self.assertEqual(status, 200)
+            self.assertTrue(local_identity['allowed'])
+            self.assertEqual(local_identity['username'], 'alice')
 
             status, denied = await self.request(
                 'GET',
