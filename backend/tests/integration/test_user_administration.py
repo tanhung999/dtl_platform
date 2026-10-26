@@ -3,10 +3,16 @@ from unittest.mock import AsyncMock, patch
 from app.db.access import AccessPermission, AccessRole, RolePermission, UserRole
 from app.modules.access.service import MANAGE
 from app.db.models import User
+from app.db.migrations.organization_catalog import unique_code
 from tests.support.api_case import ApiTestCase
 
 
 class UserAdministrationTests(ApiTestCase):
+    def test_generated_organization_code_fits_database_column(self):
+        generated = unique_code('Trưởng Nhóm Phát Triển Phần Mềm', 'a613bb19-9303-43ef-baed-b2303851755e')
+        self.assertLessEqual(len(generated), 30)
+        self.assertTrue(generated.endswith('_a613'))
+
     async def seed_admin(self):
         async with self.sessions() as db:
             db.add_all([
