@@ -77,8 +77,8 @@ async def provision_user(username, password):
             raise ValueError('Platform user does not exist.')
         if user.identity_subject:
             raise ValueError('User already has an identity_subject; refusing to overwrite it.')
-        if not 12 <= len(password) <= 128:
-            raise ValueError('Password must have between 12 and 128 characters.')
+        if not 8 <= len(password) <= 128:
+            raise ValueError('Password must have between 8 and 128 characters.')
         subject = await keycloak_user_admin.create_user(username=user.username, email=user.email,
             full_name=user.full_name, password=password, enabled=user.is_active)
         user_id = user.id

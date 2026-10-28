@@ -82,8 +82,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (savingPassword) return;
-    if (newPassword.length < (profileOptions?.password_min_length ?? 6)) {
-      setPasswordMessage({ type: 'error', text: `Mật khẩu mới phải có tối thiểu ${profileOptions?.password_min_length ?? 6} ký tự.` });
+    if (newPassword.length < (profileOptions?.password_min_length ?? 8)) {
+      setPasswordMessage({ type: 'error', text: `Mật khẩu mới phải có tối thiểu ${profileOptions?.password_min_length ?? 8} ký tự.` });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -402,7 +402,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
                 <input id="profile-field-10" disabled={savingPassword}
                   type="password"
                   className="form-input"
-                  autoComplete="new-password" minLength={profileOptions?.password_min_length ?? 6} maxLength={128} placeholder={`Tối thiểu ${profileOptions?.password_min_length ?? 6} ký tự...`}
+                  autoComplete="new-password" minLength={profileOptions?.password_min_length ?? 8} maxLength={128} placeholder={`Tối thiểu ${profileOptions?.password_min_length ?? 8} ký tự...`}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required

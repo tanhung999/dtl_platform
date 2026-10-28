@@ -13,7 +13,7 @@
   "waitIncrementSeconds": 60,
   "maxFailureWaitSeconds": 900,
   "maxDeltaTimeSeconds": 43200,
-  "passwordPolicy": "length(12) and notUsername(undefined)",
+  "passwordPolicy": "length(8) and notUsername(undefined)",
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 28800,
   "ssoSessionMaxLifespan": 28800,

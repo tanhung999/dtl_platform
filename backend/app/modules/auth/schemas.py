@@ -50,7 +50,7 @@ class ChangePasswordRequest(BaseModel):
     # Legacy profile changes did not cap password length; existing credentials
     # must remain usable while the account is being migrated.
     current_password: str = Field(min_length=1)
-    new_password: str = Field(min_length=6, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class TokenResponse(BaseModel):

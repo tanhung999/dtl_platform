@@ -30,7 +30,7 @@ class UserAdministrationTests(ApiTestCase):
         await self.seed_admin()
         create_payload = {
             'username': 'new.user', 'email': 'new.user@example.com',
-            'full_name': 'New User', 'password': 'safe-password-123',
+            'full_name': 'New User', 'password': 'Pass@123',
             'department': 'Kinh doanh', 'job_title': 'Chuyên viên',
             'employee_code': 'DTL-100', 'phone': '0900000000',
             'office_location': 'TP. Hồ Chí Minh', 'platform_admin': False,
@@ -66,11 +66,11 @@ class UserAdministrationTests(ApiTestCase):
         ):
             status, body = await self.request(
                 'PUT', f"/api/admin/users/{created['id']}/password",
-                payload={'password': 'another-safe-password'},
+                payload={'password': 'Next@123'},
             )
         self.assertEqual(status, 204)
         self.assertIsNone(body)
-        reset.assert_awaited_once_with('kc-new-user', 'another-safe-password')
+        reset.assert_awaited_once_with('kc-new-user', 'Next@123')
         repair_profile.assert_awaited_once()
 
     async def test_cannot_disable_own_admin_account(self):

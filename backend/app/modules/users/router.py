@@ -42,7 +42,7 @@ class UserCreate(BaseModel):
     username: str = Field(min_length=3, max_length=80)
     email: str
     full_name: str = Field(min_length=2, max_length=120)
-    password: str = Field(min_length=12, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
     department: str = Field(default='', max_length=100)
     job_title: str = Field(default='', max_length=100)
     employee_code: str = Field(default='', max_length=50)
@@ -110,7 +110,7 @@ class UserUpdate(BaseModel):
 
 class PasswordReset(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    password: str = Field(min_length=12, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
 
 
 class UserView(BaseModel):

@@ -97,7 +97,7 @@ async def profile_options(
     positions = (await db.scalars(select(Position).where(Position.is_active.is_(True)).order_by(Position.name))).all()
     locations = (await db.scalars(select(WorkLocation).where(WorkLocation.is_active.is_(True)).order_by(WorkLocation.name))).all()
     return {
-        "password_min_length": 12 if settings.OIDC_ENABLED else 6,
+        "password_min_length": 8,
         "departments": [{"id": row.id, "name": row.name} for row in departments],
         "positions": [{"id": row.id, "name": row.name, "department_id": row.department_id} for row in positions],
         "work_locations": [{"id": row.id, "name": row.name} for row in locations],
@@ -141,8 +141,8 @@ async def change_password(
     if settings.OIDC_ENABLED:
         if payload.current_password == payload.new_password:
             raise HTTPException(400, 'Mật khẩu mới không được trùng mật khẩu cũ.')
-        if len(payload.new_password) < 12:
-            raise HTTPException(422, 'Mật khẩu mới phải có tối thiểu 12 ký tự.')
+        if len(payload.new_password) < 8:
+            raise HTTPException(422, 'Mật khẩu mới phải có tối thiểu 8 ký tự.')
         if not user.identity_subject:
             raise HTTPException(409, 'Tài khoản chưa được liên kết với Keycloak.')
         try:
@@ -162,8 +162,8 @@ async def change_password(
         return {'success': True, 'message': 'Đã đổi mật khẩu. Vui lòng đăng nhập lại.', 'reauthenticate': True}
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác.")
-    if len(payload.new_password) < 6:
-        raise HTTPException(status_code=422, detail="Mật khẩu mới phải có tối thiểu 6 ký tự.")
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=422, detail="Mật khẩu mới phải có tối thiểu 8 ký tự.")
     if payload.current_password == payload.new_password:
         raise HTTPException(status_code=400, detail="Mật khẩu mới không được trùng mật khẩu cũ.")
 

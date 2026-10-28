@@ -24,6 +24,22 @@ from app.modules.auth.schemas import ChangePasswordRequest
 
 
 class IdentityHttpTests(ApiTestCase):
+    async def test_seven_character_new_passwords_are_rejected_before_identity_calls(self):
+        from pydantic import ValidationError
+        from app.modules.users.router import UserCreate, PasswordReset
+        for schema, values in (
+            (UserCreate, {'username': 'new.user', 'email': 'new@example.com', 'full_name': 'New User', 'password': 'Ab@1234'}),
+            (PasswordReset, {'password': 'Ab@1234'}),
+            (ChangePasswordRequest, {'current_password': 'old-password', 'new_password': 'Ab@1234'}),
+        ):
+            with self.subTest(schema=schema.__name__), self.assertRaises(ValidationError):
+                schema(**values)
+        with patch('app.modules.auth.identity_setup.async_session_maker', self.sessions), patch(
+            'app.modules.auth.identity_setup.keycloak_user_admin.create_user', new=AsyncMock()) as create:
+            with self.assertRaises(ValueError):
+                await provision_user('alice', 'Ab@1234')
+            create.assert_not_awaited()
+
     def test_existing_long_password_is_not_rejected_by_change_form_schema(self):
         request = ChangePasswordRequest(current_password='old-password-' * 30, new_password='new-safe-password')
         self.assertGreater(len(request.current_password), 128)
@@ -187,11 +203,11 @@ class IdentityHttpTests(ApiTestCase):
             new=AsyncMock(return_value=(alice, 'ignored'))), patch('app.modules.users.keycloak.keycloak_user_admin.reset_password',
             new=AsyncMock()) as reset, patch('app.modules.users.keycloak.keycloak_user_admin.logout_user', new=AsyncMock()):
             code, body = await self.request('POST', '/api/auth/change-password', user=None,
-                payload={'current_password': 'old-password', 'new_password': 'new-safe-test-password'},
+                payload={'current_password': 'old-password', 'new_password': 'Next@123'},
                 headers_extra={**cookie, 'X-Platform-Request': '1'})
         self.assertEqual(code, 200)
         self.assertTrue(body['reauthenticate'])
-        reset.assert_awaited_once_with('kc-alice', 'new-safe-test-password')
+        reset.assert_awaited_once_with('kc-alice', 'Next@123')
         self.assertEqual((await self.request('GET', '/api/auth/me', user=None, headers_extra=cookie))[0], 401)
 
     async def test_linking_inactive_user_preserves_disabled_state(self):

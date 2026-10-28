@@ -126,7 +126,7 @@ class KeycloakUserAdmin:
         if response.status_code == 404:
             raise HTTPException(409, 'Tài khoản không còn tồn tại trên Keycloak.')
         if response.status_code == 400:
-            raise HTTPException(422, 'Mật khẩu không đáp ứng chính sách Keycloak. Dùng tối thiểu 12 ký tự và không trùng tên đăng nhập.')
+            raise HTTPException(422, 'Mật khẩu không đáp ứng chính sách Keycloak. Dùng tối thiểu 8 ký tự và không trùng tên đăng nhập.')
         if response.status_code != 204:
             raise HTTPException(502, 'Keycloak không thể đặt lại mật khẩu.')
 
