@@ -18,6 +18,7 @@ from app.db.notifications import Notification, NotificationJob as Job, Notificat
 from app.modules.tasks.deadlines import VN, deadline_at
 from .scheduling import reminder_time, recurring_period, valid_recurring_stamp, plan
 from .sharing import active_grants
+from .collaboration import reminder_recipients
 from .service import insert_unique, fingerprint, utc
 
 log = logging.getLogger(__name__)
@@ -29,12 +30,15 @@ async def deliver_batch(db, now=None, limit=100):
     if not candidates:
         return 0
     owners = {r.user_id for r in candidates}
+    task_ids = {r.task_id for r in candidates if r.task_id}
+    event_ids = {r.event_id for r in candidates if r.event_id}
+    collaborators = await reminder_recipients(db, task_ids, event_ids)
     grants = (await db.scalars(active_grants().where(
         Grant.owner_id.in_(owners)))).all()
     # Lock recipients before resources too: a viewer may concurrently edit their
     # own Notes or be deleted. Include inactive owners so their queued jobs can
     # still be consumed; only active viewers are eligible for shared delivery. Never insert a delivery while waiting on its FK lock.
-    recipients = owners | {g.viewer_id for g in grants}
+    recipients = owners | {g.viewer_id for g in grants} | set().union(*collaborators.values(), set())
     locked = set((await db.scalars(select(User.id).where(User.id.in_(recipients))
         .order_by(User.id).with_for_update(read=True, key_share=True, skip_locked=True))).all())
     # Share writers lock their owner. Re-read after taking those locks so newly
@@ -61,6 +65,11 @@ async def deliver_batch(db, now=None, limit=100):
         .order_by(Note.id).with_for_update(skip_locked=True))).all() if note_ids else []
     direct_map = {r.id:r for r in direct_notes}
     task_map, event_map = {r.id:r for r in tasks}, {r.id:r for r in events}
+    # Membership may change while waiting for a resource lock. Read it again;
+    # leave the job pending if a newly added recipient was not locked up front.
+    collaborators = await reminder_recipients(db, set(task_map), set(event_map))
+    task_map = {key: row for key, row in task_map.items() if collaborators.get(('task', key), set()) <= locked}
+    event_map = {key: row for key, row in event_map.items() if collaborators.get(('event', key), set()) <= locked}
     if not task_map and not event_map and not direct_map:
         return 0
     jobs = (await db.scalars(select(Job).where(or_(Job.task_id.in_(task_map), Job.event_id.in_(event_map), Job.note_id.in_(direct_map)), Job.processed_at.is_(None), Job.available_at <= now)
@@ -68,7 +77,7 @@ async def deliver_batch(db, now=None, limit=100):
     notes = (await db.execute(select(NoteCalendarSchedule.event_id, Note.id, Note.is_archived, Note.is_private)
         .join(Note, Note.id == NoteCalendarSchedule.note_id).where(NoteCalendarSchedule.event_id.in_(event_map)))).all() if event_map else []
     note_map = {r.event_id:r for r in notes}
-    users = {r.user_id for r in [*tasks, *events, *direct_notes]} | active_viewers
+    users = {r.user_id for r in [*tasks, *events, *direct_notes]} | active_viewers | set().union(*collaborators.values(), set())
     by_owner = {}
     for grant in grants:
         if grant.viewer_id in active_viewers:
@@ -111,10 +120,13 @@ async def deliver_batch(db, now=None, limit=100):
             reminder_version=job.reminder_version, due_at=due, occurred_at=job.scheduled_at, created_at=now)
         if row.user_id not in muted:
             rows.append(delivery)
+        explicit = collaborators.get(('task' if job.task_id else 'event', row.id), set()) if not job.note_id and not note and job.kind != 'snooze' else set()
+        for recipient in explicit - {row.user_id}:
+            rows.append({**delivery, 'user_id': recipient, 'kind': kind + '.follow_reminder'})
         # Snooze is an owner's personal action, not a new reminder for viewers.
         if job.kind != 'snooze' and not job.note_id and due is not None and not row.is_private and not (note and note.is_private):
             for grant in by_owner.get(row.user_id, []):
-                if getattr(grant, 'share_' + {'task':'tasks', 'event':'events', 'note':'notes'}[kind]) and grant.viewer_id not in muted:
+                if getattr(grant, 'share_' + {'task':'tasks', 'event':'events', 'note':'notes'}[kind]) and grant.viewer_id not in explicit:
                     rows.append({**delivery, 'user_id': grant.viewer_id, 'calendar_owner_id': row.user_id})
     inserted = await insert_unique(db, Notification, rows, ['user_id','source','event_key'], [Notification.user_id])
     if jobs:

@@ -114,7 +114,11 @@ async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db:
     affected = {task.user_id, task.assignee_id, user.id}
     affected.update(added_followers); affected.update(removed_followers)
     affected.update((await db.scalars(select(TaskFollower.user_id).where(TaskFollower.task_id == task.id))).all())
-    for recipient in affected: mark_changed(db, recipient, "tasks")
+    for recipient in affected:
+        mark_changed(db, recipient, "tasks")
+        mark_changed(db, recipient, "notifications")
+    if old_assignee != task.assignee_id:
+        mark_changed(db, old_assignee, "notifications")
     mark_changed(db, user.id, "notifications")
     if 'is_completed' in data and task.is_completed and user.id != task.user_id:
         from app.modules.collaboration_notifications import notify

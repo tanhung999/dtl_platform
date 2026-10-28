@@ -3,6 +3,7 @@ import { authApi } from './features/auth/api';
 import { lazy, Suspense, useState, useEffect } from 'react';
 import { LoginPage } from './features/auth/LoginPage';
 import { getStoredToken, getStoredUser, clearSession } from './services/api';
+import { authStorageChanged } from './services/authStorage';
 import { User, AuthSession } from './types';
 import { ThemeProvider } from './context/ThemeContext';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -30,13 +31,26 @@ export function AppContent() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
+    let reloading = false;
     const handleUnauthorized = () => {
       setCurrentUser(null);
       setHasToken(false);
     };
+    const handleOtherTab = (event: StorageEvent) => {
+      if (!reloading && event.storageArea === localStorage && authStorageChanged(event)) {
+        // The shared HttpOnly cookie may now belong to another user. Reload to
+        // verify /me and discard the previous account's open forms and caches.
+        reloading = true;
+        window.location.reload();
+      }
+    };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    window.addEventListener('storage', handleOtherTab);
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+      window.removeEventListener('storage', handleOtherTab);
+    };
   }, []);
 
   // Bootstrap either the legacy bearer session or the new HttpOnly OIDC session.

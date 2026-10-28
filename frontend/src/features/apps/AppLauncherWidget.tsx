@@ -4,25 +4,29 @@ import { FeatureIconName, brandIconCells } from '../../assets/featureIcons';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, ExternalLink, LayoutGrid } from 'lucide-react';
 import { applicationHomePath } from './navigation';
+import { getSessionKey } from '../../services/api';
 
 const iconName = (value: string): FeatureIconName => value === 'tasks' || value in brandIconCells ? value as FeatureIconName : 'platform';
-let appsCache: EnterpriseApp[] | undefined;
+let appsCache: { session: string; items: EnterpriseApp[] } | undefined;
 
 export function AppLauncherWidget({ resultIds, detailed = false, onOpenAll }: {
   resultIds?: string[]; detailed?: boolean; onOpenAll?: () => void;
 }) {
-  const [apps, setApps] = useState<EnterpriseApp[]>(() => appsCache ?? []);
+  const session = getSessionKey();
+  if (appsCache?.session !== session) appsCache = undefined;
+  const [snapshot, setApps] = useState(() => appsCache);
+  const apps = snapshot?.session === session ? snapshot.items : [];
   const [loading, setLoading] = useState(!appsCache);
   const [errorMessage, setErrorMessage] = useState('');
   const [readyLink, setReadyLink] = useState<{ url: string; name: string }>();
   useEffect(() => {
     let active = true;
     appsApi.listMine()
-      .then(result => { if (active) { appsCache = result; setApps(result); } })
+      .then(result => { if (active && getSessionKey() === session) { appsCache = { session, items: result }; setApps(appsCache); } })
       .catch(reason => { if (active) setErrorMessage(reason instanceof Error ? reason.message : 'Không thể tải danh sách ứng dụng.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [session]);
   const filtered = resultIds ? apps.filter(app => resultIds.includes(app.key)) : apps;
   const handleLaunch = (app: EnterpriseApp) => {
     setErrorMessage(''); setReadyLink(undefined);

@@ -117,6 +117,8 @@ async def write_response(db, user, change, **updates):
         value = await with_schedule(db, resource)
     else:
         from app.modules.calendar.service import event_details
+        from app.modules.calendar.access import event_metadata
         value = await event_details(db, resource)
+        value = value.model_copy(update=await event_metadata(db, resource, user))
     result['editor'] = {'kind': change.kind, 'resource': value.model_dump(mode='json'), 'occurrence_at': occurrence_at}
     return result

@@ -4,9 +4,13 @@ import { notesApi } from './api';
 import { NoteCollection } from './types';
 import { WORKSPACE_CHANGED } from '../realtime/useWorkspaceRealtime';
 import { NoteFilter } from './noteView';
+import { getSessionKey } from '../../services/api';
 const notesCache = new Map<string, NoteCollection>();
+let cacheSession = '';
 export function useNotesCollection({ archived, filter, query, fullPage, offset }: { archived: boolean; filter: NoteFilter; query: string; fullPage: boolean; offset: number }) {
-  const initialKey = `${archived}/${filter}/${query}/${fullPage}/${offset}`;
+  const session = getSessionKey();
+  if (cacheSession !== session) { notesCache.clear(); cacheSession = session; }
+  const initialKey = `${session}/${archived}/${filter}/${query}/${fullPage}/${offset}`;
   const [data, setData] = useState<NoteCollection | undefined>(()=>notesCache.get(initialKey)), [error, setError] = useState(''), [loading, setLoading] = useState(!notesCache.has(initialKey));
   const [revision, refresh] = useInvalidation();
   const [debounced, setDebounced] = useState(query);
@@ -16,16 +20,16 @@ export function useNotesCollection({ archived, filter, query, fullPage, offset }
     window.addEventListener(WORKSPACE_CHANGED, change);
     return () => window.removeEventListener(WORKSPACE_CHANGED, change);
   }, [refresh]);
-  const key = `${archived}/${filter}/${debounced}/${fullPage}/${offset}`;
+  const key = `${session}/${archived}/${filter}/${debounced}/${fullPage}/${offset}`;
   const [loadedKey, setLoadedKey] = useState(notesCache.has(initialKey) ? initialKey : '');
   useEffect(() => {
     if (debounced.trim().length === 1) {
       setLoading(false); setError(''); setLoadedKey(key);
-      setData(value => value ? { ...value, items: [], total: 0, has_more: false, hidden: 0, next_refresh_at: null } : undefined);
+      setData(value => loadedKey.startsWith(`${session}/`) && value ? { ...value, items: [], total: 0, has_more: false, hidden: 0, next_refresh_at: null } : undefined);
       return;
     }
     const controller = new AbortController(); setLoading(true); setError('');
-    notesApi.collection({ archived, filter, query: debounced, fullPage, offset }, controller.signal).then(value => { if (!controller.signal.aborted) { notesCache.set(key,value); setData(value); setLoadedKey(key); } })
+    notesApi.collection({ archived, filter, query: debounced, fullPage, offset }, controller.signal).then(value => { if (!controller.signal.aborted && getSessionKey() === session) { notesCache.set(key,value); setData(value); setLoadedKey(key); } })
       .catch(reason => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Không tải được ghi chú.'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -38,5 +42,6 @@ export function useNotesCollection({ archived, filter, query, fullPage, offset }
   }, [data, loadedKey, key, refresh]);
   // Preserve the last successful collection while the requested view is loading.
   // Consumers mark it busy, but the page height no longer collapses between requests.
-  return { data, loading: loading || query !== debounced || (!error && loadedKey !== key), error, refresh };
+  return { data: loadedKey.startsWith(`${session}/`) ? data : undefined,
+    loading: loading || query !== debounced || (!error && loadedKey !== key), error, refresh };
 }

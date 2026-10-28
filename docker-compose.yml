@@ -37,7 +37,7 @@ services:
       - BOOKING_REPORTS_URL=http://localhost:3000
       - WORKFLOWS_URL=http://localhost:8082
       - ASSET_MANAGER_URL=http://localhost:8444
-      - OIDC_ENABLED=${OIDC_ENABLED:-true}
+      - OIDC_ENABLED=${OIDC_ENABLED:-false}
       - OIDC_ISSUER=${OIDC_ISSUER:-http://localhost:5173/auth/realms/dtl}
       - OIDC_AUTHORIZATION_URL=${OIDC_AUTHORIZATION_URL:-http://localhost:5173/auth/realms/dtl/protocol/openid-connect/auth}
       - OIDC_TOKEN_URL=${OIDC_TOKEN_URL:-http://keycloak:8080/auth/realms/dtl/protocol/openid-connect/token}

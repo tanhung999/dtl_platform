@@ -113,7 +113,7 @@ class SharedReminderTests(ApiTestCase):
         await self.tick(START)
         self.assertEqual({n['ownership_label'] for n in await self.feed()},{'Của bạn','Của Bob'})
 
-    async def test_muted_owner_does_not_mute_viewer_and_muted_viewer_is_respected(self):
+    async def test_personal_mute_does_not_disable_incoming_shared_reminders(self):
         await self.share()
         async with self.sessions() as db:
             db.add(NotificationPreference(user_id='alice',task_reminders=False)); await db.commit()
@@ -122,7 +122,7 @@ class SharedReminderTests(ApiTestCase):
         async with self.sessions() as db:
             db.add(NotificationPreference(user_id='bob',task_reminders=False)); await db.commit()
         await self.event(reminder_minutes=30); await self.tick(START)
-        self.assertEqual(len(await self.feed('bob')),1)
+        self.assertEqual(len(await self.feed('bob')),2)
 
     async def test_revoked_before_due_and_new_grant_do_not_replay_history(self):
         grant=await self.share(); await self.task(reminder_minutes=30)

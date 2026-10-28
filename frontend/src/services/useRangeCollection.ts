@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
+import { getSessionKey } from './api';
 
 interface RangePage<T> { items: T[]; total: number; truncated: boolean }
 const identity = (item: { id: string }) => 'kind' in item ? `${item.kind}:${item.id}` : item.id;
 const rangeCache = new Map<string, { page: RangePage<{ id: string }>; items: { id: string }[]; nextOffset: number }>();
+let cacheSession = '';
 
 /** Keep the current grid mounted during refresh; all pages still come from the server. */
 export function useRangeCollection<T extends { id: string }, P extends RangePage<T>>(
-  key: string, revision: number, fetchPage: (offset: number, signal: AbortSignal) => Promise<P>, enabled = true,
+  rangeKey: string, revision: number, fetchPage: (offset: number, signal: AbortSignal) => Promise<P>, enabled = true,
 ) {
+  const session = getSessionKey();
+  if (cacheSession !== session) { rangeCache.clear(); cacheSession = session; }
+  const key = `${session}/${rangeKey}`;
   const [saved, setSaved] = useState<{ key: string; page: P; items: T[]; nextOffset: number } | undefined>(() => {
     const cached = rangeCache.get(key);
     return cached ? { key, page: cached.page as P, items: cached.items as T[], nextOffset: cached.nextOffset } : undefined;
@@ -35,7 +40,7 @@ export function useRangeCollection<T extends { id: string }, P extends RangePage
         nextOffset += page.items.length;
         page.items.forEach(item => items.set(identity(item), item));
       }
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && getSessionKey() === session) {
         const next = { key, page, items: [...items.values()], nextOffset };
         rangeCache.set(key, next as { page: RangePage<{ id: string }>; items: { id: string }[]; nextOffset: number });
         setSaved(next);
@@ -54,7 +59,7 @@ export function useRangeCollection<T extends { id: string }, P extends RangePage
     setPending(true); setError('');
     try {
       const page = await fetchPage(current.nextOffset, controller.signal);
-      if (!controller.signal.aborted) setSaved(previous => {
+      if (!controller.signal.aborted && getSessionKey() === session) setSaved(previous => {
         if (!previous || previous.key !== key) return previous;
         const merged = new Map(previous.items.map(item => [identity(item), item]));
         page.items.forEach(item => merged.set(identity(item), item));

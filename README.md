@@ -88,6 +88,8 @@ Website mới phải đăng ký application manifest, callback `/api/auth/platfo
 
 Lịch lặp hỗ trợ thao tác trên cả chuỗi, lần đang chọn hoặc lần đang chọn và các lần sau. Thay đổi ngày giờ và thông báo được thực hiện trong **Dời lịch / Thông báo**.
 
+Khi người tạo đặt thời gian thông báo, hệ thống gửi cho người tạo, người nhận việc và người theo dõi đang có quyền truy cập; người được chia sẻ lịch nhận theo phạm vi đã chia sẻ. Một người có nhiều vai trò chỉ nhận một thông báo cho mỗi lần nhắc. Không chọn thông báo thì không tự gửi; nhắc trước áp dụng cho từng lần lặp, còn ngày giờ cụ thể chỉ gửi một lần. Tùy chọn **Thông báo lịch, công việc và ghi chú do tôi tạo** chỉ tắt thông báo của chính người tạo, không tắt thông báo nhận từ mục được giao/theo dõi/chia sẻ. Các thông báo đã gửi cho người theo dõi bị ẩn khi người đó mất quyền truy cập.
+
 ## Điều hướng và triển khai giao diện
 
 Các đường dẫn chính: `/homepage`, `/platform`, `/calendar`, `/tasks`, `/notes`, `/profile`, `/admin`, `/notifications`, `/search` và `/login`. DT Link mở khu vực liên kết trên trang chủ.
@@ -108,9 +110,54 @@ location / {
 }
 ```
 
-Cấu hình proxy `/api/` đến FastAPI riêng; không trả `index.html` cho yêu cầu API. `docker-compose.yml` dành cho phát triển cục bộ. Production dùng `docker compose -f docker-compose.prod.yml up -d --build`; frontend được build tĩnh và phục vụ qua Nginx, Keycloak chạy chế độ production và database không publish ra máy chủ.
+Cấu hình proxy `/api/` đến FastAPI riêng; không trả `index.html` cho yêu cầu API. `docker-compose.yml` dành cho phát triển cục bộ. Production cơ bản dùng `docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build`; frontend được build tĩnh và phục vụ qua Nginx. Keycloak nội bộ được bổ sung bằng cấu hình bên dưới, không có trong Compose production cơ bản.
 
 Trước khi triển khai, đặt khóa JWT/SSO, mật khẩu cơ sở dữ liệu và URL ứng dụng phù hợp với môi trường; không sử dụng giá trị mẫu trong Compose. Tham khảo `.env.example` và `backend/app/core/config.py` cho cấu hình. Sao lưu cơ sở dữ liệu trước khi nâng cấp. Máy chủ áp dụng các migration đã đăng ký khi khởi động.
+
+### Keycloak nội bộ với HTTP cổng 8080
+
+`docker-compose.identity.yml` bổ sung một Keycloak chạy `start`, dùng database/user riêng trong PostgreSQL hiện có. Không publish cổng Keycloak; người dùng tiếp tục dùng form Platform. Ngoại lệ `OIDC_ALLOW_HTTP` chỉ cho phép cookie HTTP, không bỏ qua kiểm tra secret. HTTP công khai vẫn không mã hóa mật khẩu/cookie. Cấu hình này không tự bật đăng nhập tập trung.
+
+Trước khi thực hiện trên server, kiểm tra RAM/CPU/ổ đĩa bằng `free -h`, `docker stats --no-stream`, `df -h`. Keycloak được giới hạn 1 GB RAM và một CPU; cần còn dung lượng cho hệ điều hành, PostgreSQL và các ứng dụng khác. Sao lưu Platform và thử đọc bản dump bằng `pg_restore --list`. Không chạy `down -v` trên production.
+
+1. Sao chép `.env.identity.example` thành `.env.identity` (quyền `600`). Điền mật khẩu database và bootstrap admin ngẫu nhiên, tối thiểu 32 ký tự; giữ `PLATFORM_IDENTITY_ENABLED=false`. Giữ nguyên các secret tích hợp đang có trong `.env.production`. Không đưa các file môi trường lên Git.
+2. Luôn dùng cùng project với production hiện tại (ví dụ server đang có `platform-backend-1` dùng project `platform`). Trong shell Ubuntu:
+
+   ```sh
+   identity_compose() {
+     docker compose -p platform --env-file .env.production --env-file .env.identity \
+       -f docker-compose.prod.yml -f docker-compose.identity.yml "$@"
+   }
+   identity_compose config --quiet
+   identity_compose build backend web keycloak
+   identity_compose run --rm --no-deps backend python -m app.modules.auth.identity_setup database
+   identity_compose up -d --no-deps keycloak
+   identity_compose ps keycloak
+   ```
+
+   Lệnh `database` không đổi database Platform, từ chối dùng chung tên database/user hoặc ghi đè quyền sở hữu. Nó cần tài khoản PostgreSQL hiện tại có quyền tạo role/database. Lần chạy lại xác minh mật khẩu hiện có, không tự đổi mật khẩu. Chờ Keycloak `healthy`; nếu không, xem log trước khi tiếp tục. Import realm chỉ áp dụng khi realm `dtl` chưa tồn tại; đổi file JSON không cập nhật realm đang có.
+3. Dùng môi trường diễn tập riêng trước khi liên kết tài khoản production. Sao chép các file môi trường sang tên riêng và thay toàn bộ secret bằng giá trị test. Thêm `-p platform-identity-rehearsal` và `-f docker-compose.identity-rehearsal.yml` vào TẤT CẢ lệnh Compose. File diễn tập dùng volume và mạng khác production, chỉ mở `127.0.0.1:18080`. Khởi động `db` trước, chạy lệnh `database`, khởi động Keycloak và đợi healthy, rồi khởi động `backend web`. Không dùng project diễn tập với file production đơn lẻ. Trên server truy cập UI qua SSH tunnel `ssh -L 18080:127.0.0.1:18080 ubuntu@SERVER`, rồi mở `http://localhost:18080`. Kiểm tra cả Compose đã resolve (không chia sẻ output chứa secret): volume phải là `platform-identity-rehearsal-postgres` và proxy phải là `platform-identity-rehearsal-proxy`.
+4. Sau khi diễn tập đạt, thực hiện liên kết tài khoản production trong khung bảo trì, tạm ngưng thao tác người dùng đến khi hoàn tất chuyển đổi. Liên kết từng user bằng container chạy một lần (giữ nguyên ID, quyền, mật khẩu local và dữ liệu nghiệp vụ Platform):
+
+   ```sh
+   identity_compose run --rm --no-deps backend python -m app.modules.auth.identity_setup provision TEN_DANG_NHAP
+   ```
+
+   Công cụ hỏi mật khẩu mới hai lần, không hiển thị mật khẩu. Không ghi đè `identity_subject` đã có và không tự nhận tài khoản Keycloak trùng tên/email. Mật khẩu mới phải tối thiểu 12 ký tự và không trùng tên đăng nhập. Tài khoản mới được tạo trên Keycloak; bảng `users` Platform chỉ cập nhật `identity_subject`. Phải hoàn tất liên kết mọi người dùng cần đăng nhập trước khi chuyển. Nếu mất phản hồi COMMIT, công cụ xác minh bằng kết nối mới trước khi quyết định dọn tài khoản Keycloak; nếu chưa xác minh được thì giữ tài khoản và yêu cầu đối soát, không tự xóa.
+
+   Vé SSO vẫn giữ `user_id` và `sub` (tên đăng nhập), nhưng `identity_subject` chuyển từ `platform:<id>` sang ID Keycloak sau khi liên kết. Kiểm tra ứng dụng con dùng trường nào để gắn hồ sơ; ứng dụng chỉ gắn theo `identity_subject` có thể cần liên kết lại hồ sơ cũ. Không tự đổi khóa SSO/tích hợp và không xóa tài khoản ứng dụng con. Đây là lý do không liên kết user production khi người dùng vẫn đang mở SSO trong giai đoạn chuẩn bị.
+5. Trong giờ bảo trì, đặt `PLATFORM_IDENTITY_ENABLED=true`, triển khai đồng thời backend và web đã build:
+
+   ```sh
+   identity_compose up -d --no-deps backend web
+   ```
+
+   Người dùng cần tải lại trang và đăng nhập lại. Bản frontend mới gửi header chống CSRF; tab frontend cũ vẫn được chấp nhận khi gửi JSON kèm Origin khớp chính xác URL cấu hình. Origin khác, biểu mẫu HTML hoặc yêu cầu không có cả Origin và header vẫn bị chặn. Triển khai cùng backend/web để đồng bộ giao diện và chính sách mật khẩu. Kiểm tra đăng nhập, F5, tạo tài khoản, task/lịch/ghi chú cũ, sai mật khẩu, đăng xuất, đổi/đặt lại mật khẩu và khóa tài khoản. Đổi/đặt lại mật khẩu thu hồi các phiên Platform; người dùng tự đổi mật khẩu được đưa về trang đăng nhập. Các access token đã cấp cho ứng dụng bên ngoài có thời hạn riêng; cần kiểm tra từng tích hợp.
+
+   CSP trong Nginx cho phép avatar HTTP/HTTPS ngoài và yêu cầu đăng xuất đến ứng dụng công ty qua HTTP `*.dongtayland.vn:8080` hoặc HTTPS `*.dongtayland.vn`. Ứng dụng ở tên miền/cổng khác cần bổ sung nguồn `connect-src` được tin cậy. Việc trình duyệt được phép gửi logout chưa chứng minh ứng dụng con đã hủy phiên; phải kiểm tra hành vi ở từng ứng dụng.
+6. Nếu cần quay lại: đặt `PLATFORM_IDENTITY_ENABLED=false` và triển khai lại backend, giữ nguyên database/volume Keycloak. Tài khoản cũ vẫn giữ mật khẩu local cũ; tài khoản mới chỉ tạo qua Keycloak không có mật khẩu local có thể sử dụng. Quản trị viên phải xử lý các tài khoản phát sinh trước khi quay lại; không khôi phục đè dump cũ và làm mất dữ liệu mới.
+
+Sao lưu riêng cả `dtl_platform_db` và database Keycloak; ghi lại thời điểm để có thể khôi phục đúng cặp. Tài khoản bootstrap chỉ dùng quản trị ban đầu, sau đó tạo tài khoản quản trị thường và xóa bootstrap. Cập nhật realm đang chạy qua Admin API/CLI trong mạng riêng; không publish cổng hoặc bật giao diện Keycloak cho nhân viên. Khóa tài khoản và đổi/đặt lại mật khẩu nên thực hiện qua Platform để thu hồi cả phiên Platform; chưa có back-channel logout tự động cho thay đổi trực tiếp trên Keycloak. Cookie không chứa token Keycloak; token refresh được mã hóa phía server.
 
 ## Nội dung kho mã
 

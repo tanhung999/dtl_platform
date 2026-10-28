@@ -70,19 +70,21 @@ class KeycloakUserAdmin:
             self._token = None
         return response
 
-    async def create_user(self, *, username: str, email: str, full_name: str, password: str) -> str:
+    async def create_user(self, *, username: str, email: str, full_name: str, password: str, enabled: bool = True) -> str:
         first_name, last_name = self._name_parts(full_name)
         response = await self._request('POST', '/users', json={
             'username': username,
             'email': email,
             'firstName': first_name,
             'lastName': last_name,
-            'enabled': True,
+            'enabled': enabled,
             'emailVerified': True,
             'credentials': [{'type': 'password', 'value': password, 'temporary': False}],
         })
         if response.status_code == 409:
             raise HTTPException(409, 'Tên đăng nhập hoặc email đã tồn tại trên hệ thống định danh.')
+        if response.status_code == 400:
+            raise HTTPException(422, 'Keycloak từ chối thông tin tài khoản. Kiểm tra email, tên đăng nhập và chính sách mật khẩu.')
         if response.status_code != 201:
             raise HTTPException(502, 'Keycloak không thể tạo tài khoản.')
         location = response.headers.get('location', '').rstrip('/')
@@ -123,6 +125,8 @@ class KeycloakUserAdmin:
         )
         if response.status_code == 404:
             raise HTTPException(409, 'Tài khoản không còn tồn tại trên Keycloak.')
+        if response.status_code == 400:
+            raise HTTPException(422, 'Mật khẩu không đáp ứng chính sách Keycloak. Dùng tối thiểu 12 ký tự và không trùng tên đăng nhập.')
         if response.status_code != 204:
             raise HTTPException(502, 'Keycloak không thể đặt lại mật khẩu.')
 

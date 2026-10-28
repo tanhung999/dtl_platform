@@ -31,7 +31,7 @@ export function WeekView({ anchor, events, tasks, onCreate, onSelect, onShowDay,
         <div className="calendar-week-header">
           <span className="calendar-zone">GMT+7</span>
           {days.map((day, index) => <div key={dateKey(day)} className={`calendar-week-day ${dateKey(day) === todayKey ? 'is-today' : ''}`}>
-            <span>{WEEKDAYS[index]}</span><button type="button" aria-label={`Tạo lịch ${formatDate(day, { dateStyle: 'full' })}`} onClick={() => onCreate({ date: day })}>{day.getUTCDate()}</button>
+            <span>{WEEKDAYS[index]}</span><button type="button" aria-label={`Xem lịch ${formatDate(day, { dateStyle: 'full' })}`} onClick={() => onShowDay(day)}>{day.getUTCDate()}</button>
           </div>)}
         </div>
         <AllDayWeek anchor={anchor} events={events} tasks={tasks} onCreate={onCreate} onSelect={onSelect} onShowDay={onShowDay} />

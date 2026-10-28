@@ -66,6 +66,10 @@ class ReschedulingTests(ApiTestCase):
             code, moved = await self.request('POST', f'/api/schedule-changes/{kind}/' + row['id'], payload={
                 'request_id': str(uuid4()), **guard, 'starts_at': '2026-10-14T09:00:00+07:00', 'ends_at': '2026-10-14T10:00:00+07:00'})
             self.assertEqual(code, 200, moved)
+            if kind == 'event':
+                self.assertTrue(moved['editor']['resource']['can_edit'])
+                self.assertTrue(moved['editor']['resource']['can_delete'])
+                self.assertEqual(moved['editor']['resource']['owner']['id'], row['user_id'])
             if kind == 'note':
                 _, saved = await self.request('GET', '/api/notes/' + row['id'])
                 self.assertEqual(saved['content'], 'Keep note')
@@ -75,6 +79,9 @@ class ReschedulingTests(ApiTestCase):
                 self.assertEqual(code, 409)
             code, result = await self.request('POST', '/api/schedule-changes/records/' + moved['id'] + '/undo')
             self.assertEqual(code, 200, result)
+            if kind == 'event':
+                self.assertTrue(result['editor']['resource']['can_edit'])
+                self.assertTrue(result['editor']['resource']['can_delete'])
 
     async def test_validation_and_empty_reason_and_undated_task_undo(self):
         _, row = await self.request('POST', '/api/tasks', payload={'title': 'Undated'})

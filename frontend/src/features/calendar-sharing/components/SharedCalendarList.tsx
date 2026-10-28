@@ -15,7 +15,7 @@ export function SharedCalendarList({ ownerId, anchor, days, items, now, month, o
     <div className={month ? 'shared-month-grid' : ''}>{days.map(day=>{
       const values=sharedItemsOnDay(items,day), visible=month?values.slice(0,4):values;
       if(!month && !values.length) return null;
-      return <section key={dateKey(day)} className={`${dateKey(day)===dateKey(eventDate(now.toISOString()))?'is-today':''} ${month&&day.getUTCMonth()!==anchor.getUTCMonth()?'is-outside':''}`}><h3>{formatDate(day,{weekday:'short',day:'numeric',month:'numeric'})}</h3>
+      return <section key={dateKey(day)} data-date={dateKey(day)} className={`${dateKey(day)===dateKey(eventDate(now.toISOString()))?'is-today':''} ${month&&day.getUTCMonth()!==anchor.getUTCMonth()?'is-outside':''}`}><h3><button type="button" className="shared-day-heading" aria-label={`Xem ngày ${formatDate(day)}`} onClick={()=>onShowDay(day)}>{formatDate(day,{weekday:'short',day:'numeric',month:'numeric'})}</button></h3>
         {visible.map(item=><SharedItemCard key={item.id} item={item} day={dateKey(day)} now={now} onSelect={onSelect} compact={month} />)}
         {month && values.length>visible.length && <button type="button" className="calendar-more" onClick={()=>onShowDay(day)}>+{values.length-visible.length} mục</button>}
       </section>;

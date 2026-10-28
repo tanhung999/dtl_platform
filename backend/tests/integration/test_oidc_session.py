@@ -40,6 +40,7 @@ class OidcSessionTests(ApiTestCase):
                     "/api/auth/login",
                     user=None,
                     payload={"username": "alice", "password": "test-password"},
+                    headers_extra={'X-Platform-Request': '1'},
                 )
         finally:
             settings.OIDC_ENABLED = previous
@@ -66,7 +67,7 @@ class OidcSessionTests(ApiTestCase):
         self.assertEqual(profile["username"], "alice")
 
         status, result = await self.request(
-            "POST", "/api/auth/oidc/logout", user=None, headers_extra={"Cookie": cookie}
+            "POST", "/api/auth/oidc/logout", user=None, headers_extra={"Cookie": cookie, 'X-Platform-Request': '1'}
         )
         self.assertEqual(status, 200)
         self.assertIsNone(result["logout_url"])

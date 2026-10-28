@@ -17,11 +17,11 @@ const base = process.env.PLATFORM_BASE_URL || 'http://127.0.0.1:5173';
     const path = value => new URL(value).pathname;
     const home = () => page.locator('.platform-navbar').getByRole('link', { name: 'Về trang chủ', exact: true }).click();
     const icons = new Map();
-    async function brand(title, icon = 'dtone', target = page) {
+    async function brand(title, icon = 'dt1', target = page) {
       await target.waitForFunction(({ title, icon }) => {
         const link = document.querySelector('link[rel="icon"]');
         return document.title === title && link?.dataset.brand === icon &&
-          (icon === 'dtone' ? link.href.endsWith('/dtone.png') : link.href.startsWith('data:image/png;base64,'));
+          (icon === 'dt1' ? link.href.includes('/logo-source') : link.href.startsWith('data:image/png;base64,'));
       }, { title, icon });
       const url = await target.locator('link[rel="icon"]').getAttribute('href');
       if (icons.has(icon)) assert.equal(url, icons.get(icon)); else icons.set(icon, url);

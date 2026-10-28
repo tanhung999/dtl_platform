@@ -1,0 +1,18 @@
+# Use ONLY with a separate project: -p platform-identity-rehearsal.
+# Override both volumes and networks so no production data/proxy is used.
+services:
+  backend:
+    environment:
+      OIDC_FRONTEND_URL: http://localhost:18080
+      OIDC_ENABLED: "true"
+  web:
+    ports: ["127.0.0.1:18080:80"]
+
+networks:
+  proxy:
+    name: platform-identity-rehearsal-proxy
+    external: false
+
+volumes:
+  platform-postgres-data:
+    name: platform-identity-rehearsal-postgres

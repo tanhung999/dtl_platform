@@ -62,13 +62,15 @@ async def update_event_service(event_id: str, payload: EventUpdate, user: User, 
     for recipient in added:
         notify(db,recipient,'event_followed',f'Bạn được thêm vào sự kiện: {event.title}',f'{user.full_name} đã thêm bạn vào danh sách theo dõi.','event',event.id,event_id=event.id,revision=str(event.updated_at))
         mark_changed(db,recipient,'calendar'); mark_changed(db,recipient,'notifications')
-    for recipient in removed: mark_changed(db,recipient,'calendar')
+    for recipient in removed:
+        mark_changed(db,recipient,'calendar'); mark_changed(db,recipient,'notifications')
     current_followers = (await db.scalars(select(CalendarEventFollower.user_id).where(CalendarEventFollower.event_id==event.id))).all()
     for recipient in current_followers:
         if data:
             notify(db,recipient,'event_changed',f'Sự kiện đã cập nhật: {event.title}',f'{user.full_name} đã cập nhật sự kiện bạn đang theo dõi.','event',event.id,event_id=event.id,revision=str(event.updated_at))
             mark_changed(db,recipient,'notifications')
         mark_changed(db,recipient,'calendar')
+        mark_changed(db,recipient,'notifications')
     if has_note: mark_changed(db, user.id, "notes")
     if record_history:
         from app.modules.rescheduling.service import record_change

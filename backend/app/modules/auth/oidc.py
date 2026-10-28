@@ -10,7 +10,7 @@ import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response
 from fastapi.responses import RedirectResponse
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -21,6 +21,23 @@ from app.db.models import User
 
 router = APIRouter(prefix="/api/auth/oidc", tags=["OIDC authentication"])
 STATE_COOKIE = "dtl_oidc_state"
+
+
+async def revoke_platform_sessions(db: AsyncSession, user_id: str) -> None:
+    await db.execute(update(OidcSession).where(
+        OidcSession.user_id == user_id, OidcSession.revoked_at.is_(None),
+    ).values(revoked_at=datetime.now(timezone.utc)))
+
+
+async def end_user_sessions(db: AsyncSession, user: User) -> None:
+    await revoke_platform_sessions(db, user.id)
+    from app.modules.users.keycloak import keycloak_user_admin
+    try:
+        await keycloak_user_admin.logout_user(user.identity_subject)
+    except HTTPException:
+        # Local revocation must still commit if Keycloak logout is unavailable.
+        import logging
+        logging.getLogger(__name__).warning('Keycloak logout failed after local session revocation')
 
 
 def _hash(value: str) -> str:

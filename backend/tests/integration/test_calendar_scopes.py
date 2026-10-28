@@ -65,6 +65,9 @@ class CalendarScopeTests(ApiTestCase):
                     self.assertEqual(code,200,change)
                     editor = change['editor']
                     self.assertEqual(editor['kind'], kind)
+                    if not note:
+                        self.assertTrue(editor['resource']['can_edit'])
+                        self.assertTrue(editor['resource']['can_delete'])
                     target_id = change['guard']['scoped']['child_note_id'] if note else change['guard']['scoped']['child_id']
                     self.assertEqual(editor['resource']['id'], target_id)
                     self.assertNotEqual(target_id, row['id'])
@@ -85,6 +88,9 @@ class CalendarScopeTests(ApiTestCase):
                     code,undone=await self.request('POST','/api/schedule-changes/records/'+change['id']+'/undo')
                     self.assertEqual(code,200,undone)
                     self.assertEqual(undone['editor']['resource']['id'], row['id'])
+                    if not note:
+                        self.assertTrue(undone['editor']['resource']['can_edit'])
+                        self.assertTrue(undone['editor']['resource']['can_delete'])
                     self.assertEqual(datetime.fromisoformat(undone['editor']['occurrence_at']).hour, 2)
                     self.assertEqual((await self.page())['total'],5)
                     self.assertEqual((await self.request('DELETE', '/api/notes/'+row['id'] if note else '/api/calendar/events/'+event_id))[0],204)

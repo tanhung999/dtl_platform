@@ -179,7 +179,8 @@ async def destination(id: str, user: UserArg, db: DbArg):
         if row.resource_type in ('event', 'note'):
             from app.db.calendar import CalendarEvent
             from app.db.models import Note
-            event = await db.scalar(select(CalendarEvent).where(CalendarEvent.id == row.event_id, CalendarEvent.user_id == user.id))
+            from app.modules.calendar.access import visible_events
+            event = await db.scalar(select(CalendarEvent).where(CalendarEvent.id == row.event_id, visible_events(user.id)))
             if not event:
                 raise HTTPException(404, 'Lịch hẹn đã bị xóa.')
             if row.resource_type == 'note':

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import companyIcon from '../assets/logo-source.png';
 import { brandIconAtlas, brandIconCells, taskIcon, type FeatureIconName } from '../assets/featureIcons';
 import { workspaceRoutes, type RoutedPage } from '../features/dashboard/navigation';
 
@@ -56,8 +57,8 @@ export function PageBranding({ page = 'dashboard', notFound = false }: { page?: 
     document.title = notFound ? 'Không tìm thấy trang · Đông Tây One' : brand.title;
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]') ?? document.createElement('link');
     link.rel = 'icon'; link.type = 'image/png';
-    link.href = '/dtone.png';
-    link.dataset.brand = 'dtone';
+    link.href = companyIcon;
+    link.dataset.brand = 'dt1';
     if (!link.isConnected) document.head.appendChild(link);
     let active = true;
     if (brand.icon && !notFound) {

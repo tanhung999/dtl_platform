@@ -103,6 +103,7 @@ async def unfollow_event(event_id: str, user: CurrentUser, db: Database):
     from sqlalchemy import delete
     await db.execute(delete(CalendarEventFollower).where(CalendarEventFollower.event_id==event.id,CalendarEventFollower.user_id==user.id))
     mark_changed(db,user.id,'calendar')
+    mark_changed(db,user.id,'notifications')
     return EventResponse.model_validate(event).model_copy(update=await event_metadata(db,event,user))
 
 

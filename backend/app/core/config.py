@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     OIDC_SESSION_ENCRYPTION_SECRET: str = ""
     OIDC_SESSION_COOKIE_NAME: str = "dtl_platform_session"
     OIDC_SESSION_COOKIE_SECURE: bool = False
+    # Explicit HTTP deployment exception; does not bypass secret validation.
+    OIDC_ALLOW_HTTP: bool = False
     OIDC_SESSION_HOURS: int = Field(default=8, ge=1, le=24)
     OIDC_STATE_SECONDS: int = Field(default=300, ge=60, le=900)
     OIDC_AUTO_LINK_EXISTING_USERS: bool = False
@@ -105,10 +107,23 @@ class Settings(BaseSettings):
                 "Không được chạy production với secret mẫu hoặc quá ngắn: "
                 + ", ".join(invalid)
             )
-        if self.OIDC_ENABLED and not self.OIDC_SESSION_COOKIE_SECURE:
+        if self.OIDC_ENABLED and not self.OIDC_SESSION_COOKIE_SECURE and not self.OIDC_ALLOW_HTTP:
             raise RuntimeError(
                 "OIDC_SESSION_COOKIE_SECURE=true là bắt buộc trong production."
             )
+        if self.OIDC_ENABLED:
+            from urllib.parse import urlsplit
+            try:
+                frontend = urlsplit(self.OIDC_FRONTEND_URL)
+                frontend.port  # Validate the configured port before accepting browser origins.
+            except ValueError as exc:
+                raise RuntimeError('OIDC_FRONTEND_URL có tên miền hoặc cổng không hợp lệ.') from exc
+            if frontend.scheme not in ('http', 'https') or not frontend.hostname or frontend.username or frontend.password:
+                raise RuntimeError('OIDC_FRONTEND_URL phải là địa chỉ HTTP/HTTPS hợp lệ.')
+            if frontend.scheme == 'http' and (not self.OIDC_ALLOW_HTTP or self.OIDC_SESSION_COOKIE_SECURE):
+                raise RuntimeError('HTTP cần OIDC_ALLOW_HTTP=true và OIDC_SESSION_COOKIE_SECURE=false.')
+            if frontend.scheme == 'https' and not self.OIDC_SESSION_COOKIE_SECURE:
+                raise RuntimeError('HTTPS cần OIDC_SESSION_COOKIE_SECURE=true.')
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

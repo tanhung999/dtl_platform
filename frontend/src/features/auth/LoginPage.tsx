@@ -4,7 +4,7 @@ import { User as UserIcon, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-r
 
 import { AuthSession } from '../../types';
 import { ThemeToggle } from '../../components/ThemeToggle';
-import brandLogo from '../../assets/logo.png';
+import brandLogo from '../../assets/logo-source.png';
 import { APP_VERSION } from '../../config';
 
 interface LoginPageProps {
@@ -21,6 +21,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState(query.get('reason') === 'password-changed' ? 'Đã đổi mật khẩu. Vui lòng đăng nhập bằng mật khẩu mới.' : '');
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
@@ -29,6 +30,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
 
     setError(null);
+    setNotice('');
     setLoading(true);
     try {
       const session = await authApi.login(username.trim(), password);
@@ -63,6 +65,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         </div>
 
         <div className="login-error-slot" aria-live="polite">
+          {notice && <p role="status" style={{ color: 'var(--success-text)' }}>{notice}</p>}
           {error && <div className="alert-error" role="alert">{error}</div>}
         </div>
 

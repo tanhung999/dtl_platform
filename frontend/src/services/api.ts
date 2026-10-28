@@ -2,15 +2,14 @@ import { apiErrorMessage } from './validationErrors';
 import { AuthSession, User } from '../types';
 import { SharedReads } from './sharedReads';
 import { readScopes, workspaceBootstrap } from './realtimeBootstrap';
+import { TOKEN_KEY, USER_KEY, storedUserId } from './authStorage';
 
 export class ApiError extends Error { constructor(message: string, public status: number, public current?: any) { super(message); } }
 
-const TOKEN_KEY = 'dtl_platform_token';
-const USER_KEY = 'dtl_platform_user';
 const reads = new SharedReads();
 let sessionGeneration = 0;
 let writeGeneration = 0;
-export const getSessionKey = () => `${sessionGeneration}:${getStoredToken() ?? ''}`;
+export const getSessionKey = () => `${sessionGeneration}:${getStoredToken() ?? ''}:${storedUserId(localStorage.getItem(USER_KEY))}`;
 export function ensureWorkspaceSession() {
   const key = getSessionKey();
   reads.setSession(key); workspaceBootstrap.setSession(key);
@@ -53,6 +52,7 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
   const checkSession = () => { if (getSessionKey() !== session) throw new DOMException('Session changed', 'AbortError'); };
   const token = getStoredToken();
   const headers = new Headers(options.headers || {});
+  headers.set('X-Platform-Request', '1');
 
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');

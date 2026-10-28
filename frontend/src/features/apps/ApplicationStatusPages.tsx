@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ArrowLeft, Construction, LoaderCircle, RefreshCw, ShieldX } from 'lucide-react';
 import { ThemeToggle } from '../../components/ThemeToggle';
-import { ApiError } from '../../services/api';
+import { ApiError, getSessionKey } from '../../services/api';
 import brandLogo from '../../assets/logo.png';
 import { appsApi } from './api';
 
@@ -46,7 +46,8 @@ export function ApplicationConnectPage() {
   const name = appLabel();
   const returnTo = safeReturnTo(queryValue('return_to') || '/');
   const [error, setError] = useState('');
-  const requestKey = useMemo(() => `${app}\n${returnTo}`, [app, returnTo]);
+  const session = getSessionKey();
+  const requestKey = useMemo(() => `${session}\n${app}\n${returnTo}`, [session, app, returnTo]);
 
   useEffect(() => {
     if (!app) {

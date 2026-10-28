@@ -12,6 +12,7 @@ import { MonthView } from './components/MonthView';
 import { WeekView } from './components/WeekView';
 import { AgendaView } from './components/AgendaView';
 import { CalendarItemModal } from './components/CalendarItemModal';
+import { DayItemsDialog } from './components/DayItemsDialog';
 import { OverdueGroup } from './components/OverdueGroup';
 import { useTaskRange } from '../tasks/useTaskRange';
 import { useTasks } from '../tasks/context/TasksContext';
@@ -34,6 +35,7 @@ export function CalendarPage({ initialDate, onDateChange, userName, userId, shar
   const [view, setView] = useState<CalendarView>(remembered.view as CalendarView);
   const [selected, setSelected] = useState<CalendarEvent>();
   const [draft, setDraft] = useState<EventDraft>();
+  const [dayList, setDayList] = useState<Date>();
   const tasksPreferenceKey = `dtl_calendar_show_tasks:${userId}`;
   const eventsPreferenceKey = `dtl_calendar_show_events:${userId}`;
   const [showTasks, setShowTasks] = useState(() => localStorage.getItem(tasksPreferenceKey) !== 'false');
@@ -116,12 +118,13 @@ export function CalendarPage({ initialDate, onDateChange, userName, userId, shar
         {showTasks && <OverdueGroup compact />}
         {data.error && <div className="calendar-error-state" role="alert"><p>{data.error}</p><button type="button" className="btn btn-outline btn-sm" onClick={data.refresh}>Thử lại</button></div>}
           <div className="calendar-view-content" aria-busy={data.loading || deadlineData.loading}>
-            {view === 'week' && <WeekView {...viewProps} showEarlyHours={showEarlyHours} onShowDay={date => { selectDate(date); setView('agenda'); }} />}
-            {view === 'month' && <MonthView {...viewProps} onShowDay={date => { selectDate(date); setView('agenda'); }} />}
+            {view === 'week' && <WeekView {...viewProps} showEarlyHours={showEarlyHours} onShowDay={setDayList} />}
+            {view === 'month' && <MonthView {...viewProps} onShowDay={setDayList} />}
             {view === 'agenda' && ((!data.loading && !deadlineData.loading && !data.error && !deadlineData.error) || data.events.length > 0 || visibleTasks.length > 0) && <AgendaView {...viewProps} />}
           </div>
       </section>
     </div>
+    {dayList && <DayItemsDialog day={dayList} showEvents={showEvents} showNotes={showNotes} showTasks={showTasks} onClose={() => setDayList(undefined)} onCreate={onCreate} onSelect={onSelect} />}
     {draft && <CalendarItemModal event={selected} draft={draft} onClose={close} onSave={data.save} onDelete={data.remove} />}
     <span className="calendar-sr-only">Ngày đang chọn: {dateKey(anchor)}</span>
   </div>;

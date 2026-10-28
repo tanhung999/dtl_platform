@@ -2,18 +2,17 @@
 
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import hash_password
 from app.db.access import UserRole
-from app.db.applications import OidcSession
 from app.db.models import User
 from app.db.organization import Department, JobLevel, JobLevelReportTarget, Position, WorkLocation
 from app.modules.access.audit import record
@@ -43,7 +42,7 @@ class UserCreate(BaseModel):
     username: str = Field(min_length=3, max_length=80)
     email: str
     full_name: str = Field(min_length=2, max_length=120)
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=12, max_length=128)
     department: str = Field(default='', max_length=100)
     job_title: str = Field(default='', max_length=100)
     employee_code: str = Field(default='', max_length=50)
@@ -111,7 +110,7 @@ class UserUpdate(BaseModel):
 
 class PasswordReset(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=12, max_length=128)
 
 
 class UserView(BaseModel):
@@ -324,11 +323,8 @@ async def update_user(target_id: str, payload: UserUpdate, actor: CurrentUser, d
         await db.execute(delete(UserRole).where(
             UserRole.user_id == target.id, UserRole.role_id == 'access_admin'))
     if not payload.is_active:
-        now = datetime.now(timezone.utc)
-        await db.execute(update(OidcSession).where(
-            OidcSession.user_id == target.id, OidcSession.revoked_at.is_(None)
-        ).values(revoked_at=now))
-        await keycloak_user_admin.logout_user(target.identity_subject)
+        from app.modules.auth.oidc import end_user_sessions
+        await end_user_sessions(db, target)
     record(db, actor, target, 'user_updated', {
         'before': before,
         'after': {
@@ -342,7 +338,9 @@ async def update_user(target_id: str, payload: UserUpdate, actor: CurrentUser, d
 @router.put('/{target_id}/password', status_code=204)
 async def reset_password(target_id: str, payload: PasswordReset, actor: CurrentUser, db: Database):
     await require(db, actor.id, MANAGE)
-    target = await db.get(User, target_id)
+    # Serialize with account locking; a stale reset must not re-enable Keycloak.
+    target = await db.scalar(select(User).where(User.id == target_id)
+        .with_for_update().execution_options(populate_existing=True))
     if not target:
         raise HTTPException(404, 'Không tìm thấy tài khoản.')
     if not target.identity_subject:
@@ -354,5 +352,7 @@ async def reset_password(target_id: str, payload: PasswordReset, actor: CurrentU
         full_name=target.full_name, enabled=target.is_active,
     )
     await keycloak_user_admin.reset_password(target.identity_subject, payload.password)
+    from app.modules.auth.oidc import end_user_sessions
+    await end_user_sessions(db, target)
     record(db, actor, target, 'user_password_reset', {'temporary': False})
     return Response(status_code=204)

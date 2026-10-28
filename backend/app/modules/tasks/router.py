@@ -129,7 +129,7 @@ async def follow_task(task_id: str, user: CurrentUser, db: Database):
 async def unfollow_task(task_id: str, user: CurrentUser, db: Database):
     task = await accessible_task(task_id, user, db, lock=True)
     await db.execute(delete(TaskFollower).where(TaskFollower.task_id == task.id, TaskFollower.user_id == user.id))
-    task.version += 1; task.updated_at = utcnow(); mark_changed(db, user.id, "tasks")
+    task.version += 1; task.updated_at = utcnow(); mark_changed(db, user.id, "tasks"); mark_changed(db, user.id, "notifications")
     return await serialize_task(db, task, user)
 
 

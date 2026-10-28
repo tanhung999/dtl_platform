@@ -53,6 +53,8 @@ def serialize(notification, task, now, event=None, note=None, owners=None):
         state = 'deleted' if event is None or notification.resource_type == 'note' and note is None else 'archived' if note is not None and note.is_archived else 'changed' if event.reminder_version != notification.reminder_version else 'ended' if event_end <= now else 'active'
     owner_id = notification.calendar_owner_id
     ownership_label = ('Của ' + owners[owner_id]) if owner_id and owners and owner_id in owners else 'Của bạn' if owners and notification.source == 'platform' and notification.resource_type in ('task', 'event', 'note') else None
+    if notification.kind in ('task.follow_reminder', 'event.follow_reminder'):
+        ownership_label = 'Được giao / theo dõi' if notification.resource_type == 'task' else 'Sự kiện đang theo dõi'
     return {key: utc(getattr(notification, key)) for key in ('id', 'source', 'kind', 'title', 'body', 'resource_type', 'resource_id', 'due_at', 'occurred_at', 'created_at', 'read_at', 'dismissed_at', 'snoozed_until')} | {'state': state, 'calendar_owner_id': owner_id, 'ownership_label': ownership_label}
 
 def changed(db, user_id):

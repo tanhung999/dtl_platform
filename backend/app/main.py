@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from app.core.config import settings
+from app.core.csrf import protect_cookie_writes
 from app.core.database import engine, async_session_maker
 from app.core.security import hash_password
 from app.db.models import User, Note, Task, Bookmark
@@ -156,6 +157,7 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+app.middleware('http')(protect_cookie_writes)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if settings.DEBUG else settings.CORS_ORIGINS,
@@ -175,7 +177,7 @@ async def security_headers(request: Request, call_next):
         "Content-Security-Policy",
         "frame-ancestors 'self'; base-uri 'self'",
     )
-    if settings.APP_ENV.lower() == "production":
+    if settings.APP_ENV.lower() == "production" and request.url.scheme == 'https':
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
 

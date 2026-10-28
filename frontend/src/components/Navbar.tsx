@@ -2,7 +2,7 @@ import { NotificationBell } from '../features/notifications/NotificationBell';
 import { Link, useLocation } from 'react-router-dom';
 import { workspaceRoutes } from '../features/dashboard/navigation';
 import { Home, ShieldCheck, LogOut, Search } from 'lucide-react';
-import brandLogo from '../assets/logo.png';
+import brandLogo from '../assets/logo-source.png';
 import { User } from '../types';
 import { NavbarClock } from './NavbarClock';
 import { ThemeToggle } from './ThemeToggle';

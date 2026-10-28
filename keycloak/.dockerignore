@@ -1,0 +1,6 @@
+import/
+production/
+themes/
+*.log
+.env
+.env.*

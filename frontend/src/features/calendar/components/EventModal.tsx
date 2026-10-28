@@ -11,7 +11,7 @@ import { useTasks } from '../../tasks/context/TasksContext';
 import { eventStatus } from '../eventStatus';
 import { isUncertainFailure, MutationUncertainError } from '../../../services/mutationRecovery';
 import { CreateAttempt } from '../../../services/mutationRecovery';
-import { ApiError } from '../../../services/api';
+import { ApiError, getStoredUser } from '../../../services/api';
 import { useMutationChecking } from '../../mutations/useMutationChecking';
 import { DatePicker } from '../../../components/date-time/DatePicker';
 import { TimePicker } from '../../../components/date-time/TimePicker';
@@ -32,6 +32,11 @@ interface Props {
 export function EventModal({ event: initialEvent, draft, onClose, onSave, onDelete }: Props) {
   const { now } = useTasks();
   const [event, setEvent] = useState(initialEvent);
+  // Older API versions omit capabilities. Only the owner can use that fallback;
+  // explicit permissions from newer APIs always take precedence.
+  const ownsEvent = !!event && event.user_id === getStoredUser()?.id;
+  const canEdit = !event || (event.can_edit ?? ownsEvent);
+  const canDelete = !!event && (event.can_delete ?? ownsEvent);
   const dialog = useRef<HTMLDialogElement>(null);
   const initialHour = draft.hour ?? 9;
   const [title, setTitle] = useState(event?.title ?? '');
@@ -91,7 +96,8 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
     const sameEnd = !!event && allDay === savedSchedule.is_all_day && endDate === dateKey(eventDate(allDay ? new Date(Date.parse(savedSchedule.ends_at!) - 1).toISOString() : savedSchedule.ends_at!)) && (allDay || endTime === eventTime(savedSchedule.ends_at!));
     const starts = sameStart ? savedSchedule.starts_at! : toTimestamp(parseDate(startDate), allDay ? '00:00' : startTime);
     const ends = sameEnd ? savedSchedule.ends_at! : allDay ? toTimestamp(addDays(parseDate(endDate), 1)) : toTimestamp(parseDate(endDate), endTime);
-    if (event && recurrence === (savedSchedule.recurrence ?? 'NONE') && sameStart && sameEnd && sameReminder(reminder, savedReminder) && sameFields({ title: title.trim(), description: description.trim(), location: location.trim(), is_private: isPrivate },
+    const sameFollowers = !!event && JSON.stringify(followers.map(item => item.id).sort()) === JSON.stringify((event.followers ?? []).map(item => item.id).sort());
+    if (event && sameFollowers && recurrence === (savedSchedule.recurrence ?? 'NONE') && sameStart && sameEnd && sameReminder(reminder, savedReminder) && sameFields({ title: title.trim(), description: description.trim(), location: location.trim(), is_private: isPrivate },
       { ...event, title: event.title.trim(), description: (event.description ?? '').trim(), location: (event.location ?? '').trim(), is_private: event.is_private ?? false })) { onClose(); return; }
     if (Date.parse(ends) <= Date.parse(starts)) { setError('Thời gian kết thúc phải sau thời gian bắt đầu.'); return; }
     submitting.current = true; setBusy(true);
@@ -131,7 +137,7 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
           <div><span className="calendar-eyebrow">LỊCH CÁ NHÂN</span><h2 id="calendar-dialog-title">{event ? 'Chi tiết sự kiện' : 'Tạo sự kiện mới'}</h2></div>
           <button type="button" className="calendar-icon-button" onClick={onClose} disabled={busy} aria-label="Đóng"><X size={20} /></button>
         </header>
-        <fieldset disabled={busy||!!event&&!event.can_edit} className="calendar-dialog-fields">
+        <fieldset disabled={busy || !canEdit} className="calendar-dialog-fields">
           {status && <div style={{ '--event-color': status.color } as CSSProperties}><EventStatusBadge status={status} /></div>}
           <label className="calendar-field">Tên sự kiện
             <input className="form-input calendar-title-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Thêm tiêu đề" required maxLength={200} autoFocus />
@@ -171,7 +177,7 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
           <label className="calendar-field"><span><MapPin size={15} /> Địa điểm</span><input className="form-input" value={location} onChange={e => setLocation(e.target.value)} placeholder="Thêm địa điểm" maxLength={255} /></label>
           <label className="calendar-field">Mô tả<textarea className="form-input" value={description} onChange={e => setDescription(e.target.value)} placeholder="Ghi chú cho sự kiện…" rows={3} maxLength={10000} /></label>
           <PrivacyToggle label="Sự kiện riêng tư" value={isPrivate} onChange={setIsPrivate} />
-          {(!event||event.can_edit)&&<UserPicker multiple label="Người theo dõi" value={followers} onChange={setFollowers} disabled={busy}/>}
+          {canEdit&&<UserPicker multiple label="Người theo dõi" value={followers} onChange={setFollowers} disabled={busy}/>}
           {!event && <ReminderFields recurrence={recurrence} value={reminder} onChange={setReminder} anchor={startDate && (allDay || startTime) ? toTimestamp(parseDate(startDate), allDay ? '00:00' : startTime) : null} endsAt={endDate && (allDay || endTime) ? toTimestamp(allDay ? addDays(parseDate(endDate), 1) : parseDate(endDate), allDay ? '00:00' : endTime) : null} allDay={allDay} disabled={busy} />}
 
           <div className="calendar-field"><span>Màu tự đổi theo thời gian</span><EventStatusLegend /></div>
@@ -184,8 +190,8 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
           <div className="calendar-inline-actions"><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirmDelete(false)}>Giữ lại</button><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || deleteUncertain} onClick={remove}>{busy ? 'Đang xóa…' : 'Xác nhận xóa'}</button></div>
         </div>}
         <footer className="calendar-dialog-footer">
-          {event?.can_delete && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || deleteUncertain} onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Xóa</button>}
-          {(!event||event.can_edit)&&<div className="calendar-inline-actions"><button type="submit" className="btn btn-primary" disabled={busy || confirmDelete || deleteUncertain}>{busy ? 'Đang lưu…' : 'Lưu sự kiện'}</button></div>}
+          {canDelete && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || deleteUncertain} onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Xóa</button>}
+          {canEdit&&<div className="calendar-inline-actions"><button type="submit" className="btn btn-primary" disabled={busy || confirmDelete || deleteUncertain}>{busy ? 'Đang lưu…' : 'Lưu sự kiện'}</button></div>}
         </footer>
       </form>
     </dialog>

@@ -32,6 +32,8 @@ ENV/
 .env
 .env.local
 .env.*.local
+.env.production
+.env.identity
 !.env.example
 
 # Node / Frontend

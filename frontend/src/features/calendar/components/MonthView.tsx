@@ -20,7 +20,7 @@ export function MonthView({ anchor, events, tasks, onCreate, onSelect, onShowDay
             const remaining = Math.max(0, 3 - deadlines.length);
             const extra = deadlines.length + dayEvents.length - 3;
             return <div key={dateKey(day)} data-date={dateKey(day)} className={`calendar-month-cell ${day.getUTCMonth() !== anchor.getUTCMonth() ? 'is-outside' : ''}`}>
-              <button type="button" className={`calendar-day-number ${dateKey(day) === todayKey ? 'is-today' : ''}`} aria-label={`Tạo lịch ${formatDate(day, { dateStyle: 'full' })}`} onClick={() => onCreate({ date: day })}>{day.getUTCDate()}</button>
+              <button type="button" className={`calendar-day-number ${dateKey(day) === todayKey ? 'is-today' : ''}`} aria-label={`Xem lịch ${formatDate(day, { dateStyle: 'full' })}`} onClick={() => onShowDay(day)}>{day.getUTCDate()}</button>
               <div className="calendar-month-events">
                 {deadlines.slice(0, 3).map(task => <DeadlineRow key={task.id} task={task} />)}
                 {dayEvents.slice(0, remaining).map(event => <EventButton key={event.id} event={event} day={dateKey(day)} compact onSelect={onSelect} />)}

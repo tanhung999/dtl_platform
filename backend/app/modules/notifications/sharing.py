@@ -1,8 +1,8 @@
 """Directional calendar access, checked again for every inbox read and action."""
 from sqlalchemy import and_, or_, select
 from app.db.access import CalendarShare as Grant
-from app.db.models import User, Task, Note
-from app.db.calendar import CalendarEvent as Event
+from app.db.models import User, Task, Note, TaskFollower
+from app.db.calendar import CalendarEvent as Event, CalendarEventFollower
 from app.db.note_scheduling import NoteCalendarSchedule as Schedule
 from app.db.notifications import Notification as N
 from app.modules.access.service import SHARE, permission_users
@@ -27,7 +27,14 @@ def visible_notice():
         and_(N.resource_type == 'event', Grant.share_events.is_(True), event),
         and_(N.resource_type == 'note', Grant.share_notes.is_(True), note))
     grant = active_grants().where(Grant.owner_id == N.calendar_owner_id, Grant.viewer_id == N.user_id, scope).correlate(N).exists()
-    return or_(N.calendar_owner_id.is_(None), and_(N.source == 'platform', grant))
+    followed_task = select(Task.id).where(Task.id == N.task_id, or_(Task.user_id == N.user_id, Task.assignee_id == N.user_id,
+        select(TaskFollower.task_id).where(TaskFollower.task_id == Task.id, TaskFollower.user_id == N.user_id).correlate(Task, N).exists())).correlate(N).exists()
+    followed_event = select(Event.id).where(Event.id == N.event_id, or_(Event.user_id == N.user_id,
+        select(CalendarEventFollower.event_id).where(CalendarEventFollower.event_id == Event.id, CalendarEventFollower.user_id == N.user_id).correlate(Event, N).exists())).correlate(N).exists()
+    personal = and_(N.calendar_owner_id.is_(None), or_(
+        N.kind.notin_(('task.follow_reminder', 'event.follow_reminder')),
+        and_(N.kind == 'task.follow_reminder', followed_task), and_(N.kind == 'event.follow_reminder', followed_event)))
+    return or_(personal, and_(N.source == 'platform', grant))
 
 
 async def ownership_labels(db, viewer_id):

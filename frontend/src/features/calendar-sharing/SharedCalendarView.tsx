@@ -1,7 +1,7 @@
 import { TaskStatusLegend } from '../calendar/components/TaskStatusLegend';
 import { useViewMemory, isDay } from '../../services/viewMemory';
 import { ReactNode, useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Eye, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { addDays, addMonths, dateKey, formatDate, monthDays, parseDate, today, toTimestamp, viewRange } from '../calendar/dateUtils';
 import { CalendarView } from '../calendar/types';
 import { useTasks } from '../tasks/context/TasksContext';
@@ -14,6 +14,7 @@ import { useSharedCalendar, useSharedDetail } from './hooks/useSharedCalendar';
 import { SharedWeekView } from './components/SharedWeekView';
 import { SharedCalendarList } from './components/SharedCalendarList';
 import { SharedItemDialog } from './components/SharedItemDialog';
+import { SharedDayItemsDialog } from './components/SharedDayItemsDialog';
 import { EventStatusLegend } from '../calendar/components/EventStatusBadge';
 
 export function SharedCalendarView({ share, revision, accessEpoch, accessPending, navigation, initialDate, onDateChange }: {
@@ -26,6 +27,7 @@ export function SharedCalendarView({ share, revision, accessEpoch, accessPending
   const chooseDate = (day: Date) => { setAnchor(day); onDateChange?.(day); };
   useEffect(() => { remember({ day: dateKey(anchor), view }); }, [anchor, view, remember]);
   const [showEarlyHours,setShowEarlyHours]=useState(false), [selected,setSelected]=useState<SharedItem>(), [notice,setNotice]=useState('');
+  const [dayList, setDayList] = useState<Date>();
   const [manualRevision,refresh]=useInvalidation();
   const range=viewRange(anchor,view), start=toTimestamp(range.start), end=toTimestamp(range.end);
   const data=useSharedCalendar(share,start,end,revision+manualRevision,accessEpoch);
@@ -41,11 +43,10 @@ export function SharedCalendarView({ share, revision, accessEpoch, accessPending
   const days=Array.from({length:view==='week'?7:30},(_,i)=>addDays(range.start,i));
   const earlyCount=gridItems.filter(item=>item.kind==='task'?!!item.due_time && item.due_time<'06:00':!item.is_all_day && days.some(day=>Date.parse(item.starts_at!)<Date.parse(toTimestamp(day,'06:00'))&&Date.parse(item.ends_at!)>Date.parse(toTimestamp(day)))).length;
   const move=(step:number)=>chooseDate(view==='month'?addMonths(anchor,step):addDays(anchor,step*(view==='week'?7:30)));
-  const showDay=(day:Date)=>{chooseDate(day);setView('agenda');};
+  const showDay=(day:Date)=>setDayList(day);
   const current=dateKey(viewRange(today(),view).start)===dateKey(range.start);
   return <div className="calendar-page shared-calendar-page">
     <div className="calendar-shell"><aside className="calendar-sidebar"><div className="calendar-sidebar-scroll" tabIndex={0} role="region" aria-label="Danh sách và bộ lọc lịch">{navigation}
-      <div className="sharing-readonly-info"><Eye size={18}/><p><strong>Lịch của {share.name}</strong><br/>Bạn chỉ xem các mục được chia sẻ. Sự kiện, công việc và ghi chú riêng tư được ẩn hoàn toàn.</p></div>
       <div className="sharing-scope-chips">{share.share_events&&<span>Sự kiện</span>}{share.share_tasks&&<span>Công việc</span>}{share.share_notes&&<span>Ghi chú</span>}</div>
       {(share.share_events||share.share_notes)&&<div className="calendar-event-legend-section"><h4>Trạng thái sự kiện và ghi chú</h4><EventStatusLegend/></div>}
       {share.share_tasks && <TaskStatusLegend />}
@@ -65,6 +66,7 @@ export function SharedCalendarView({ share, revision, accessEpoch, accessPending
         {view==='week'?<SharedWeekView ownerId={share.owner_id} anchor={anchor} items={gridItems} now={now} showEarlyHours={showEarlyHours} onSelect={select} onShowDay={showDay}/>:<SharedCalendarList ownerId={share.owner_id} anchor={anchor} days={view==='month'?monthDays(anchor):days} items={gridItems} now={now} month={view==='month'} onSelect={select} onShowDay={showDay}/>}
       </div>
     </section></div>
+    {dayList&&<SharedDayItemsDialog day={dayList} share={share} now={now} revision={revision+manualRevision} accessEpoch={accessEpoch} accessPending={accessPending} onClose={()=>setDayList(undefined)} onSelect={select} onRetry={refresh}/>}
     {selectedAllowed&&<SharedItemDialog selected={selected} item={detail.item} pending={detail.pending} verifying={verifying} error={detail.error} onClose={()=>setSelected(undefined)} onRetry={refresh}/>}
   </div>;
 }
