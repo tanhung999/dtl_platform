@@ -45,7 +45,7 @@ export function SharedDayItemsDialog({ day, share, now, revision, accessEpoch, a
             const status = event && eventStatus(event, now, dateKey(day));
             return <button type="button" key={item.id} data-shared-id={item.id} data-shared-kind={kind} data-task-priority={task?.priority}
               className={`calendar-day-item ${task?.is_completed ? 'is-completed' : ''}`} style={{ '--event-color': status?.color } as CSSProperties}
-              onClick={() => { onClose(); onSelect(item); }}>
+              onClick={() => onSelect(item)}>
               <strong>{task ? <PriorityIcon priority={task.priority} /> : <Icon size={14} />}<span className={task ? 'calendar-day-task-title' : undefined}>{item.title || 'Ghi chú không có tiêu đề'}</span></strong>
               <span className="calendar-day-item-meta"><span><Clock size={13} />{task ? deadlineLabel(task, false, false) || 'Hạn cả ngày' : eventDayLabel(event!, dateKey(day))}</span>
                 {status ? <EventStatusBadge status={status} /> : task && <span className={isOverdue(task, now) ? 'calendar-day-overdue' : ''}>{task.is_completed ? 'Đã hoàn thành' : isOverdue(task, now) ? 'Quá hạn' : 'Chưa hoàn thành'}</span>}</span>

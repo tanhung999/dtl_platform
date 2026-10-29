@@ -51,10 +51,13 @@ function featureFavicon(name: FeatureIconName) {
   return icon;
 }
 
-export function PageBranding({ page = 'dashboard', notFound = false }: { page?: RoutedPage; notFound?: boolean }) {
+export function PageBranding({ page = 'dashboard', notFound = false, unreadCount = 0 }: { page?: RoutedPage; notFound?: boolean; unreadCount?: number }) {
   const brand = workspaceRoutes[page];
   useEffect(() => {
-    document.title = notFound ? 'Không tìm thấy trang · Đông Tây One' : brand.title;
+    const title = notFound ? 'Không tìm thấy trang · Đông Tây One' : brand.title;
+    document.title = unreadCount > 0 ? `${title} (${unreadCount})` : title;
+  }, [brand.title, notFound, unreadCount]);
+  useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]') ?? document.createElement('link');
     link.rel = 'icon'; link.type = 'image/png';
     link.href = companyIcon;

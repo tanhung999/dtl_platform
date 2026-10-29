@@ -450,6 +450,9 @@ button.calendar-count-chip { cursor: pointer; }
 .calendar-day-section h3 > span { margin-left:auto; padding:2px 8px; border-radius:20px; font-size:11px; background:var(--bg-subtle); color:var(--text-muted); }
 .calendar-day-item { display:flex; flex-direction:column; width:100%; gap:7px; text-align:left; border:1px solid var(--border); border-left:3px solid var(--day-kind); background:var(--bg-card-solid); color:var(--text-main); border-radius:10px; padding:11px 12px; margin-top:7px; font:inherit; cursor:pointer; }
 .calendar-day-item:hover { background:var(--bg-subtle); }
+.calendar-day-item[aria-busy="true"] { cursor:progress; }
+.calendar-day-opening { display:flex; align-items:center; gap:6px; color:var(--text-muted); font-size:12px; line-height:1.5; }
+.calendar-day-opening.is-error { color:var(--error); }
 .calendar-day-item:focus-visible { outline:2px solid var(--day-kind); outline-offset:2px; }
 .calendar-day-item > strong { display:flex; align-items:center; gap:7px; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
 .calendar-day-item .calendar-item-title { white-space:normal; }

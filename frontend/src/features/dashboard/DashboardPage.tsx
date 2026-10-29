@@ -9,7 +9,7 @@ import { Navbar } from '../../components/Navbar';
 import { PageBranding } from '../../components/PageBranding';
 import { User } from '../../types';
 import { TasksProvider } from '../tasks/context/TasksContext';
-import { NotificationsProvider } from '../notifications/NotificationsProvider';
+import { NotificationsProvider, useNotifications } from '../notifications/NotificationsProvider';
 import { dateKey, parseDate } from '../calendar/dateUtils';
 import { isDay } from '../../services/viewMemory';
 import { APP_VERSION } from '../../config';
@@ -29,6 +29,11 @@ interface DashboardPageProps {
   user: User;
   onUserUpdated: (user: User) => void;
   onLogout: () => void;
+}
+
+function DashboardBranding(props: React.ComponentProps<typeof PageBranding>) {
+  const { summary } = useNotifications();
+  return <PageBranding {...props} unreadCount={summary?.unread_count ?? 0} />;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdated, onLogout }) => {
@@ -65,7 +70,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
 
   return (
     <SharingCapabilityContext.Provider value={access.can_share && !access.loading && !access.error}><TasksProvider key={user.id} canAssignTasks={access.can_assign_tasks && !access.loading && !access.error} fullPage={activeTab === 'tasks'} collectionEnabled={activeTab === 'dashboard' || activeTab === 'tasks' || activeTab === 'calendar'}><NotificationsProvider userId={user.id}><div className={`dashboard-app${activeTab === 'calendar' ? ' calendar-is-active' : ''}`}>
-      <PageBranding page={activeTab} notFound={!activeTab && location.pathname !== '/'} />
+      <DashboardBranding page={activeTab} notFound={!activeTab && location.pathname !== '/'} />
       <RescheduleToast />
       <Navbar canManage={access.can_manage && !access.loading && !access.error} user={user} query={searchQuery} onSearch={search}
         onOpenProfile={() => navigate(workspaceRoutes.profile.path)} onOpenNotifications={() => navigate(workspaceRoutes.notifications.path)} onLogout={onLogout} />

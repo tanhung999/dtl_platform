@@ -66,11 +66,20 @@ export function CalendarPage({ initialDate, onDateChange, userName, userId, shar
   };
   const opening = useLatestRequest();
   const onCreate = (value: EventDraft) => { opening.cancel(); setOpenError(''); setSelected(undefined); setDraft(value); };
-  const onSelect = async (event: CalendarEvent, day?: string) => {
+  const onSelect = async (event: CalendarEvent, day?: string, signal?: AbortSignal) => {
     const controller = opening.start();
+    const abort = () => controller.abort();
+    if (signal?.aborted) controller.abort();
+    else signal?.addEventListener('abort', abort, { once: true });
     setOpenError('');
     try { const value = await calendarApi.get(event.series_id ?? event.id, controller.signal); if (!controller.signal.aborted) { setSelected(value); setDraft({ date: day ? parseDate(day) : anchor, occurrenceAt: event.starts_at }); } }
-    catch (reason) { if (!controller.signal.aborted) setOpenError(reason instanceof Error ? reason.message : 'Không tải được sự kiện.'); }
+    catch (reason) {
+      if (!controller.signal.aborted) {
+        if (signal) throw reason;
+        setOpenError(reason instanceof Error ? reason.message : 'Không tải được sự kiện.');
+      }
+    }
+    finally { signal?.removeEventListener('abort', abort); }
   };
   const close = () => { opening.cancel(); setSelected(undefined); setDraft(undefined); };
   const weekEnd = addDays(startOfWeek(anchor), 6);
