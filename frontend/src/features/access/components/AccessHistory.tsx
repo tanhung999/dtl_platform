@@ -9,6 +9,7 @@ const labels: Record<string, string> = {
   calendar_revoked: 'Thu hồi quyền xem lịch',
   application_access_updated: 'Cập nhật quyền ứng dụng',
   application_account_linked: 'Liên kết tài khoản ứng dụng',
+  application_account_unlinked: 'Hủy liên kết tài khoản ứng dụng',
   user_created: 'Tạo tài khoản',
   user_updated: 'Cập nhật tài khoản',
   user_password_reset: 'Đặt lại mật khẩu',
@@ -47,6 +48,10 @@ function parseAuditEntry(entry: AuditEntry): ParsedAudit {
   if (entry.action === 'application_account_linked') {
     return { category: 'Ứng dụng', target: 'DT Workflow', statusText: 'Đã liên kết', statusType: 'success',
       details: `Tài khoản Workflow: @${String(after.workflow_username || '')}` };
+  }
+  if (entry.action === 'application_account_unlinked') {
+    return { category: 'Ứng dụng', target: 'DT Workflow', statusText: 'Đã hủy liên kết', statusType: 'danger',
+      details: `@${String(after.workflow_username || '')} · ${after.enabled ? 'Giữ quyền mở ứng dụng' : 'Đã thu hồi quyền mở ứng dụng'}` };
   }
 
   if (entry.action === 'application_access_updated') {

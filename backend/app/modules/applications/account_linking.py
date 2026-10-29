@@ -93,13 +93,16 @@ async def state(target_id: str, user: CurrentUser, db: Database, response: Respo
     response.headers["Cache-Control"] = "no-store"
     target, grant, reason, policy = await context(db, user, target_id)
     configured = configuration() is not None
-    remote = await workflow_request("GET", "/status", params=params_for(target)) if configured and not reason else {}
+    # Existing links must remain visible/removable after access is revoked or a user is locked.
+    has_subject = bool(target.identity_subject and not target.identity_subject.startswith("platform:"))
+    remote = await workflow_request("GET", "/status", params=params_for(target)) if configured and has_subject else {}
     if remote and not all(isinstance(remote.get(key), list) for key in ("accounts", "roles", "permission_keys")):
         raise HTTPException(502, "Thông tin tích hợp Workflow chưa hợp lệ.")
     return {"configured": configured, "blocked_reason": reason if configured else "Chưa bật tích hợp liên kết tài khoản Workflow.",
             "platform_account": {"id": target.id, "username": target.username, "full_name": target.full_name, "email": target.email,
                                  "identity_subject": target.identity_subject},
             "grant_updated_at": grant.updated_at.isoformat() if grant else None,
+            "auto_link_blocked": remote.get("auto_link_blocked", False),
             "policy": policy_view(policy), "accounts": remote.get("accounts", []), "roles": remote.get("roles", []),
             "permission_keys": remote.get("permission_keys", []), "history": remote.get("history", [])}
 
@@ -125,6 +128,57 @@ class LinkInput(BaseModel):
     expected_updated_at: str = Field(min_length=1, max_length=64)
     expected_platform_subject: str = Field(min_length=1, max_length=255)
     expected_grant_updated_at: str = Field(min_length=1, max_length=64)
+
+
+class UnlinkInput(LinkInput):
+    expected_subject: str = Field(min_length=1, max_length=255)
+    expected_grant_updated_at: str | None = Field(max_length=64)
+    revoke_access: bool = True
+
+
+@router.post("/{target_id}/account-link/unlink")
+async def unlink(target_id: str, payload: UnlinkInput, user: CurrentUser, db: Database, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    target, grant, _, _ = await context(db, user, target_id, lock=True)
+    if not target.identity_subject or target.identity_subject.startswith("platform:") or target.identity_subject != payload.expected_platform_subject:
+        raise HTTPException(409, "Định danh Platform vừa thay đổi. Hãy tải lại trước khi hủy liên kết.")
+    audit = await db.scalar(select(AccessAuditLog).where(
+        AccessAuditLog.action == "application_account_unlinked", AccessAuditLog.subject_id == target.id,
+        AccessAuditLog.changes["operation_id"].as_string() == str(payload.operation_id)))
+    if audit:
+        if (audit.actor_id != user.id or audit.changes.get("revoke_access") != payload.revoke_access
+                or audit.changes.get("after", {}).get("workflow_user_id") != str(payload.workflow_user_id)
+                or audit.changes.get("before", {}).get("identity_subject") != payload.expected_subject):
+            raise HTTPException(409, "Mã thao tác đã được sử dụng cho yêu cầu khác.")
+    elif (grant.updated_at.isoformat() if grant else None) != payload.expected_grant_updated_at:
+        raise HTTPException(409, "Quyền ứng dụng vừa thay đổi. Hãy tải lại trước khi hủy liên kết.")
+    result = await workflow_request("POST", "/unlink", body={
+        "operation_id": str(payload.operation_id), "workflow_user_id": str(payload.workflow_user_id),
+        "platform_user_id": target.id, "identity_subject": target.identity_subject,
+        "expected_subject": payload.expected_subject, "expected_updated_at": payload.expected_updated_at,
+        "actor_id": user.id, "actor_username": user.username,
+    })
+    account = result.get("account")
+    if (not isinstance(account, dict) or account.get("id") != str(payload.workflow_user_id)
+            or account.get("identity_subject") is not None or "identity_subject" not in account
+            or result.get("operation_id") != str(payload.operation_id)
+            or not isinstance(account.get("username"), str) or not account["username"]):
+        raise HTTPException(502, "Chưa xác nhận được kết quả hủy liên kết. Hãy kiểm tra lại cùng thao tác.")
+    # Workflow commits its SSO block first. A lost response cannot silently restore SSO access.
+    # A replay must not revoke an application grant another administrator has since re-enabled.
+    if not audit:
+        before_enabled = bool(grant and grant.enabled)
+        if payload.revoke_access and grant:
+            grant.enabled = False
+        record(db, user, target, "application_account_unlinked", {
+            "operation_id": str(payload.operation_id), "application": "workflows", "revoke_access": payload.revoke_access,
+            "before": {"identity_subject": payload.expected_subject, "enabled": before_enabled},
+            "after": {"workflow_user_id": account["id"], "workflow_username": account["username"],
+                      "identity_subject": None, "enabled": bool(grant and grant.enabled),
+                      "revoked_sessions": result.get("revoked_sessions", 0)},
+        })
+        await db.flush()
+    return {**result, "access_revoked": not bool(grant and grant.enabled)}
 
 
 @router.post("/{target_id}/account-link")

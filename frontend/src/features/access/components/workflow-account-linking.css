@@ -27,6 +27,13 @@
 .workflow-link-history { margin-top:16px; }
 .workflow-link-history summary { cursor:pointer; font-weight:600; }
 .workflow-link-history ul { padding-left:18px; }
+.workflow-linked-account > div { min-width:0; overflow-wrap:anywhere; }
+.workflow-linked-account button { margin-top:12px; }
+.workflow-unlink-option { display:flex; align-items:flex-start; gap:9px; margin:16px 0; font-size:13px; line-height:1.6; }
+.workflow-unlink-option input { flex:0 0 auto; margin-top:4px; }
+.workflow-unlink-option small { display:block; color:var(--text-secondary); font-size:12px; }
+.workflow-unlink-actions, .workflow-legacy-unlink { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+.workflow-legacy-unlink { margin-top:12px; font-size:13px; }
 @media(max-width:600px) {
   .workflow-link-panel { padding:12px; }
   .workflow-link-pair { grid-template-columns:1fr; gap:10px; }

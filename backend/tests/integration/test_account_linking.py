@@ -65,16 +65,17 @@ class AccountLinkingTests(ApiTestCase):
         self.assertFalse(value['configured'])
         self.assertNotIn(settings.WORKFLOWS_ACCOUNT_LINKING_SECRET, str(value))
 
-    async def test_inactive_or_ungranted_targets_never_contact_workflow(self):
+    async def test_ungranted_target_can_inspect_binding_but_cannot_link(self):
         async with self.sessions() as db:
             grant = await db.get(UserApplicationAccess, ('bob', 'workflows')); grant.enabled = False
             await db.commit()
-        remote = AsyncMock()
+        remote = AsyncMock(return_value={**self.remote_state(), 'accounts': [self.account]})
         with patch.object(linking, 'workflow_request', remote):
             status, state = await self.request('GET', self.base)
             self.assertEqual(status, 200); self.assertIn('cấp quyền', state['blocked_reason'])
+            self.assertEqual(state['accounts'][0]['id'], self.external_id)
             self.assertEqual((await self.request('GET', self.base + '/candidates'))[0], 409)
-        remote.assert_not_awaited()
+        remote.assert_awaited_once()
 
     async def test_link_uses_server_identity_and_records_only_one_audit_on_retry(self):
         payload = await self.payload()
@@ -135,3 +136,71 @@ class AccountLinkingTests(ApiTestCase):
         with patch.object(linking.httpx, 'AsyncClient', lambda **kwargs: original(transport=httpx.MockTransport(handle), **kwargs)):
             status, value = await self.request('POST', self.base, payload=payload)
         self.assertEqual(status, 200, value); self.assertEqual(len(bodies), 2); self.assertEqual(bodies[0], bodies[1])
+
+    async def test_unlink_revokes_only_access_and_replay_does_not_revoke_a_new_grant(self):
+        payload = {**await self.payload(), 'expected_subject': self.subject, 'revoke_access': True}
+        remote = AsyncMock(return_value={'account': {**self.account, 'identity_subject': None},
+            'operation_id': payload['operation_id'], 'changed': True, 'revoked_sessions': 2})
+        with patch.object(linking, 'workflow_request', remote):
+            for _ in range(2):
+                status, result = await self.request('POST', self.base + '/unlink', payload=payload)
+                self.assertEqual(status, 200, result); self.assertTrue(result['access_revoked'])
+            async with self.sessions() as db:
+                grant = await db.get(UserApplicationAccess, ('bob', 'workflows'))
+                self.assertFalse(grant.enabled); self.assertEqual(grant.role_id, 'workflows:STAFF')
+                self.assertEqual((await db.get(User, 'bob')).identity_subject, self.subject)
+                grant.enabled = True
+                await db.commit()
+            status, result = await self.request('POST', self.base + '/unlink', payload=payload)
+            self.assertEqual(status, 200, result); self.assertFalse(result['access_revoked'])
+            self.assertEqual((await self.request('POST', self.base + '/unlink', payload={**payload, 'revoke_access': False}))[0], 409)
+        async with self.sessions() as db:
+            self.assertTrue((await db.get(UserApplicationAccess, ('bob', 'workflows'))).enabled)
+            self.assertEqual(await db.scalar(select(func.count()).select_from(AccessAuditLog).where(AccessAuditLog.action == 'application_account_unlinked')), 1)
+        sent = remote.await_args.kwargs['body']
+        self.assertEqual(sent['identity_subject'], self.subject); self.assertEqual(sent['actor_id'], 'alice')
+        self.assertNotIn('role_key', sent)
+
+    async def test_unlink_can_keep_access_for_correcting_a_binding(self):
+        payload = {**await self.payload(), 'expected_subject': self.subject, 'revoke_access': False}
+        remote = AsyncMock(return_value={'account': {**self.account, 'identity_subject': None}, 'operation_id': payload['operation_id']})
+        with patch.object(linking, 'workflow_request', remote):
+            status, result = await self.request('POST', self.base + '/unlink', payload=payload)
+        self.assertEqual(status, 200, result); self.assertFalse(result['access_revoked'])
+        async with self.sessions() as db:
+            self.assertTrue((await db.get(UserApplicationAccess, ('bob', 'workflows'))).enabled)
+
+    async def test_unlink_still_available_for_locked_users_without_a_grant(self):
+        async with self.sessions() as db:
+            (await db.get(User, 'bob')).is_active = False
+            await db.delete(await db.get(UserApplicationAccess, ('bob', 'workflows')))
+            await db.commit()
+        payload = {**await self.payload(), 'expected_subject': self.subject}
+        self.assertIsNone(payload['expected_grant_updated_at'])
+        remote = AsyncMock(return_value={'account': {**self.account, 'identity_subject': None}, 'operation_id': payload['operation_id']})
+        with patch.object(linking, 'workflow_request', remote):
+            status, result = await self.request('POST', self.base + '/unlink', payload=payload)
+        self.assertEqual(status, 200, result); self.assertTrue(result['access_revoked'])
+        async with self.sessions() as db:
+            self.assertIsNone(await db.get(UserApplicationAccess, ('bob', 'workflows')))
+
+    async def test_unlink_rejects_stale_unauthorized_or_forged_requests(self):
+        payload = {**await self.payload(), 'expected_subject': self.subject}
+        remote = AsyncMock()
+        with patch.object(linking, 'workflow_request', remote):
+            self.assertEqual((await self.request('POST', self.base + '/unlink', payload=payload, user='bob'))[0], 403)
+            for changes, code in [({'expected_platform_subject': 'stale'}, 409), ({'expected_grant_updated_at': 'stale'}, 409),
+                                  ({'actor_id': 'forged'}, 422), ({'expected_subject': None}, 422)]:
+                self.assertEqual((await self.request('POST', self.base + '/unlink', payload={**payload, **changes}))[0], code)
+        remote.assert_not_awaited()
+
+    async def test_unconfirmed_unlink_does_not_change_the_local_grant(self):
+        from fastapi import HTTPException
+        payload = {**await self.payload(), 'expected_subject': self.subject}
+        for mock in [AsyncMock(side_effect=HTTPException(503, 'Unconfirmed remote commit')),
+                     AsyncMock(return_value={'account': self.account, 'operation_id': payload['operation_id']})]:
+            with patch.object(linking, 'workflow_request', mock):
+                self.assertIn((await self.request('POST', self.base + '/unlink', payload=payload))[0], (502, 503))
+            async with self.sessions() as db:
+                self.assertTrue((await db.get(UserApplicationAccess, ('bob', 'workflows'))).enabled)
+                self.assertEqual(await db.scalar(select(func.count()).select_from(AccessAuditLog)), 0)

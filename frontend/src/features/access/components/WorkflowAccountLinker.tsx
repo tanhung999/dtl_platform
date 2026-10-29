@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, CheckCircle2, Link2, Search, ShieldCheck, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Link2, Search, ShieldCheck, Unlink, X } from 'lucide-react';
 import { requestWithTimeout } from '../../../services/requestTimeout';
 import { createRequestId } from '../../../services/requestId';
 import { ApiError } from '../../../services/api';
@@ -11,11 +11,11 @@ interface WorkflowAccount {
   link_status: 'unlinked' | 'legacy_here' | 'linked_here' | 'linked_elsewhere'; preserves_local_permissions: boolean;
 }
 interface LinkState {
-  configured: boolean; blocked_reason: string | null;
+  configured: boolean; blocked_reason: string | null; auto_link_blocked: boolean;
   platform_account: {id: string; username: string; full_name: string; email: string | null; identity_subject: string};
-  grant_updated_at: string; policy: {role_key: string | null; role_name: string | null; permission_keys: string[]} | null;
+  grant_updated_at: string | null; policy: {role_key: string | null; role_name: string | null; permission_keys: string[]} | null;
   accounts: WorkflowAccount[]; roles: {key: string; name: string}[]; permission_keys: string[];
-  history: {operation_id: string; workflow_username: string; actor_username: string; created_at: string}[];
+  history: {operation_id: string; action: 'link' | 'unlink'; workflow_username: string; actor_username: string; created_at: string}[];
 }
 interface Candidates {items: WorkflowAccount[]; total: number; offset: number; limit: number}
 
@@ -27,6 +27,7 @@ export function WorkflowAccountLinker({ targetId, revision, onLinked }: {targetI
   const [error, setError] = useState(''), [searchError, setSearchError] = useState(''), [success, setSuccess] = useState('');
   const [reload, setReload] = useState(0);
   const [notice, setNotice] = useState(''), [uncertain, setUncertain] = useState(false);
+  const [unlinkAccount, setUnlinkAccount] = useState<WorkflowAccount>(), [revokeAccess, setRevokeAccess] = useState(true);
   const inFlight = useRef(false), operation = useRef<string>(), mounted = useRef(true);
   const base = `/api/admin/applications/workflows/users/${encodeURIComponent(targetId)}/account-link`;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -34,7 +35,7 @@ export function WorkflowAccountLinker({ targetId, revision, onLinked }: {targetI
     if (!open) return;
     const controller = new AbortController();
     setLoading(true); setState(undefined); setSelected(undefined); setData(undefined); setError(''); operation.current = undefined;
-    setUncertain(false);
+    setUncertain(false); setUnlinkAccount(undefined); setRevokeAccess(true);
     requestWithTimeout<LinkState>(base, {signal: controller.signal, cache: 'no-store'})
       .then(value => {
         if (controller.signal.aborted) return;
@@ -46,6 +47,7 @@ export function WorkflowAccountLinker({ targetId, revision, onLinked }: {targetI
     return () => controller.abort();
   }, [open, base, revision, reload]);
   const linked = state?.accounts.find(a => a.link_status === 'linked_here');
+  const legacy = state?.accounts.find(a => a.link_status === 'legacy_here');
   useEffect(() => {
     if (!open || !state || state.blocked_reason || linked) return;
     const controller = new AbortController();
@@ -90,6 +92,37 @@ export function WorkflowAccountLinker({ targetId, revision, onLinked }: {targetI
   };
   const label = (a: WorkflowAccount) => !a.is_active ? 'Tài khoản bị khóa' : a.link_status === 'linked_elsewhere' ? 'Đã liên kết với tài khoản khác'
     : a.link_status === 'linked_here' ? 'Đã liên kết' : a.link_status === 'legacy_here' ? 'Liên kết cũ · Có thể cập nhật' : 'Chưa liên kết';
+  const prepareUnlink = (account: WorkflowAccount) => {
+    if (inFlight.current || uncertain) return;
+    setUnlinkAccount(account); setSelected(undefined); setRevokeAccess(true); setError(''); setSuccess(''); setNotice('');
+    operation.current = undefined;
+  };
+  const unlink = async () => {
+    if (inFlight.current || !state || !unlinkAccount) return;
+    inFlight.current = true; setBusy(true); setError(''); setSuccess('');
+    operation.current ||= createRequestId();
+    try {
+      const result = await requestWithTimeout<{access_revoked: boolean}>(`${base}/unlink`, {method: 'POST', body: JSON.stringify({
+        operation_id: operation.current, workflow_user_id: unlinkAccount.id,
+        expected_subject: unlinkAccount.identity_subject, expected_updated_at: unlinkAccount.updated_at,
+        expected_platform_subject: state.platform_account.identity_subject, expected_grant_updated_at: state.grant_updated_at,
+        revoke_access: revokeAccess,
+      })}, 25000);
+      if (mounted.current) {
+        setSuccess(`Đã hủy liên kết @${unlinkAccount.username}. ${result.access_revoked ? 'Đã thu hồi quyền mở DT Workflow.' : 'Quyền mở ứng dụng được giữ; SSO chỉ hoạt động lại sau khi liên kết lại.'}`);
+        setReload(value => value + 1); onLinked();
+      }
+    } catch (reason) {
+      if (mounted.current) {
+        if (reason instanceof ApiError && reason.status === 409) {
+          setNotice(reason.message); setReload(value => value + 1);
+        } else {
+          setError((reason as Error).message);
+          setUncertain(!(reason instanceof ApiError) || reason.status >= 500);
+        }
+      }
+    } finally { inFlight.current = false; if (mounted.current) setBusy(false); }
+  };
   return <div className="workflow-linking">
     <button type="button" className="btn btn-outline btn-sm" aria-expanded={open} disabled={busy}
       onClick={() => { setOpen(value => !value); setSuccess(''); }}><Link2 size={15}/>{open ? 'Ẩn liên kết tài khoản' : 'Liên kết tài khoản'}</button>
@@ -98,28 +131,30 @@ export function WorkflowAccountLinker({ targetId, revision, onLinked }: {targetI
         <button type="button" className="task-icon-button" aria-label="Đóng liên kết tài khoản" disabled={busy} onClick={() => setOpen(false)}><X size={17}/></button></header>
       {loading && <p role="status">Đang kiểm tra liên kết…</p>}
       {state?.blocked_reason && <p className="workflow-link-note" role="note">{state.blocked_reason}</p>}
+      {state?.auto_link_blocked && <p className="workflow-link-note" role="note">SSO đã được hủy liên kết và sẽ không tự kết nối lại. Quản trị viên cần chọn tài khoản và xác nhận liên kết lại.</p>}
       {notice && <p className="workflow-link-note" role="status">{notice}</p>}
-      {state && !state.blocked_reason && (linked ? <div className="workflow-linked-account" role="status"><CheckCircle2 size={20}/>
+      {state && (linked ? <div className="workflow-linked-account"><CheckCircle2 size={20}/>
         <div><strong>Đã liên kết: {linked.full_name}</strong><p>@{linked.username} · {linked.email || 'Chưa có email'}</p>
-        <span>{linked.preserves_local_permissions ? 'Giữ quyền Workflow hiện tại theo ngoại lệ quản trị.' : 'Quyền được đồng bộ từ Platform khi đăng nhập SSO.'}</span></div></div> : <>
+        <span>{linked.preserves_local_permissions ? 'Giữ quyền Workflow hiện tại theo ngoại lệ quản trị.' : 'Quyền được đồng bộ từ Platform khi đăng nhập SSO.'}</span>
+        {!unlinkAccount && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || uncertain} onClick={() => prepareUnlink(linked)}><Unlink size={15}/>Hủy liên kết</button>}</div></div> : !state.blocked_reason && <>
         <label className="workflow-link-search"><span><Search size={15}/>Tìm tài khoản Workflow</span>
-          <input className="form-input" value={query} disabled={busy || uncertain} maxLength={100} placeholder="Tên đăng nhập, họ tên hoặc email"
+          <input className="form-input" value={query} disabled={busy || uncertain || !!unlinkAccount} maxLength={100} placeholder="Tên đăng nhập, họ tên hoặc email"
             onChange={event => { setQuery(event.target.value); setOffset(0); setSelected(undefined); operation.current = undefined; setError(''); setNotice(''); }}/></label>
         {searching && <p role="status">Đang tìm tài khoản…</p>}
         {searchError && <p className="alert-error" role="alert">{searchError}</p>}
         {!searching && data && <><div className="workflow-link-candidates" role="radiogroup" aria-label="Tài khoản Workflow phù hợp">
           {data.items.map(account => <label key={account.id} className={`workflow-link-candidate${selected?.id === account.id ? ' is-selected' : ''}`}>
             <input type="radio" name={`workflow-link-${targetId}`} checked={selected?.id === account.id}
-              disabled={busy || uncertain || !account.is_active || account.link_status === 'linked_elsewhere' || account.link_status === 'linked_here'}
+              disabled={busy || uncertain || !!unlinkAccount || !account.is_active || account.link_status === 'linked_elsewhere' || account.link_status === 'linked_here'}
               onChange={() => { setSelected(account); operation.current = undefined; setError(''); }}/>
             <span><strong>{account.full_name}</strong><span>@{account.username} · {account.email || 'Chưa có email'}</span>
               <small>{account.department ? `${account.department} · ` : ''}{account.roles.map(r => r.name).join(', ') || 'Chưa có vai trò'}</small>
               <small>{label(account)}</small></span></label>)}
           {!data.items.length && <p>Không tìm thấy tài khoản phù hợp. Hãy thử tên đăng nhập hoặc email khác.</p>}
         </div>{data.total > data.limit && <div className="workflow-link-pagination">
-          <button type="button" className="btn btn-outline btn-sm" disabled={busy || uncertain || !offset} onClick={() => { setOffset(Math.max(0, offset - data.limit)); setSelected(undefined); }}>Trước</button>
+          <button type="button" className="btn btn-outline btn-sm" disabled={busy || uncertain || !!unlinkAccount || !offset} onClick={() => { setOffset(Math.max(0, offset - data.limit)); setSelected(undefined); }}>Trước</button>
           <span>{offset + 1}–{Math.min(offset + data.limit, data.total)} / {data.total}</span>
-          <button type="button" className="btn btn-outline btn-sm" disabled={busy || uncertain || offset + data.limit >= data.total} onClick={() => { setOffset(offset + data.limit); setSelected(undefined); }}>Sau</button>
+          <button type="button" className="btn btn-outline btn-sm" disabled={busy || uncertain || !!unlinkAccount || offset + data.limit >= data.total} onClick={() => { setOffset(offset + data.limit); setSelected(undefined); }}>Sau</button>
         </div>}</>}
         {selected && <div className="workflow-link-confirm">
           <strong>Kiểm tra trước khi liên kết</strong>
@@ -133,10 +168,24 @@ export function WorkflowAccountLinker({ targetId, revision, onLinked }: {targetI
             <Link2 size={16}/>{busy ? 'Đang liên kết…' : uncertain ? 'Kiểm tra và thử lại' : 'Xác nhận liên kết'}</button>
         </div>}
       </>)}
+      {!linked && legacy && !unlinkAccount && <div className="workflow-legacy-unlink"><span>Liên kết cũ: @{legacy.username}</span>
+        <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || uncertain} onClick={() => prepareUnlink(legacy)}><Unlink size={15}/>Hủy liên kết cũ</button></div>}
+      {state && unlinkAccount && <div className="workflow-link-confirm" role="group" aria-label="Xác nhận hủy liên kết">
+        <strong>Hủy liên kết hai tài khoản này?</strong>
+        <div className="workflow-link-pair"><div><span>Platform</span><strong>{state.platform_account.full_name}</strong><small>@{state.platform_account.username}</small></div>
+          <Unlink size={18} aria-hidden="true"/><div><span>DT Workflow</span><strong>{unlinkAccount.full_name}</strong><small>@{unlinkAccount.username} · {unlinkAccount.email || 'Chưa có email'}</small></div></div>
+        <p>Hồ sơ, mật khẩu và dữ liệu Workflow được giữ nguyên. Các phiên đăng nhập Workflow của tài khoản này sẽ kết thúc. SSO chỉ hoạt động lại sau khi quản trị viên liên kết lại.</p>
+        <label className="workflow-unlink-option"><input type="checkbox" checked={revokeAccess} disabled={busy || uncertain}
+          onChange={event => { setRevokeAccess(event.target.checked); operation.current = undefined; }}/><span>Thu hồi quyền mở DT Workflow trên Platform<small>Bỏ chọn nếu bạn sẽ liên kết lại với một tài khoản Workflow khác.</small></span></label>
+        <div className="workflow-unlink-actions"><button type="button" className="btn btn-outline" disabled={busy || uncertain}
+          onClick={() => { setUnlinkAccount(undefined); operation.current = undefined; }}>Quay lại</button>
+          <button type="button" className="btn btn-danger-outline" disabled={busy} onClick={() => { void unlink(); }}>
+            <Unlink size={16}/>{busy ? 'Đang hủy liên kết…' : uncertain ? 'Kiểm tra và thử lại' : 'Xác nhận hủy liên kết'}</button></div>
+      </div>}
       {success && <p className="access-success" role="status"><CheckCircle2 size={16}/>{success}</p>}
       {error && <div role="alert"><p className="alert-error">{error}</p>{!state && <button type="button" className="btn btn-outline btn-sm" onClick={() => setReload(value => value + 1)}>Thử lại</button>}</div>}
       {!!state?.history.length && <details className="workflow-link-history"><summary>Lịch sử liên kết ({state.history.length})</summary>
-        <ul>{state.history.map(item => <li key={item.operation_id}>@{item.workflow_username} · Người thực hiện: @{item.actor_username} · {new Date(item.created_at).toLocaleString('vi-VN', {timeZone: 'Asia/Ho_Chi_Minh'})}</li>)}</ul></details>}
+        <ul>{state.history.map(item => <li key={item.operation_id}>{item.action === 'unlink' ? 'Hủy liên kết' : 'Liên kết'} @{item.workflow_username} · Người thực hiện: @{item.actor_username} · {new Date(item.created_at).toLocaleString('vi-VN', {timeZone: 'Asia/Ho_Chi_Minh'})}</li>)}</ul></details>}
     </section>}
   </div>;
 }
