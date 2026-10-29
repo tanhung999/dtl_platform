@@ -42,14 +42,15 @@ class NoteResponse(BaseModel):
     content: str
     color: str
     is_pinned: bool
+    pinned_at: datetime | None = None
     is_archived: bool
     created_at: datetime
     updated_at: datetime
 
-    @field_validator("created_at", "updated_at")
+    @field_validator("created_at", "updated_at", "pinned_at")
     @classmethod
-    def normalize_database_timezone(cls, value: datetime) -> datetime:
-        return database_utc(value)
+    def normalize_database_timezone(cls, value: datetime | None) -> datetime | None:
+        return database_utc(value) if value is not None else None
 
     class Config:
         from_attributes = True

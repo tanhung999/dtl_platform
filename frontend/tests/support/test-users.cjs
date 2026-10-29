@@ -15,13 +15,15 @@ async def run():
         await session.commit()
 asyncio.run(run())`;
 const removeScript = `import asyncio,json,sys
-from sqlalchemy import delete
+from sqlalchemy import delete,select
 from app.core.database import async_session_maker
-from app.db.models import User
+from app.db.models import User,Task
 async def run():
     accounts=json.load(sys.stdin)
     async with async_session_maker() as session:
-        await session.execute(delete(User).where(User.id.in_([a['id'] for a in accounts]),User.username.in_([a['username'] for a in accounts]),User.username.like('testqa_%')))
+        owned_users=(User.id.in_([a['id'] for a in accounts]),User.username.in_([a['username'] for a in accounts]),User.username.like('testqa_%'))
+        await session.execute(delete(Task).where(Task.user_id.in_(select(User.id).where(*owned_users))))
+        await session.execute(delete(User).where(*owned_users))
         await session.commit()
 asyncio.run(run())`;
 function execute(script, accounts) {

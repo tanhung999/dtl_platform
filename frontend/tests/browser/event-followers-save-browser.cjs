@@ -33,7 +33,7 @@ assert.match(base, /^http:\/\/(localhost|127\.0\.0\.1):\d+$/);
     let response = await page.request.get(base + '/api/calendar/events/' + event.id, { headers });
     assert.deepEqual((await response.json()).followers, []); assert.equal(saves, 1);
     await open();
-    await detail.getByPlaceholder('Tìm theo tên hoặc tài khoản…').fill(fixture.accounts[1].username);
+    await detail.getByLabel('Người theo dõi', { exact: true }).fill(fixture.accounts[1].username);
     await detail.locator('.people-picker-results button').filter({ hasText: '@' + fixture.accounts[1].username }).click();
     await save();
     response = await page.request.get(base + '/api/calendar/events/' + event.id, { headers });

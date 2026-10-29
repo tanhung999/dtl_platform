@@ -42,6 +42,8 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   const [deleteVersion, setDeleteVersion] = useState(task.version);
   const checking = useMutationChecking();
   const mounted = useRef(true), submitting = useRef(false);
+  const assigneeId = task.can_assign ? assignee[0]?.id ?? task.user_id : task.assignee_id;
+  const followerIds = followers.filter(user => user.id !== task.user_id && user.id !== assigneeId).map(user => user.id);
   useEffect(() => {
     mounted.current = true;
     const previous = document.activeElement as HTMLElement | null;
@@ -54,11 +56,11 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (submitting.current || confirm) return;
-    if (sameFields({ title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate, due_time: dueTime, assignee_id:assignee[0]?.id??task.assignee_id, follower_ids:followers.map(item=>item.id).sort() },
+    if (sameFields({ title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate, due_time: dueTime, assignee_id:assigneeId, follower_ids:[...followerIds].sort() },
       { ...task, ...savedDeadline, title: task.title.trim(), is_private: task.is_private ?? false,
         follower_ids:(task.followers??[]).filter(item=>item.id!==task.user_id&&item.id!==task.assignee_id).map(item=>item.id).sort() }) && sameReminder(reminder, savedReminder)) { onClose(); return; }
     submitting.current = true; setBusy(true); setError('');
-    try { await onSave(task.id, { title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, assignee_id:assignee[0]?.id??task.assignee_id, follower_ids:followers.map(item=>item.id), expected_version: version, ...reminder }); if (mounted.current) onClose(); }
+    try { await onSave(task.id, { title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, ...(task.can_assign ? { assignee_id: assigneeId } : {}), follower_ids:followerIds, expected_version: version, ...reminder }); if (mounted.current) onClose(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể lưu công việc.'); }
     finally { submitting.current = false; if (mounted.current) setBusy(false); }
   };
@@ -89,8 +91,12 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
         }}/>
         <label>Mô tả công việc<textarea className="form-input" rows={3} maxLength={10000} value={description} onChange={e => setDescription(e.target.value)} /></label>
         <PrivacyToggle label="Công việc riêng tư" value={isPrivate} onChange={setIsPrivate} />
-        {task.can_assign&&<UserPicker label="Giao cho" endpoint="/api/task-assignees" value={assignee} onChange={setAssignee} disabled={busy}/>}
-        {task.can_edit&&<UserPicker multiple label="Người theo dõi" value={followers} onChange={setFollowers} disabled={busy}/>}
+        <div className="people-picker-grid">
+          {task.can_assign&&<div className="people-picker-field"><UserPicker label="Giao cho" endpoint="/api/task-assignees" value={assignee} onChange={setAssignee} disabled={busy}/>
+            {!assignee.length&&<p className="people-picker-hint" role="status">Để trống sẽ giao lại cho người tạo công việc.</p>}
+          </div>}
+          {task.can_edit&&<UserPicker multiple label="Người theo dõi" value={followers} onChange={setFollowers} disabled={busy}/>}
+        </div>
       </fieldset>
       {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
       {error && <p className="alert-error task-dialog-error" role="alert">{error}</p>}

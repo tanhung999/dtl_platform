@@ -7,14 +7,14 @@ from fastapi import HTTPException, Request
 from app.core.config import settings
 from app.core.realtime import prepare_changes, broadcast
 
-pool_options = {}
+pool_options = {"pool_pre_ping": True}
 if settings.DATABASE_URL.startswith("postgresql"):
-    pool_options = dict(pool_size=settings.DB_POOL_SIZE, max_overflow=settings.DB_MAX_OVERFLOW,
-        pool_timeout=settings.DB_POOL_TIMEOUT, pool_recycle=1800, pool_pre_ping=True,
+    pool_options.update(dict(pool_size=settings.DB_POOL_SIZE, max_overflow=settings.DB_MAX_OVERFLOW,
+        pool_timeout=settings.DB_POOL_TIMEOUT, pool_recycle=1800,
         connect_args={"timeout": 5, "server_settings": {
             "statement_timeout": str(settings.DB_STATEMENT_TIMEOUT_MS),
             "lock_timeout": str(settings.DB_LOCK_TIMEOUT_MS),
-            "idle_in_transaction_session_timeout": "15000"}})
+            "idle_in_transaction_session_timeout": "15000"}}))
 
 engine = create_async_engine(
     settings.DATABASE_URL,

@@ -39,6 +39,8 @@
 .calendar-task-legend-rows { display: grid; gap: 7px; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
 .calendar-task-legend-rows > span { display: flex; align-items: center; gap: 6px; line-height: 18px; }
 .calendar-task-legend-rows .calendar-task-legend-completed { color: var(--completed-text); }
+.calendar-task-legend-rows .calendar-task-legend-tracking { color:var(--tracking-text); }
+.calendar-task-legend-tracking > svg { flex:0 0 14px; }
 .calendar-status-legend .calendar-event-dot { width: 8px; height: 8px; }
 .calendar-sidebar-note { display: flex; align-items: flex-start; gap: 0.6rem; margin-top: 2rem; padding: 0.8rem; border-radius: 10px; color: var(--text-muted); background: var(--bg-surface); }
 .calendar-sidebar-note svg { flex-shrink: 0; }
@@ -263,6 +265,7 @@ button.calendar-count-chip { cursor: pointer; }
 .calendar-deadline-label { color: inherit; font-weight: 700; flex: 0 0 auto; }
 .calendar-deadline-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .calendar-deadline-summary { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.calendar-deadline-tracking-icon { width:13px; height:13px; flex:0 0 13px; color:var(--priority-accent); }
 .calendar-deadline-row.is-completed .calendar-deadline-summary { text-decoration:line-through; text-decoration-thickness:1.25px; }
 .calendar-deadline-row.is-completed .calendar-deadline-label,.calendar-deadline-row.is-completed .calendar-deadline-title { color:inherit; }
 .calendar-deadline-row.is-completed[data-task-priority] { --priority-bg:var(--completed-bg); --priority-fg:var(--completed-text); --priority-accent:var(--completed-accent); background:var(--priority-bg); color:var(--priority-fg); opacity:1; }
@@ -450,6 +453,12 @@ button.calendar-count-chip { cursor: pointer; }
 .calendar-day-section h3 > span { margin-left:auto; padding:2px 8px; border-radius:20px; font-size:11px; background:var(--bg-subtle); color:var(--text-muted); }
 .calendar-day-item { display:flex; flex-direction:column; width:100%; gap:7px; text-align:left; border:1px solid var(--border); border-left:3px solid var(--day-kind); background:var(--bg-card-solid); color:var(--text-main); border-radius:10px; padding:11px 12px; margin-top:7px; font:inherit; cursor:pointer; }
 .calendar-day-item:hover { background:var(--bg-subtle); }
+.calendar-day-section.is-event .calendar-day-item,.calendar-day-section.is-note .calendar-day-item { border-left-color:var(--event-color); }
+.calendar-day-section.is-task .calendar-day-item { border-left-color:var(--priority-accent); }
+.calendar-day-section.is-task .calendar-day-item.is-tracking:not(.is-completed) { --priority-accent:var(--tracking-accent); border-left-color:var(--tracking-accent); background:var(--tracking-bg); color:var(--tracking-text); }
+.calendar-day-section.is-task .calendar-day-item.is-tracking:not(.is-completed):hover { background:color-mix(in srgb,var(--tracking-accent) 15%,var(--bg-card-solid)); }
+.calendar-day-section.is-task .calendar-day-item.is-completed { --priority-accent:var(--completed-accent); border-left-color:var(--completed-accent); background:var(--completed-bg); color:var(--completed-text); }
+.calendar-day-section.is-task .calendar-day-item.is-completed:hover { background:var(--completed-hover-bg); }
 .calendar-day-item[aria-busy="true"] { cursor:progress; }
 .calendar-day-opening { display:flex; align-items:center; gap:6px; color:var(--text-muted); font-size:12px; line-height:1.5; }
 .calendar-day-opening.is-error { color:var(--error); }

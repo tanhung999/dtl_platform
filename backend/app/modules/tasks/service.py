@@ -16,12 +16,13 @@ from .permissions import require_assignable_target
 from app.db.models import TaskFollower
 
 
-async def sync_task_followers(db, task, actor, follower_ids):
+async def sync_task_followers(db, task, actor, follower_ids, *, assignee_id=None):
     """Replace explicit followers while preserving the delegator's tracking link."""
     if len(set(follower_ids)) != len(follower_ids):
         raise HTTPException(422, "Danh sách người theo dõi bị trùng.")
-    requested = set(follower_ids) - {task.user_id, task.assignee_id}
-    if task.assignee_id != task.user_id:
+    final_assignee = task.assignee_id if assignee_id is None else assignee_id
+    requested = set(follower_ids) - {task.user_id, final_assignee}
+    if final_assignee != task.user_id:
         requested.add(task.user_id)
     active = set((await db.scalars(select(User.id).where(User.id.in_(requested), User.is_active.is_(True)))).all()) if requested else set()
     if active != requested:
@@ -49,14 +50,17 @@ async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db:
     if 'assignee_id' in supplied:
         if not owner:
             raise HTTPException(403, "Bạn không có quyền đổi người nhận việc.")
-        target = await db.scalar(select(User).where(User.id == payload.assignee_id, User.is_active.is_(True)))
+        target_id = task.user_id if payload.assignee_id is None else payload.assignee_id
+        target = await db.scalar(select(User).where(User.id == target_id, User.is_active.is_(True)))
         if not target: raise HTTPException(404, "Không tìm thấy người nhận việc đang hoạt động.")
-        await require_assignable_target(db, user, payload.assignee_id)
+        await require_assignable_target(db, user, target_id)
     before = {'due_date': task.due_date, 'due_time': task.due_time}
     from app.modules.rescheduling.service import reminder_snapshot
     before.update(reminder_snapshot(task))
     reminder_before = signature(task, 'task')
     data = payload.model_dump(exclude_unset=True)
+    if 'assignee_id' in supplied:
+        data['assignee_id'] = target_id
     data.update(reminder_update(payload))
     follower_ids = data.pop('follower_ids', None)
     from app.modules.access.privacy import require_privacy_change
@@ -84,23 +88,24 @@ async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db:
     data = {key: value for key, value in data.items()
             if ((task.description or '') != (value or '') if key == 'description' else getattr(task, key) != value)}
     added_followers = removed_followers = set()
-    if follower_ids is not None:
+    old_assignee = task.assignee_id
+    final_assignee = data.get('assignee_id', old_assignee)
+    if follower_ids is not None or final_assignee != old_assignee:
         if not owner:
             raise HTTPException(403, "Bạn không có quyền đổi người theo dõi.")
-        added_followers, removed_followers = await sync_task_followers(db, task, user, follower_ids)
+        if follower_ids is None:
+            follower_ids = list((await db.scalars(select(TaskFollower.user_id).where(TaskFollower.task_id == task.id))).all())
+        # Resolve roles once against the final assignee. Filtering against the
+        # previous assignee would drop that person when explicitly added as a follower.
+        added_followers, removed_followers = await sync_task_followers(db, task, user, follower_ids, assignee_id=final_assignee)
     if not data and not added_followers and not removed_followers:
         return task
     if (date_value, time_value) != (task.due_date, task.due_time):
         task.deadline_version += 1
         task.legacy_due_date = None
-    old_assignee = task.assignee_id
     for key, value in data.items():
         setattr(task, key, value)
     if task.assignee_id != old_assignee:
-        # Assignment changes must keep owner tracking and avoid duplicating the assignee as a follower.
-        current_followers = list((await db.scalars(select(TaskFollower.user_id).where(TaskFollower.task_id == task.id))).all())
-        more_added, more_removed = await sync_task_followers(db, task, user, current_followers)
-        added_followers.update(more_added); removed_followers.update(more_removed)
         from app.modules.collaboration_notifications import notify
         if task.assignee_id != user.id:
             notify(db, task.assignee_id, 'task_reassigned', f'Bạn được giao công việc: {task.title}',

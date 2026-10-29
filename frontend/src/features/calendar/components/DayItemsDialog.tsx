@@ -1,5 +1,5 @@
 import { CSSProperties, useEffect, useRef, useState } from 'react';
-import { CalendarDays, CheckSquare, Clock, LoaderCircle, Plus, StickyNote, X } from 'lucide-react';
+import { CalendarDays, CheckSquare, Clock, Eye, LoaderCircle, Plus, StickyNote, X } from 'lucide-react';
 import { useLatestRequest } from '../../../services/useLatestRequest';
 import { addDays, dateKey, eventDayLabel, formatDate, toTimestamp } from '../dateUtils';
 import { calendarDayGroups } from '../dayGroups';
@@ -12,6 +12,7 @@ import { PriorityIcon } from '../../tasks/components/PriorityIcon';
 import { eventStatus } from '../eventStatus';
 import { EventStatusBadge } from './EventStatusBadge';
 import { CalendarItemTitle } from './CalendarItemTitle';
+import { eventTooltip, taskTooltip } from '../itemTooltip';
 
 interface Props {
   day: Date;
@@ -80,7 +81,7 @@ export function DayItemsDialog({ day, showEvents, showNotes, showTasks, onClose,
       {(events.error || deadlines.error) && <div className="calendar-error-state" role="alert"><p>{events.error || deadlines.error}</p><button type="button" className="btn btn-outline btn-sm" onClick={() => { events.refresh(); tasks.refresh(); }}>Thử lại</button></div>}
       {sections.filter(section => section.enabled).map(({ name, kind, Icon, items, total }) => <section className={`calendar-day-section is-${kind}`} key={kind} aria-label={name}>
         <h3><Icon size={17} />{name}<span>{total}</span></h3>
-        {items.map(item => <button type="button" className="calendar-day-item" key={item.id} style={{ '--event-color': eventStatus(item, tasks.now, key).color } as CSSProperties}
+        {items.map(item => <button type="button" className="calendar-day-item" key={item.id} data-tooltip={eventTooltip(item, tasks.now)} style={{ '--event-color': eventStatus(item, tasks.now, key).color } as CSSProperties}
           aria-busy={openingState?.id === item.id && openingState.pending} aria-disabled={openingState?.id === item.id && openingState.pending}
           onClick={() => { void open(item.id, signal => onSelect(item, key, signal)); }}>
           <strong><CalendarItemTitle event={item} /></strong>
@@ -92,10 +93,10 @@ export function DayItemsDialog({ day, showEvents, showNotes, showTasks, onClose,
       </section>)}
       {showTasks && <section className="calendar-day-section is-task" aria-label="Công việc">
         <h3><CheckSquare size={17} />Công việc<span>{deadlines.total}</span></h3>
-        {group.tasks.map(task => <button type="button" className={`calendar-day-item ${task.is_completed ? 'is-completed' : ''}`} key={task.id} data-task-priority={task.priority}
+        {group.tasks.map(task => <button type="button" className={`calendar-day-item ${task.is_completed ? 'is-completed' : ''} ${task.is_following ? 'is-tracking' : ''}`} key={task.id} data-task-priority={task.priority} data-tooltip={taskTooltip(task, tasks.now)}
           aria-busy={openingState?.id === task.id && openingState.pending} aria-disabled={openingState?.id === task.id && openingState.pending}
           onClick={() => { void open(task.id, signal => tasks.openTask(task.id, signal)); }}>
-          <strong><PriorityIcon priority={task.priority} /><span className="calendar-day-task-title">{task.title}</span></strong>
+          <strong><PriorityIcon priority={task.priority} />{task.is_following && <Eye className="calendar-deadline-tracking-icon" size={13} role="img" aria-label="Đang theo dõi" />}<span className="calendar-day-task-title">{task.title}</span></strong>
           <span className="calendar-day-item-meta"><span><Clock size={13} />{deadlineLabel(task, false, false) || 'Hạn cả ngày'}</span>
             <span className={!task.is_completed && isOverdue(task, tasks.now) ? 'calendar-day-overdue' : ''}>{task.is_completed ? 'Đã hoàn thành' : isOverdue(task, tasks.now) ? 'Quá hạn' : 'Chưa hoàn thành'}</span></span>
           <OpeningFeedback pending={openingState?.id === task.id && openingState.pending} error={openingState?.id === task.id ? openingState.error : undefined} />

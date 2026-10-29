@@ -134,7 +134,8 @@ async def scoped_move(db, event, scope, at, target):
     child_note = None
     if note:
         child_note = Note(user_id=note.user_id, title=note.title, content=note.content, color=note.color,
-            is_pinned=note.is_pinned, is_private=note.is_private, is_archived=note.is_archived)
+            is_pinned=note.is_pinned, pinned_at=(note.pinned_at or note.created_at) if note.is_pinned else None,
+            is_private=note.is_private, is_archived=note.is_archived)
         db.add(child_note)
         await db.flush()
         db.add(NoteCalendarSchedule(note_id=child_note.id, event_id=child.id))

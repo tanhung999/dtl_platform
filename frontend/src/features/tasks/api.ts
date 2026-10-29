@@ -9,7 +9,11 @@ const matchesTask = (task: Task, payload: Partial<TaskInput> & { is_completed?: 
   if (key === 'description') return (task.description ?? '') === (value ?? '');
   if (key === 'reminder_at') return (task.reminder_at ? Date.parse(task.reminder_at) : null) === (value ? Date.parse(String(value)) : null);
   if (key === 'title') return task.title === String(value).trim();
-  if (key === 'follower_ids') return JSON.stringify((task.followers ?? []).map(item => item.id).sort()) === JSON.stringify([...(value as string[])].sort());
+  if (key === 'assignee_id') return task.assignee_id === (value ?? task.user_id);
+  if (key === 'follower_ids') {
+    const explicit = (ids: string[]) => ids.filter(id => id !== task.user_id && id !== task.assignee_id).sort();
+    return JSON.stringify(explicit((task.followers ?? []).map(item => item.id))) === JSON.stringify(explicit(value as string[]));
+  }
   if (key === 'due_date' && !value && payload.due_time) return task.due_date === new Date(task.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
   return task[key as keyof Task] === value;
 });

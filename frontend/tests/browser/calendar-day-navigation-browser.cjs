@@ -51,7 +51,7 @@ asyncio.run(main())`;
       assert.ok(response.ok(), `${method} ${endpoint}: ${await response.text()}`);
       return response.status() === 204 ? null : response.json();
     };
-    await owner.waitForFunction(() => document.title === 'Đông Tây One (3)');
+    await owner.waitForFunction(() => document.title === '(3) Đông Tây One');
     await owner.getByRole('button', { name: 'Thông báo, 3 chưa đọc', exact: true }).waitFor();
 
     const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
@@ -66,7 +66,7 @@ asyncio.run(main())`;
     });
 
     await owner.goto(`${base}/calendar?date=${day}`);
-    await owner.waitForFunction(() => document.title === 'DT Calendar (3)');
+    await owner.waitForFunction(() => document.title === '(3) DT Calendar');
     await owner.locator('.calendar-week-day button').filter({ hasText: new RegExp(`^${Number(part('day'))}$`) }).click();
     const list = owner.locator('.calendar-day-dialog');
     for (const [title, detailName, closeName] of [
@@ -120,30 +120,53 @@ asyncio.run(main())`;
     const assigned = await api(viewer, 'POST', 'tasks', {
       title: 'QA realtime assignment', assignee_id: fixture.accounts[0].id,
     });
-    await owner.waitForFunction(() => document.title === 'DT Calendar (4)');
+    await owner.waitForFunction(() => document.title === '(4) DT Calendar');
     await owner.getByRole('button', { name: 'Thông báo, 4 chưa đọc', exact: true }).waitFor();
     const notices = await api(owner, 'GET', 'notifications');
     const incoming = notices.items.find(item => item.resource_id === assigned.id);
     assert.ok(incoming, 'Assignment notification was delivered');
     // Reading in another session/request also propagates through SSE.
     await api(owner, 'PATCH', `notifications/${incoming.id}`, { read: true });
-    await owner.waitForFunction(() => document.title === 'DT Calendar (3)');
+    await owner.waitForFunction(() => document.title === '(3) DT Calendar');
     await owner.getByRole('button', { name: 'Thông báo, 3 chưa đọc', exact: true }).waitFor();
 
     await owner.goto(base + '/notifications');
-    await owner.waitForFunction(() => document.title === 'Thông báo (3)');
+    await owner.waitForFunction(() => document.title === '(3) Thông báo');
+    const readAllUrl = '**/api/notifications/read-all';
+    let failedAttempts = 0;
+    const unavailable = route => { failedAttempts++; return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Dịch vụ tạm thời chưa sẵn sàng.' }) }); };
+    await owner.route(readAllUrl, unavailable);
     await owner.getByRole('button', { name: 'Đánh dấu tất cả đã đọc', exact: true }).click();
+    await owner.locator('.notifications-page').getByRole('alert').filter({ hasText: 'Dịch vụ tạm thời chưa sẵn sàng.' }).waitFor();
+    assert.equal(failedAttempts, 2, '503 retries once, then reports the error');
+    assert.equal(await owner.title(), '(3) Thông báo', 'Failed requests do not clear unread notices');
+    await owner.unroute(readAllUrl, unavailable);
+
+    const attempts = [];
+    const temporarilyBusy = route => {
+      attempts.push(route.request().postDataJSON());
+      if (attempts.length === 1) return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Dịch vụ tạm thời chưa sẵn sàng.' }) });
+      return route.continue();
+    };
+    await owner.route(readAllUrl, temporarilyBusy);
+    const readAllResponse = owner.waitForResponse(response => new URL(response.url()).pathname === '/api/notifications/read-all' && response.request().method() === 'POST' && response.status() === 204);
+    await owner.getByRole('button', { name: 'Đánh dấu tất cả đã đọc', exact: true }).click();
+    const readAll = await readAllResponse;
+    assert.equal(readAll.status(), 204, readAll.status() === 204 ? undefined : await readAll.text());
     await owner.waitForFunction(() => document.title === 'Thông báo');
+    assert.equal(attempts.length, 2);
+    assert.deepEqual(attempts[1], attempts[0], 'Retry preserves the original cutoff');
+    await owner.unroute(readAllUrl, temporarilyBusy);
     await owner.getByRole('button', { name: 'Thông báo', exact: true }).waitFor();
     await owner.getByRole('button', { name: /^Đánh dấu chưa đọc:/ }).first().click();
-    await owner.waitForFunction(() => document.title === 'Thông báo (1)');
+    await owner.waitForFunction(() => document.title === '(1) Thông báo');
     await owner.goto(base + '/homepage');
-    await owner.waitForFunction(() => document.title === 'Đông Tây One (1)');
+    await owner.waitForFunction(() => document.title === '(1) Đông Tây One');
     await owner.getByRole('button', { name: 'Đăng xuất', exact: true }).click();
     await owner.waitForURL('**/login');
     await owner.waitForFunction(() => document.title === 'Đông Tây One');
     assert.deepEqual(errors, []);
-    console.log('PASS: title suffix and bell count synchronize across routes, new SSE deliveries, remote reads and read-all; personal/shared day navigation, saves and mobile layout work.');
+    console.log('PASS: title prefix and bell count synchronize across routes, new SSE deliveries, remote reads and read-all; personal/shared day navigation, saves and mobile layout work.');
   } finally {
     await browser?.close();
     fixture.cleanup();

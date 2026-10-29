@@ -52,6 +52,9 @@ async def upgrade(conn):
         await conn.execute(text('SELECT pg_advisory_xact_lock(721042026)'))
     await migrate_task_deadlines(conn)
     await migrate_calendar_privacy(conn)
+    # Add the timestamp before older upgrades inspect timestamp columns.
+    from .note_pin_time import migrate_note_pin_time
+    await migrate_note_pin_time(conn)
     await conn.run_sync(Base.metadata.create_all)
     from .calendar_recurrence import migrate_calendar_recurrence
     await migrate_calendar_recurrence(conn)
@@ -304,6 +307,11 @@ async def upgrade(conn):
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
         from .organization_multiple_report_targets import migrate_organization_multiple_report_targets
         await migrate_organization_multiple_report_targets(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'notes_002_pin_time'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        await migrate_note_pin_time(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
 async def run():

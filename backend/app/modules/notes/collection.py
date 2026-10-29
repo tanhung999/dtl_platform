@@ -1,4 +1,4 @@
-"""Paged note previews, pinned first and newest creation first."""
+"""Paged note previews, with recent pin actions first in the pinned collection."""
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
@@ -56,11 +56,15 @@ async def note_page(
         func.count().filter(Note.is_pinned.is_(True)), func.count().filter(matches)).where(*owned))).one()
     total = counts[3]
     fields = [Note.id, Note.title, func.substr(Note.content, 1, 240).label("preview"), Note.color,
-              Note.is_pinned, Note.is_archived, Note.is_private, Note.version, Note.created_at, Note.updated_at]
+              Note.is_pinned, Note.pinned_at, Note.is_archived, Note.is_private, Note.version, Note.created_at, Note.updated_at]
     # Limit narrow ID rows first; do not compute previews for every row being sorted.
-    base = select(Note.id, Note.is_pinned, Note.created_at).where(*owned, matches)
-    order = (Note.is_pinned.desc(), Note.created_at.desc().nullslast(), Note.id)
-    if widget:
+    base = select(Note.id, Note.is_pinned, Note.pinned_at, Note.created_at).where(*owned, matches)
+    pin_order = filter == 'pinned'
+    order = (func.coalesce(Note.pinned_at, Note.created_at).desc().nullslast(), Note.created_at.desc().nullslast(), Note.id) if pin_order else (Note.is_pinned.desc(), Note.created_at.desc().nullslast(), Note.id)
+    if widget and pin_order:
+        picked = base.order_by(*order).limit(4).subquery()
+        offset = 0
+    elif widget:
         pinned = base.where(Note.is_pinned.is_(True)).order_by(*order).limit(6).subquery()
         unpinned = base.where(Note.is_pinned.is_(False)).order_by(*order).limit(6).subquery()
         combined = select(*pinned.c).union_all(select(*unpinned.c)).subquery()
@@ -69,7 +73,8 @@ async def note_page(
     else:
         offset = min(offset, ((total - 1) // limit) * limit) if total else 0
         picked = base.order_by(*order).offset(offset).limit(limit).subquery()
-    query = select(*fields).join(picked, Note.id == picked.c.id).order_by(picked.c.is_pinned.desc(), picked.c.created_at.desc().nullslast(), picked.c.id)
+    selected_order = (func.coalesce(picked.c.pinned_at, picked.c.created_at).desc().nullslast(), picked.c.created_at.desc().nullslast(), picked.c.id) if pin_order else (picked.c.is_pinned.desc(), picked.c.created_at.desc().nullslast(), picked.c.id)
+    query = select(*fields).join(picked, Note.id == picked.c.id).order_by(*selected_order)
     previews = (await db.execute(query)).mappings().all() if total else []
     selected = [row['id'] for row in previews]
     summaries = await schedule_summaries(db, user.id, selected)
@@ -78,6 +83,8 @@ async def note_page(
         item = dict(row)
         for key in ("created_at", "updated_at"):
             item[key] = utc(item[key])
+        if item['pinned_at'] is not None:
+            item['pinned_at'] = utc(item['pinned_at'])
         item["scheduled_event"] = summaries.get(item['id'])
         items.append(item)
     now = datetime.now(timezone.utc)

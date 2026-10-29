@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from app.core.realtime import mark_changed
 from app.modules.note_scheduling.service import save_schedule, with_schedule
-from app.db.models import Note, User
+from app.db.models import Note, User, utcnow
 from app.db.note_create_requests import NoteCreateRequest
 
 async def create_note_once(db, user, payload):
@@ -33,7 +33,7 @@ async def create_note_once(db, user, payload):
             return await with_schedule(db, note)
     from app.modules.access.privacy import require_privacy_change
     await require_privacy_change(db, user.id, payload.is_private)
-    note = Note(user_id=user.id, reminder_at=payload.reminder_at, **data)
+    note = Note(user_id=user.id, reminder_at=payload.reminder_at, pinned_at=utcnow() if data['is_pinned'] else None, **data)
     db.add(note)
     await db.flush()
     if payload.calendar_schedule:

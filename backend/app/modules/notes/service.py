@@ -38,6 +38,8 @@ async def update_note_service(note_id: str, payload: NoteUpdate, user: User, db:
     target_archived = update_data.pop("is_archived", note.is_archived)
     update_data = {key: value for key, value in update_data.items() if getattr(note, key) != value}
     fields_changed = bool(update_data) or target_archived != was_archived
+    if 'is_pinned' in update_data:
+        note.pinned_at = utcnow() if update_data['is_pinned'] else None
     for key, value in update_data.items():
         setattr(note, key, value)
     # Khôi phục trước khi đặt lịch; chỉ lưu trạng thái lưu trữ sau khi lịch hợp lệ.

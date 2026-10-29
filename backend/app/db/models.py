@@ -53,6 +53,7 @@ class Note(Base):
     content = Column(Text, default="")
     color = Column(String(30), default="#fef08a")  # Default sticky yellow
     is_pinned = Column(Boolean, default=False)
+    pinned_at = Column(UTCDateTime(), nullable=True)
     is_private = Column(Boolean, nullable=False, default=False, server_default="false")
     is_archived = Column(Boolean, default=False)
     reminder_at = Column(UTCDateTime(), nullable=True)

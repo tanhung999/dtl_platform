@@ -55,7 +55,7 @@ export function PageBranding({ page = 'dashboard', notFound = false, unreadCount
   const brand = workspaceRoutes[page];
   useEffect(() => {
     const title = notFound ? 'Không tìm thấy trang · Đông Tây One' : brand.title;
-    document.title = unreadCount > 0 ? `${title} (${unreadCount})` : title;
+    document.title = unreadCount > 0 ? `(${unreadCount}) ${title}` : title;
   }, [brand.title, notFound, unreadCount]);
   useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]') ?? document.createElement('link');

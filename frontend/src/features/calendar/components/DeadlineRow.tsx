@@ -1,6 +1,6 @@
 import { PriorityIcon } from '../../tasks/components/PriorityIcon';
 import { taskTooltip } from '../itemTooltip';
-import { Lock } from 'lucide-react';
+import { Eye, Lock } from 'lucide-react';
 import { Task } from '../../../types';
 import { useTasks } from '../../tasks/context/TasksContext';
 import { deadlineLabel, isOverdue } from '../../tasks/deadlineUtils';
@@ -11,6 +11,6 @@ export function DeadlineRow({ task, includeDate = false }: { task: Task; include
   const timeLabel = deadlineLabel(task, includeDate, false);
   return <div data-deadline-id={task.id} data-task-priority={task.priority} className={`calendar-deadline-row ${task.is_completed ? 'is-completed' : ''} ${task.is_following ? 'is-tracking' : ''} ${isOverdue(task, data.now) ? 'is-overdue' : ''}`}>
     <input type="checkbox" aria-label={`Đánh dấu ${task.title}`} checked={task.is_completed} disabled={!task.can_complete || data.busyIds.includes(task.id)} onChange={() => { data.toggle(task).catch(() => {}); }} />
-    <button type="button" data-tooltip={taskTooltip(task, data.now)} aria-label={`Mở công việc ${task.title}`} onClick={() => data.edit(task)}><PriorityIcon priority={task.priority} /><span className="calendar-deadline-summary">{timeLabel && <><span className="calendar-deadline-label">{timeLabel}</span>{' '}</>}<span className="calendar-deadline-title">{task.is_private && <Lock size={12} aria-label="Riêng tư" />} {task.is_completed && '✓ '}{task.title}</span></span></button>
+    <button type="button" data-tooltip={taskTooltip(task, data.now)} aria-label={`Mở công việc ${task.title}`} onClick={() => data.edit(task)}><PriorityIcon priority={task.priority} />{task.is_following && <Eye className="calendar-deadline-tracking-icon" size={13} role="img" aria-label="Đang theo dõi" />}<span className="calendar-deadline-summary">{timeLabel && <><span className="calendar-deadline-label">{timeLabel}</span>{' '}</>}<span className="calendar-deadline-title">{task.is_private && <Lock size={12} aria-label="Riêng tư" />} {task.is_completed && '✓ '}{task.title}</span></span></button>
   </div>;
 }
