@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { ArrowLeft, Construction, LoaderCircle, RefreshCw, ShieldX } from 'lucide-react';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { ApiError, getSessionKey } from '../../services/api';
-import brandLogo from '../../assets/logo.png';
+import brandLogo from '../../assets/logo-source.png';
 import { appsApi } from './api';
 
 const pendingLaunches = new Map<string, Promise<{ launch_url: string }>>();

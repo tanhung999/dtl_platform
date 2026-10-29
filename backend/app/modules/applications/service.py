@@ -4,6 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.applications import Application, UserApplicationAccess
 
 
+def listed_applications_query():
+    """The discoverable catalog is independent of permission to launch an app."""
+    return select(Application).order_by(Application.sort_order, Application.display_name, Application.key)
+
+
 def accessible_applications_query(user_id: str):
     return (
         select(Application)

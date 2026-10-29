@@ -19,7 +19,7 @@ from app.db.models import User
 from app.modules.access.audit import record
 from app.modules.access.service import APPLICATIONS_MANAGE, require
 from app.modules.auth.dependencies import get_current_user
-from app.modules.applications.service import accessible_applications_query
+from app.modules.applications.service import listed_applications_query
 
 router = APIRouter(prefix="/api/applications", tags=["Applications"])
 admin_router = APIRouter(prefix="/api/admin/applications", tags=["Application administration"])
@@ -225,17 +225,7 @@ async def _access_view(
 
 @router.get("/me", response_model=list[ApplicationView])
 async def my_applications(user: CurrentUser, db: Database):
-    return list(
-        (
-            await db.scalars(
-                select(Application)
-                .where(or_(Application.is_active.is_(True), Application.launch_url == ""))
-                .order_by(
-                    Application.sort_order, Application.display_name, Application.key
-                )
-            )
-        ).all()
-    )
+    return list((await db.scalars(listed_applications_query())).all())
 
 
 @admin_router.get("", response_model=list[ApplicationView])

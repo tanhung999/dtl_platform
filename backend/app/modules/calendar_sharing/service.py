@@ -5,6 +5,14 @@ from app.db.access import CalendarShare
 from app.db.models import User
 from app.modules.access.service import SHARE, permission_users
 
+
+def shared_owner_ids(viewer_id, scope):
+    """Owners whose live grant permits this category, matching grant_for."""
+    return select(CalendarShare.owner_id).join(User, User.id == CalendarShare.owner_id).where(
+        CalendarShare.viewer_id == viewer_id, CalendarShare.revoked_at.is_(None),
+        getattr(CalendarShare, scope).is_(True), User.is_active.is_(True),
+        User.id.in_(permission_users(SHARE)))
+
 async def grant_for(db, owner_id, viewer_id):
     grant = await db.scalar(select(CalendarShare).join(User, User.id == CalendarShare.owner_id).where(
         CalendarShare.owner_id == owner_id, CalendarShare.viewer_id == viewer_id, CalendarShare.revoked_at.is_(None),

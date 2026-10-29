@@ -55,11 +55,11 @@ class ApplicationRegistryTests(ApiTestCase):
             ])
             await db.commit()
 
-    async def test_registry_returns_all_active_apps_and_launch_is_enforced(self):
+    async def test_registry_returns_discoverable_apps_and_launch_is_enforced(self):
         await self.seed()
         status, apps = await self.request('GET', '/api/applications/me')
         self.assertEqual(status, 200)
-        self.assertEqual([app['key'] for app in apps], ['allowed', 'denied', 'coming-soon'])
+        self.assertEqual([app['key'] for app in apps], ['allowed', 'denied', 'development', 'coming-soon'])
 
         status, result = await self.request('POST', '/api/sso/launch', payload={'target_app': 'allowed'})
         self.assertEqual(status, 200)
@@ -125,7 +125,7 @@ class ApplicationRegistryTests(ApiTestCase):
         self.assertTrue(changed['enabled'])
         status, bob_apps = await self.request('GET', '/api/applications/me', user='bob')
         self.assertEqual(status, 200)
-        self.assertEqual([app['key'] for app in bob_apps], ['allowed', 'denied', 'oidc-app', 'coming-soon'])
+        self.assertEqual([app['key'] for app in bob_apps], ['allowed', 'denied', 'development', 'oidc-app', 'coming-soon'])
 
     async def test_private_entitlement_contract_fails_closed(self):
         await self.seed()

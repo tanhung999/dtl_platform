@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CalendarDays, CheckSquare, StickyNote } from 'lucide-react';
 import { request } from '../../services/api';
 import { User } from '../../types';
 import { AppLauncherWidget } from '../apps/AppLauncherWidget';
+import type { EnterpriseApp } from '../apps/api';
+import type { SharedItem } from '../calendar-sharing/api';
+import { SharedItemDialog } from '../calendar-sharing/components/SharedItemDialog';
+import { useSharedDetail } from '../calendar-sharing/hooks/useSharedCalendar';
 import { useTasks } from '../tasks/context/TasksContext';
 import { CalendarNoteModal } from '../note-scheduling/CalendarNoteModal';
 import { EventModal } from '../calendar/components/EventModal';
@@ -12,9 +16,11 @@ import { eventDate } from '../calendar/dateUtils';
 import { useLatestRequest } from '../../services/useLatestRequest';
 import { WORKSPACE_CHANGED } from '../realtime/useWorkspaceRealtime';
 import './search.css';
+import '../calendar/calendar.css';
+import '../calendar-sharing/calendar-sharing.css';
 
 type Kind = 'apps' | 'tasks' | 'notes' | 'events';
-interface Hit { id: string; title: string; preview?: string; due_date?: string; due_time?: string; is_completed?: boolean; is_pinned?: boolean; starts_at?: string; ends_at?: string; is_all_day?: boolean; location?: string; }
+interface Hit { id: string; title: string; preview?: string; due_date?: string; due_time?: string; is_completed?: boolean; is_pinned?: boolean; starts_at?: string; ends_at?: string; is_all_day?: boolean; location?: string; owner_id?: string; owner_name?: string; shared_only?: boolean; item_id?: string; application?: EnterpriseApp; }
 interface Results { groups: Record<Kind, { items: Hit[]; total: number }>; offset: number; limit: number; }
 const labels: Record<Kind | 'all', string> = { all: 'Tất cả', apps: 'Ứng dụng', tasks: 'Công việc', notes: 'Ghi chú', events: 'Sự kiện' };
 const kinds: Kind[] = ['apps', 'tasks', 'notes', 'events'];
@@ -36,12 +42,15 @@ export function SearchPage({ query, user }: { query: string; user: User }) {
   const [data, setData] = useState<Results>(), [loading, setLoading] = useState(false), [error, setError] = useState('');
   const [revision, setRevision] = useState(0), [openError, setOpenError] = useState(''), [openingId, setOpeningId] = useState('');
   const [noteId, setNoteId] = useState<string>(), [event, setEvent] = useState<CalendarEvent>();
+  const [shared, setShared] = useState<{ ownerId: string; item: SharedItem }>();
+  const unavailable = useCallback(() => { setShared(undefined); setOpenError('Mục này không còn được chia sẻ với bạn.'); }, []);
+  const sharedDetail = useSharedDetail(shared?.ownerId ?? '', shared?.item, revision, revision, unavailable);
   const tasks = useTasks(), opening = useLatestRequest();
   useEffect(() => { setKind('all'); setOffset(0); }, [query]);
-  useEffect(() => { opening.cancel(); setOpeningId(''); setOpenError(''); }, [query, kind, offset, opening.cancel]);
+  useEffect(() => { opening.cancel(); setOpeningId(''); setOpenError(''); setShared(undefined); }, [query, kind, offset, opening.cancel]);
   useEffect(() => {
-    const refresh = () => setRevision(value => value + 1);
-    const changed = (event: Event) => { if ((event as CustomEvent<string[]>).detail.some(topic => ['tasks', 'notes', 'calendar'].includes(topic))) refresh(); };
+    const refresh = () => { setData(undefined); setRevision(value => value + 1); };
+    const changed = (event: Event) => { if ((event as CustomEvent<string[]>).detail.some(topic => ['tasks', 'notes', 'calendar', 'calendar-sharing', 'shared-calendar', 'applications'].includes(topic))) refresh(); };
     window.addEventListener(WORKSPACE_CHANGED, changed); window.addEventListener('focus', refresh); window.addEventListener('online', refresh);
     return () => { window.removeEventListener(WORKSPACE_CHANGED, changed); window.removeEventListener('focus', refresh); window.removeEventListener('online', refresh); };
   }, []);
@@ -64,7 +73,13 @@ export function SearchPage({ query, user }: { query: string; user: User }) {
   const open = async (type: Kind, hit: Hit) => {
     const controller = opening.start(); setOpenError(''); setOpeningId(`${type}:${hit.id}`);
     try {
-      if (type === 'notes') setNoteId(hit.id);
+      if (hit.shared_only && hit.owner_id) {
+        setShared({ ownerId: hit.owner_id, item: {
+          id: hit.item_id ?? hit.id, kind: type === 'notes' ? 'note' : type === 'tasks' ? 'task' : 'event',
+          title: hit.title, starts_at: hit.starts_at, ends_at: hit.ends_at, is_all_day: hit.is_all_day,
+          due_date: hit.due_date, due_time: hit.due_time, is_completed: hit.is_completed,
+        } });
+      } else if (type === 'notes') setNoteId(hit.id);
       else if (type === 'tasks') await tasks.openTask(hit.id, controller.signal);
       else if (type === 'events') { const item = await calendarApi.get(hit.id, controller.signal); if (!controller.signal.aborted) setEvent(item); }
     } catch (reason) { if (!controller.signal.aborted) setOpenError(reason instanceof Error ? reason.message : 'Không mở được nội dung.'); }
@@ -82,16 +97,20 @@ export function SearchPage({ query, user }: { query: string; user: User }) {
       if (!group.total) return null;
       return <section className="search-result-group" key={type} aria-label={labels[type]}>
         <h2>{labels[type]} <span>({group.total})</span></h2>
-        {type === 'apps' ? <AppLauncherWidget resultIds={group.items.map(hit => hit.id)} /> : <div className="search-result-list">{group.items.map(hit => {
+        {type === 'apps' ? <AppLauncherWidget results={group.items.flatMap(hit => hit.application ? [hit.application] : [])} /> : <div className="search-result-list">{group.items.map(hit => {
           const Icon = icons[type];
+          const owner = hit.owner_id && hit.owner_id !== user.id ? `${hit.shared_only ? 'Lịch được chia sẻ' : 'Người tạo'}: ${hit.owner_name ?? ''}` : '';
+          const details = [meta(type, hit), owner, hit.shared_only ? 'Chỉ xem' : ''].filter(Boolean).join(' · ');
           return <button type="button" className="search-result" key={hit.id} disabled={!!openingId} onClick={() => { void open(type, hit); }}>
-            <Icon size={20} aria-hidden="true" /><span><strong>{hit.title || 'Ghi chú không có tiêu đề'}</strong>{hit.preview && <span className="search-preview">{hit.preview}</span>}<span className="search-meta">{meta(type, hit)}</span></span>
+            <Icon size={20} aria-hidden="true" /><span><strong>{hit.title || 'Ghi chú không có tiêu đề'}</strong>{hit.preview && <span className="search-preview">{hit.preview}</span>}<span className="search-meta">{details}</span></span>
           </button>;
         })}</div>}
         {kind === 'all' && group.total > group.items.length && <button type="button" className="workspace-text-link" onClick={() => filter(type)}>Xem tất cả {labels[type].toLowerCase()} ({group.total})</button>}
         {kind !== 'all' && group.total > data.limit && <div className="search-pagination"><button type="button" className="btn btn-outline btn-sm" disabled={!offset} onClick={() => paginate(Math.max(0, offset - data.limit))}>Trang trước</button><span>{group.items.length ? offset + 1 : 0}–{offset + group.items.length} / {group.total}</span><button type="button" className="btn btn-outline btn-sm" disabled={offset + data.limit >= group.total} onClick={() => paginate(offset + data.limit)}>Trang sau</button></div>}
       </section>;
     })}</div>}
+    {shared && <SharedItemDialog selected={shared.item} item={sharedDetail.item} error={sharedDetail.error}
+      pending={sharedDetail.pending} verifying={sharedDetail.pending} onClose={() => setShared(undefined)} onRetry={() => setRevision(value => value + 1)} />}
     {noteId && <CalendarNoteModal key={noteId} noteId={noteId} onClose={() => setNoteId(undefined)} />}
     {event && <EventModal key={event.id} event={event} draft={{ date: eventDate(event.starts_at) }} onClose={() => setEvent(undefined)}
       onSave={async (payload, id) => { await calendarApi.update(id!, payload); changedCalendar(); }}

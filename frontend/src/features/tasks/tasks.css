@@ -54,6 +54,11 @@
 .task-dialog-header, .task-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 1rem 1.25rem; }
 .task-dialog-header { border-bottom: 1px solid var(--border); }
 .task-dialog-header h2 { font-size: 1rem; }
+.task-readonly-notice { display:flex; align-items:flex-start; gap:8px; margin:16px 1.25rem 0; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-surface); color:var(--text-main); font-size:12px; line-height:1.6; }
+.task-readonly-notice > svg { flex:0 0 16px; margin-top:2px; color:var(--accent-text); }
+.task-readonly-notice.is-following > svg { color:var(--tracking-text); }
+.task-readonly-notice strong { font-size:13px; font-weight:600; }
+.task-readonly-notice p { margin:3px 0 0; color:var(--text-secondary); }
 .task-dialog-footer { border-top: 1px solid var(--border); background: var(--bg-surface); }
 .task-dialog-fields { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; border: 0; min-width: 0; }
 .task-dialog-fields label, .task-dialog-fields .task-priority-field { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.75rem; font-weight: 600; min-width: 0; }

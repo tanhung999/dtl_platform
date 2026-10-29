@@ -9,25 +9,26 @@ import { getSessionKey } from '../../services/api';
 const iconName = (value: string): FeatureIconName => value === 'tasks' || value in brandIconCells ? value as FeatureIconName : 'platform';
 let appsCache: { session: string; items: EnterpriseApp[] } | undefined;
 
-export function AppLauncherWidget({ resultIds, detailed = false, onOpenAll }: {
-  resultIds?: string[]; detailed?: boolean; onOpenAll?: () => void;
+export function AppLauncherWidget({ results, detailed = false, onOpenAll }: {
+  results?: EnterpriseApp[]; detailed?: boolean; onOpenAll?: () => void;
 }) {
   const session = getSessionKey();
   if (appsCache?.session !== session) appsCache = undefined;
   const [snapshot, setApps] = useState(() => appsCache);
-  const apps = snapshot?.session === session ? snapshot.items : [];
-  const [loading, setLoading] = useState(!appsCache);
+  const apps = results ?? (snapshot?.session === session ? snapshot.items : []);
+  const [loading, setLoading] = useState(!results && !appsCache);
   const [errorMessage, setErrorMessage] = useState('');
   const [readyLink, setReadyLink] = useState<{ url: string; name: string }>();
   useEffect(() => {
+    if (results) return;
     let active = true;
     appsApi.listMine()
       .then(result => { if (active && getSessionKey() === session) { appsCache = { session, items: result }; setApps(appsCache); } })
       .catch(reason => { if (active) setErrorMessage(reason instanceof Error ? reason.message : 'Không thể tải danh sách ứng dụng.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [session]);
-  const filtered = resultIds ? apps.filter(app => resultIds.includes(app.key)) : apps;
+  }, [session, results]);
+  const filtered = apps;
   const handleLaunch = (app: EnterpriseApp) => {
     setErrorMessage(''); setReadyLink(undefined);
     const params = new URLSearchParams({
@@ -47,7 +48,7 @@ export function AppLauncherWidget({ resultIds, detailed = false, onOpenAll }: {
     {errorMessage && <p className="alert-error" role="alert">{errorMessage}</p>}
     {readyLink && <p role="status">Trình duyệt chưa mở tab mới. <a className="workspace-text-link" href={readyLink.url} target="_blank" rel="noopener noreferrer">Mở {readyLink.name} <ExternalLink size={14} /></a></p>}
     {loading && <p className="workspace-empty" role="status">Đang tải ứng dụng…</p>}
-    {!loading && !filtered.length && <p className="workspace-empty">{!apps.length ? 'Bạn chưa được cấp quyền truy cập ứng dụng doanh nghiệp.' : 'Không tìm thấy ứng dụng phù hợp.'}</p>}
+    {!loading && !filtered.length && <p className="workspace-empty">Chưa có ứng dụng phù hợp.</p>}
     <div className="enterprise-app-grid">{filtered.map(app => <button type="button" key={app.key} className="enterprise-app-card" aria-label={`Mở ${app.display_name}`} onClick={() => handleLaunch(app)}>
       {app.icon_url ? <img className="feature-icon" src={app.icon_url} alt="" aria-hidden="true" width={66} height={66} /> : <FeatureIcon name={iconName(app.icon_key)} size={66} />}
       <strong>{app.display_name}</strong>

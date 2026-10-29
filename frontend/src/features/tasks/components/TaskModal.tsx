@@ -1,6 +1,6 @@
 import { PrioritySelect } from './PrioritySelect';
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Trash2, X } from 'lucide-react';
+import { Eye, Trash2, UserRound, X } from 'lucide-react';
 import { Task } from '../../../types';
 import { TaskInput } from '../types';
 
@@ -79,6 +79,12 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   return <dialog className="task-dialog" ref={dialog} aria-labelledby="task-dialog-title" onCancel={e => { e.preventDefault(); e.stopPropagation(); }}>
     <form onSubmit={submit} aria-busy={busy}>
       <header className="task-dialog-header"><h2 id="task-dialog-title">Chi tiết công việc</h2><button type="button" className="task-icon-button" aria-label="Đóng công việc" disabled={busy} onClick={onClose}><X size={18} /></button></header>
+      {!task.can_edit && <div className={`task-readonly-notice${task.is_following ? ' is-following' : ''}`} role="note">
+        {task.relationship === 'ASSIGNEE' ? <UserRound size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+        <div><strong>{task.relationship === 'ASSIGNEE' ? 'Bạn là người được giao công việc' : task.is_following ? 'Bạn là người theo dõi · Chỉ xem' : 'Bạn đang xem công việc · Chỉ xem'}</strong>
+          <p>{task.can_complete ? 'Chỉ người tạo được sửa nội dung, dời lịch hoặc xóa. Bạn có thể đánh dấu hoàn thành trên danh sách hoặc lịch.' : 'Chỉ người tạo công việc được sửa nội dung, dời lịch hoặc xóa.'}</p>
+        </div>
+      </div>}
       <fieldset disabled={busy||confirm||!task.can_edit} className="task-dialog-fields">
         <label>Tên công việc<input className="form-input" value={title} required maxLength={255} autoFocus onChange={e => setTitle(e.target.value)} /></label>
         <div className="task-priority-field"><span>Ưu tiên</span><PrioritySelect label="Ưu tiên" value={priority} disabled={busy} onChange={setPriority} /></div>
