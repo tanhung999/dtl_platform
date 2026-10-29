@@ -66,12 +66,12 @@ async def workflow_request(method, path, *, params=None, body=None):
 
 async def context(db, actor, target_id, *, lock=False):
     await require(db, actor.id, APPLICATIONS_MANAGE)
-    query = select(User).where(User.id == target_id)
+    query = select(User).where(User.id == target_id).execution_options(populate_existing=True)
     target = await db.scalar(query.with_for_update() if lock else query)
     if target is None:
         raise HTTPException(404, "Không tìm thấy tài khoản Platform.")
     application = await db.get(Application, "workflows")
-    grant = await db.get(UserApplicationAccess, (target_id, "workflows"), with_for_update=lock)
+    grant = await db.get(UserApplicationAccess, (target_id, "workflows"), with_for_update=lock, populate_existing=lock)
     reason = ("Tài khoản Platform đang bị khóa." if not target.is_active else
               "Tài khoản Platform chưa có định danh SSO hiện tại. Hãy hoàn tất liên kết Keycloak." if not target.identity_subject or target.identity_subject.startswith("platform:") else
               "DT Workflow chưa được bật trên Platform." if not application or not application.is_active else

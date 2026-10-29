@@ -204,3 +204,20 @@ class AccountLinkingTests(ApiTestCase):
             async with self.sessions() as db:
                 self.assertTrue((await db.get(UserApplicationAccess, ('bob', 'workflows'))).enabled)
                 self.assertEqual(await db.scalar(select(func.count()).select_from(AccessAuditLog)), 0)
+
+    async def test_locked_context_refreshes_identity_and_grant_from_database(self):
+        from sqlalchemy import update
+        async with self.sessions() as db:
+            actor = await db.get(User, 'alice')
+            target = await db.get(User, 'bob')
+            grant = await db.get(UserApplicationAccess, ('bob', 'workflows'))
+            fresh_subject = str(uuid4())
+            await db.execute(update(User).where(User.id == 'bob').values(identity_subject=fresh_subject)
+                .execution_options(synchronize_session=False))
+            await db.execute(update(UserApplicationAccess).where(UserApplicationAccess.user_id == 'bob',
+                UserApplicationAccess.application_key == 'workflows').values(enabled=False)
+                .execution_options(synchronize_session=False))
+            self.assertEqual(target.identity_subject, self.subject); self.assertTrue(grant.enabled)
+            current, access, reason, _ = await linking.context(db, actor, 'bob', lock=True)
+            self.assertEqual(current.identity_subject, fresh_subject); self.assertFalse(access.enabled)
+            self.assertIn('cấp quyền', reason)
