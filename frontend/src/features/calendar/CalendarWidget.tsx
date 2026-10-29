@@ -92,7 +92,7 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
         : data.error ? <div role="alert" className="calendar-error-state"><p>{data.error}</p><button type="button" className="btn btn-outline btn-sm" onClick={data.refresh}>Thử lại</button></div>
         : eventGroups.map(group => group.items.length > 0 && <section key={group.key} className="calendar-widget-group" data-calendar-group={group.key} aria-label={group.title}><h4>{group.title}<span><AnimatedCount value={group.items.length} /></span></h4>{group.items.map(renderEvent)}</section>)}
       {renderTasks('completed', 'Việc đã xong', completedTasks)}
-      {!initialCalendarLoading && !initialDeadlineLoading && !data.error && !deadlineData.error && !events.length && !deadlines.length && !hasOverdue && <div className="calendar-widget-empty"><CalendarDays size={26} /><p>Chưa có sự kiện, ghi chú hoặc hạn công việc trong ngày</p><button type="button" className="calendar-text-button" onClick={() => setDraft({ date })}>+ Thêm lịch cho ngày này</button></div>}
+      {!initialCalendarLoading && !initialDeadlineLoading && !data.error && !deadlineData.error && !events.length && !deadlines.length && !hasOverdue && <div className="calendar-widget-empty"><CalendarDays size={26} /><p>Chưa có sự kiện, ghi chú hoặc hạn công việc trong ngày</p></div>}
     </div>
     <div className="calendar-widget-footer"><button type="button" className="calendar-text-button" onClick={() => setDate(today())}>Về hôm nay</button><button type="button" className="calendar-text-button" onClick={() => onOpenCalendar(date)}>Mở lịch đầy đủ <ArrowUpRight size={15} /></button></div>
     {draft && <CalendarItemModal event={selected} draft={draft} onClose={close} onSave={data.save} onDelete={data.remove} />}
