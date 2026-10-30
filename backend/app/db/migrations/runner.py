@@ -328,14 +328,12 @@ async def upgrade(conn):
 
     version = 'applications_012_sort_alphabetical'
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
-        await conn.execute(text("""
-            UPDATE applications SET sort_order = 10, display_name = 'DT Assets' WHERE key = 'itam';
-            UPDATE applications SET sort_order = 20, display_name = 'DT Booking 360' WHERE key = 'bookingreports';
-            UPDATE applications SET sort_order = 30, display_name = 'DT HRM' WHERE key = 'hrm';
-            UPDATE applications SET sort_order = 40, display_name = 'DT Income Statement' WHERE key = 'income-statement';
-            UPDATE applications SET sort_order = 50, display_name = 'DT Sales Commission' WHERE key = 'sales-commission';
-            UPDATE applications SET sort_order = 60, display_name = 'DT Workflow' WHERE key = 'workflows';
-        """))
+        await conn.execute(text("UPDATE applications SET sort_order = 10, display_name = 'DT Assets' WHERE key = 'itam'"))
+        await conn.execute(text("UPDATE applications SET sort_order = 20, display_name = 'DT Booking 360' WHERE key = 'bookingreports'"))
+        await conn.execute(text("UPDATE applications SET sort_order = 30, display_name = 'DT HRM' WHERE key = 'hrm'"))
+        await conn.execute(text("UPDATE applications SET sort_order = 40, display_name = 'DT Income Statement' WHERE key = 'income-statement'"))
+        await conn.execute(text("UPDATE applications SET sort_order = 50, display_name = 'DT Sales Commission' WHERE key = 'sales-commission'"))
+        await conn.execute(text("UPDATE applications SET sort_order = 60, display_name = 'DT Workflow' WHERE key = 'workflows'"))
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
 async def run():

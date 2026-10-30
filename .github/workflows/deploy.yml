@@ -79,21 +79,20 @@ jobs:
           script_stop: true
           script: |
             TARGET_DIR=""
-            for dir in /srv/dtl/platform /srv/dtl/dtl-platform /srv/platform; do
+            for dir in /srv/dtl/dtl-platform /srv/dtl/platform /srv/platform; do
               if [ -d "$dir" ]; then
                 TARGET_DIR="$dir"
                 break
               fi
             done
             if [ -z "$TARGET_DIR" ]; then
-              echo "Error: Could not locate platform directory on server (/srv/dtl/platform or /srv/dtl/dtl-platform)." >&2
+              echo "Error: Could not locate platform directory on server." >&2
               exit 1
             fi
             echo "Deploying in $TARGET_DIR..."
             cd "$TARGET_DIR"
             git fetch origin main
-            git checkout main
-            git pull origin main
+            git checkout -f main
+            git reset --hard origin/main
             chmod +x scripts/*.sh || true
             ./scripts/deploy.sh
-
