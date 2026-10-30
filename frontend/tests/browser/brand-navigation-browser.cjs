@@ -25,7 +25,7 @@ const base = 'http://127.0.0.1:5173';
     assert.equal(await panel.count(), 0);
     assert.equal(await page.locator('.nav-brand-logo').getAttribute('alt'), 'Đông Tây One');
     assert.deepEqual(await shortcuts.getByRole('button').allTextContents(), ['DT My Note', 'DT Task', 'DT Calendar', 'DT Link']);
-    assert.deepEqual(await page.locator('.enterprise-app-card strong').allTextContents(), ['DT Booking 360', 'DT Workflow', 'DT Assets', 'DT HRM', 'DT Sales Commission', 'DT Income Statement']);
+    assert.deepEqual(await page.locator('.enterprise-app-card strong').allTextContents(), ['DT Assets', 'DT Booking 360', 'DT HRM', 'DT Income Statement', 'DT Sales Commission', 'DT Workflow']);
     assert.equal(await page.locator('.enterprise-app-subtitle, .enterprise-app-description').count(), 0);
     assert.equal(await page.getByRole('button', { name: /DT HRM|DT Sales Commission|DT Income Statement/ }).count(), 3);
     const developmentPagePromise = page.waitForEvent('popup');

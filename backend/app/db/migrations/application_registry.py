@@ -11,8 +11,20 @@ from app.modules.access.service import APPLICATIONS_MANAGE
 
 DEFAULT_APPLICATIONS = (
     {
+        "key": "itam",
+        "display_name": "DT Assets",
+        "description": "Quản lý tài sản, thiết bị, kho và thủ tục tiếp nhận nhân sự.",
+        "icon_key": "assets",
+        "launch_url": settings.ASSET_MANAGER_URL,
+        "callback_path": "/api/auth/platform/callback",
+        "permission_prefix": "asset-manager",
+        "oidc_client_id": "asset-manager",
+        "oidc_audience": "asset-manager",
+        "sort_order": 10,
+    },
+    {
         "key": "bookingreports",
-        "display_name": "DT DT Booking 360",
+        "display_name": "DT Booking 360",
         "description": "Báo cáo thu nhập, doanh số, hoa hồng và giỏ hàng bất động sản.",
         "icon_key": "booking",
         "launch_url": settings.BOOKING_REPORTS_URL,
@@ -20,7 +32,7 @@ DEFAULT_APPLICATIONS = (
         "permission_prefix": "bookingreports",
         "oidc_client_id": "bookingreports",
         "oidc_audience": "bookingreports",
-        "sort_order": 10,
+        "sort_order": 20,
     },
     {
         "key": "workflows",
@@ -32,19 +44,7 @@ DEFAULT_APPLICATIONS = (
         "permission_prefix": "workflows",
         "oidc_client_id": "workflows",
         "oidc_audience": "workflows",
-        "sort_order": 20,
-    },
-    {
-        "key": "itam",
-        "display_name": "DT Assets",
-        "description": "Quản lý tài sản, thiết bị, kho và thủ tục tiếp nhận nhân sự.",
-        "icon_key": "assets",
-        "launch_url": settings.ASSET_MANAGER_URL,
-        "callback_path": "/api/auth/platform/callback",
-        "permission_prefix": "asset-manager",
-        "oidc_client_id": "asset-manager",
-        "oidc_audience": "asset-manager",
-        "sort_order": 30,
+        "sort_order": 60,
     },
 )
 

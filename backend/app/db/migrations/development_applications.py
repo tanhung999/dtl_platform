@@ -15,6 +15,17 @@ DEVELOPMENT_APPLICATIONS = (
         "callback_path": "",
         "permission_prefix": "hrm",
         "is_active": False,
+        "sort_order": 30,
+    },
+    {
+        "key": "income-statement",
+        "display_name": "DT Income Statement",
+        "description": "Báo cáo thu nhập, doanh số, hoa hồng và giỏ hàng bất động sản.",
+        "icon_key": "income",
+        "launch_url": "",
+        "callback_path": "",
+        "permission_prefix": "income-statement",
+        "is_active": False,
         "sort_order": 40,
     },
     {
@@ -27,17 +38,6 @@ DEVELOPMENT_APPLICATIONS = (
         "permission_prefix": "sales-commission",
         "is_active": False,
         "sort_order": 50,
-    },
-    {
-        "key": "income-statement",
-        "display_name": "DT Income Statement",
-        "description": "Báo cáo thu nhập, doanh số, hoa hồng và giỏ hàng bất động sản.",
-        "icon_key": "income",
-        "launch_url": "",
-        "callback_path": "",
-        "permission_prefix": "income-statement",
-        "is_active": False,
-        "sort_order": 60,
     },
 )
 
