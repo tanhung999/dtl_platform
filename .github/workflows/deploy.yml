@@ -1,0 +1,98 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-backend:
+    name: Backend Quality & Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Backend Tests
+        run: python -m unittest discover -s tests -q
+
+  test-and-build-frontend:
+    name: Frontend Quality & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Unit Tests
+        run: npm test
+
+      - name: Build Frontend
+        run: npm run build
+
+  deploy:
+    name: Deploy to Production Server
+    needs: [test-backend, test-and-build-frontend]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST || '118.69.81.38' }}
+          username: ${{ secrets.SSH_USER || 'ubuntu' }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            TARGET_DIR=""
+            for dir in /srv/dtl/platform /srv/dtl/dtl-platform /srv/platform; do
+              if [ -d "$dir" ]; then
+                TARGET_DIR="$dir"
+                break
+              fi
+            done
+            if [ -z "$TARGET_DIR" ]; then
+              echo "Error: Could not locate platform directory on server (/srv/dtl/platform or /srv/dtl/dtl-platform)." >&2
+              exit 1
+            fi
+            echo "Deploying in $TARGET_DIR..."
+            cd "$TARGET_DIR"
+            git fetch origin main
+            git checkout main
+            git pull origin main
+            chmod +x scripts/*.sh || true
+            ./scripts/deploy.sh
