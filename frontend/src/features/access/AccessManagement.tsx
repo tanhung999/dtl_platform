@@ -6,6 +6,7 @@ import { AccessHistory } from './components/AccessHistory';
 import { useMutationChecking } from '../mutations/useMutationChecking';
 import { ApiError } from '../../services/api';
 import { appsApi, UserApplicationAccess } from '../apps/api';
+import { WorkflowAccountLinker } from './components/WorkflowAccountLinker';
 
 export function AccessManagement({ onChanged, revision }: { onChanged: () => void; revision: number }) {
   const checking=useMutationChecking();
@@ -95,7 +96,7 @@ export function AccessManagement({ onChanged, revision }: { onChanged: () => voi
             <div className="access-permission-grid">{application.permissions.map(permission=><label key={permission.code} title={permission.code}><input type="checkbox" checked={application.permission_keys.includes(permission.code)} disabled={!!applicationBusy} onChange={event=>{const next=event.target.checked?[...application.permission_keys,permission.code]:application.permission_keys.filter(code=>code!==permission.code);void saveAppPolicy(application,{permission_keys:next});}}/><span>{permission.display_name}</span></label>)}</div>
             <label><span>Phạm vi dự án</span><textarea rows={2} value={projectDrafts[application.key] || ''} placeholder="Tên dự án, cách nhau bằng dấu phẩy" onChange={event=>setProjectDrafts(current=>({...current,[application.key]:event.target.value}))}/></label>
             <button type="button" className="btn btn-primary btn-sm access-policy-save" disabled={!!applicationBusy} onClick={()=>void saveAppPolicy(application,{project_names:(projectDrafts[application.key]||'').split(',').map(value=>value.trim()).filter(Boolean)})}><Save size={14}/>Lưu phạm vi dự án</button>
-          </div>}</div>)}
+          </div>}{application.key === 'workflows' && <WorkflowAccountLinker key={target.id} targetId={target.id} revision={revision} onLinked={onChanged}/>}</div>)}
         </div>
         <div className="access-permission-group"><div className="access-group-heading"><CalendarDays size={19} /><h3>Lịch cá nhân</h3></div>
           <div className="access-permission-row"><div><h4>Chia sẻ lịch cá nhân</h4><p>Cho phép tài khoản chọn người được xem lịch và phạm vi Sự kiện, Công việc, Ghi chú.</p></div><span className={`access-status ${target.can_share ? 'is-enabled' : ''}`}>{target.can_share ? 'Đã cấp' : 'Chưa cấp'}</span></div>

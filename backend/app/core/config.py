@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     OIDC_AUTO_LINK_EXISTING_USERS: bool = False
     INTEGRATION_BOOKINGREPORTS_SECRET: str = ""
     INTEGRATION_WORKFLOWS_SECRET: str = ""
+    # Explicit opt-in, separate from SSO launch/entitlement credentials.
+    WORKFLOWS_ACCOUNT_LINKING_URL: str = ""
+    WORKFLOWS_ACCOUNT_LINKING_SECRET: str = ""
     INTEGRATION_ITAM_SECRET: str = ""
     # Deprecated development fallback. Production requires one secret per application.
     INTEGRATION_SHARED_SECRET: str = ""

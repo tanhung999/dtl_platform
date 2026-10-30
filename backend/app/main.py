@@ -33,6 +33,7 @@ from app.modules.notifications.external_router import router as notification_acc
 from app.modules.notifications.worker import run_worker
 from app.modules.applications.router import router as applications_router, admin_router as applications_admin_router
 from app.modules.applications.integration import router as application_integrations_router
+from app.modules.applications.account_linking import router as account_linking_router
 from app.modules.users.router import router as user_admin_router
 from app.modules.organization.router import router as organization_router
 from app.modules.notifications.scheduling import sync_task_jobs
@@ -192,6 +193,7 @@ app.include_router(notification_access_router)
 app.include_router(sso_router)
 app.include_router(applications_router)
 app.include_router(applications_admin_router)
+app.include_router(account_linking_router)
 app.include_router(application_integrations_router)
 app.include_router(user_admin_router)
 app.include_router(organization_router)
