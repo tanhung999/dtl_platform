@@ -343,7 +343,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
 
             <div className="profile-app-permissions">
               {[
-                { id: 'bookingreports', name: 'DT Income Statement', description: 'Báo cáo thu nhập và doanh số', icon: 'income' as const },
+                { id: 'bookingreports', name: 'Booking 360', description: 'Báo cáo thu nhập và doanh số', icon: 'booking' as const },
                 { id: 'workflows', name: 'DT Workflow', description: 'Luồng phê duyệt và trình ký', icon: 'workflow' as const },
                 { id: 'itam', name: 'DT Assets', description: 'Quản lý tài sản và cấp phát IT', icon: 'assets' as const },
               ].map(app => <div className="profile-app-permission" key={app.id} data-app-id={app.id}>

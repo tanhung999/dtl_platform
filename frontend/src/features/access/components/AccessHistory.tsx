@@ -16,7 +16,7 @@ const labels: Record<string, string> = {
 };
 
 const applicationNames: Record<string, string> = {
-  bookingreports: 'DT Income Statement',
+  bookingreports: 'Booking 360',
   workflows: 'DT Workflow',
   itam: 'DT Assets',
 };

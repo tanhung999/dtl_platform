@@ -28,6 +28,17 @@ DEVELOPMENT_APPLICATIONS = (
         "is_active": False,
         "sort_order": 50,
     },
+    {
+        "key": "income-statement",
+        "display_name": "DT Income Statement",
+        "description": "Báo cáo thu nhập, doanh số, hoa hồng và giỏ hàng bất động sản.",
+        "icon_key": "income",
+        "launch_url": "",
+        "callback_path": "",
+        "permission_prefix": "income-statement",
+        "is_active": False,
+        "sort_order": 60,
+    },
 )
 
 
@@ -38,4 +49,3 @@ async def migrate_development_applications(conn) -> None:
         )
         if not exists:
             await conn.execute(Application.__table__.insert().values(**values))
-

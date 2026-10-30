@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import companyIcon from '../assets/logo-source.png';
-import { brandIconAtlas, brandIconCells, taskIcon, type FeatureIconName } from '../assets/featureIcons';
+import { brandIconAtlas, brandIconCells, taskIcon, type FeatureIconName, ATLAS_COLS, ATLAS_ROWS } from '../assets/featureIcons';
 import { workspaceRoutes, type RoutedPage } from '../features/dashboard/navigation';
 
 const icons = new Map<FeatureIconName, Promise<string>>();
@@ -37,7 +37,7 @@ function featureFavicon(name: FeatureIconName) {
         context.drawImage(image, (64 - width) / 2, (64 - height) / 2, width, height);
       } else {
         const [column, row] = brandIconCells[name];
-        const width = image.naturalWidth / 3, height = image.naturalHeight / 3;
+        const width = image.naturalWidth / ATLAS_COLS, height = image.naturalHeight / ATLAS_ROWS;
         context.beginPath();
         context.arc(32, 32, 64 * .45, 0, Math.PI * 2);
         context.clip();

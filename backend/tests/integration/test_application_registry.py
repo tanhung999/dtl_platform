@@ -24,6 +24,7 @@ class ApplicationRegistryTests(ApiTestCase):
             [
                 ('hrm', 'DT HRM', 'hrm', False),
                 ('sales-commission', 'DT Sales Commission', 'salesCommission', False),
+                ('income-statement', 'DT Income Statement', 'income', False),
             ],
         )
         status, result = await self.request('POST', '/api/sso/launch', payload={'target_app': 'hrm'})

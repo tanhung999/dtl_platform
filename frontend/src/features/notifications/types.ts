@@ -1,6 +1,6 @@
 export type NotificationSource = 'platform' | 'bookingreports' | 'workflows' | 'itam';
 export type NotificationFilter = 'all' | 'unread' | 'hidden';
-export const SOURCE_LABELS: Record<NotificationSource, string> = { platform: 'Lịch và công việc', bookingreports: 'DT Income Statement', workflows: 'DT Workflow', itam: 'DT Assets' };
+export const SOURCE_LABELS: Record<NotificationSource, string> = { platform: 'Lịch và công việc', bookingreports: 'Booking 360', workflows: 'DT Workflow', itam: 'DT Assets' };
 export interface NotificationItem {
   id: string; source: NotificationSource; kind: string; title: string; body: string;
   resource_type: string; resource_id: string; state: 'active' | 'changed' | 'completed' | 'deleted' | 'overdue' | 'ended' | 'archived';

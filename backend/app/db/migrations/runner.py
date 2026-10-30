@@ -314,6 +314,18 @@ async def upgrade(conn):
         await migrate_note_pin_time(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
+    version = 'applications_011_booking360_rebranding'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        await conn.execute(text("""
+            UPDATE applications
+            SET display_name = 'Booking 360',
+                icon_key = 'booking'
+            WHERE key = 'bookingreports'
+        """))
+        from .development_applications import migrate_development_applications
+        await migrate_development_applications(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
 async def run():
     try:
         async with engine.begin() as conn:
