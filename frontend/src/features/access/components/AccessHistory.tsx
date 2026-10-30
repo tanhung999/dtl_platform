@@ -16,7 +16,7 @@ const labels: Record<string, string> = {
 };
 
 const applicationNames: Record<string, string> = {
-  bookingreports: 'Booking 360',
+  bookingreports: 'DT Booking 360',
   workflows: 'DT Workflow',
   itam: 'DT Assets',
 };
@@ -46,12 +46,16 @@ function parseAuditEntry(entry: AuditEntry): ParsedAudit {
   const before = (changes.before || {}) as Record<string, unknown>;
 
   if (entry.action === 'application_account_linked') {
-    return { category: 'Ứng dụng', target: 'DT Workflow', statusText: 'Đã liên kết', statusType: 'success',
-      details: `Tài khoản Workflow: @${String(after.workflow_username || '')}` };
+    return {
+      category: 'Ứng dụng', target: 'DT Workflow', statusText: 'Đã liên kết', statusType: 'success',
+      details: `Tài khoản Workflow: @${String(after.workflow_username || '')}`
+    };
   }
   if (entry.action === 'application_account_unlinked') {
-    return { category: 'Ứng dụng', target: 'DT Workflow', statusText: 'Đã hủy liên kết', statusType: 'danger',
-      details: `@${String(after.workflow_username || '')} · ${after.enabled ? 'Giữ quyền mở ứng dụng' : 'Đã thu hồi quyền mở ứng dụng'}` };
+    return {
+      category: 'Ứng dụng', target: 'DT Workflow', statusText: 'Đã hủy liên kết', statusType: 'danger',
+      details: `@${String(after.workflow_username || '')} · ${after.enabled ? 'Giữ quyền mở ứng dụng' : 'Đã thu hồi quyền mở ứng dụng'}`
+    };
   }
 
   if (entry.action === 'application_access_updated') {

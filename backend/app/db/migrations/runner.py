@@ -318,7 +318,7 @@ async def upgrade(conn):
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
         await conn.execute(text("""
             UPDATE applications
-            SET display_name = 'Booking 360',
+            SET display_name = 'DT Booking 360',
                 icon_key = 'booking'
             WHERE key = 'bookingreports'
         """))

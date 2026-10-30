@@ -24,3 +24,4 @@ echo "==> Building and deploying services..."
 docker compose "${COMPOSE_ARGS[@]}" build
 docker compose "${COMPOSE_ARGS[@]}" up -d --remove-orphans
 docker compose "${COMPOSE_ARGS[@]}" ps
+

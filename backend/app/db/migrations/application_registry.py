@@ -12,7 +12,7 @@ from app.modules.access.service import APPLICATIONS_MANAGE
 DEFAULT_APPLICATIONS = (
     {
         "key": "bookingreports",
-        "display_name": "Booking 360",
+        "display_name": "DT DT Booking 360",
         "description": "Báo cáo thu nhập, doanh số, hoa hồng và giỏ hàng bất động sản.",
         "icon_key": "booking",
         "launch_url": settings.BOOKING_REPORTS_URL,
