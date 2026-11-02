@@ -3,9 +3,6 @@
 .reschedule-dialog header { display:flex; justify-content:space-between; align-items:start; gap:12px; padding:20px 22px 12px; }
 .reschedule-dialog h2 { font-size:18px; }
 .reschedule-dialog header p { max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-muted); font-size:13px; margin-top:5px; }
-.reschedule-tabs { display:flex; gap:8px; padding:0 22px 12px; border-bottom:1px solid var(--border); }
-.reschedule-tabs button { display:flex; gap:5px; align-items:center; border:0; border-radius:8px; padding:8px 12px; background:var(--bg-subtle); color:var(--text-main); cursor:pointer; }
-.reschedule-tabs button[aria-pressed=true] { color:var(--accent-text); background:var(--primary-light); }
 .reschedule-dialog form,.reschedule-history { padding:18px 22px; }
 .reschedule-dialog fieldset { display:grid; gap:12px; padding:0; margin:0; border:0; min-width:0; }
 .reschedule-dialog label,.reschedule-dialog .reschedule-field { display:block; font-size:13px; line-height:1.6; }

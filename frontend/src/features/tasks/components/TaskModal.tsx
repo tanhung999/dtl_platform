@@ -1,6 +1,7 @@
 import { PrioritySelect } from './PrioritySelect';
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Eye, Trash2, UserRound, X } from 'lucide-react';
+import { ClipboardList, Eye, History, Trash2, UserRound, X } from 'lucide-react';
+import '../../../components/dialog-section-tabs.css';
 import { Task } from '../../../types';
 import { TaskInput } from '../types';
 
@@ -27,6 +28,7 @@ interface Props {
 
 export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [tab, setTab] = useState<'details' | 'history'>('details');
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
   const [priority, setPriority] = useState(task.priority);
@@ -61,7 +63,7 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   }, []);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!task.can_edit || submitting.current || confirm) return;
+    if (tab !== 'details' || !task.can_edit || submitting.current || confirm) return;
     if (sameFields({ title: title.trim(), description, priority, is_private: isPrivate, hide_from_indirect: hideIndirect, due_date: dueDate, due_time: dueTime, assignee_id:assigneeId, follower_ids:[...followerIds].sort() },
       { ...task, ...savedDeadline, title: task.title.trim(), is_private: task.is_private ?? false,
         follower_ids:(task.followers??[]).filter(item=>item.id!==task.user_id&&item.id!==task.assignee_id).map(item=>item.id).sort() }) && sameReminder(reminder, savedReminder)) { onClose(); return; }
@@ -85,6 +87,11 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   return <dialog className="task-dialog" ref={dialog} aria-labelledby="task-dialog-title" {...dismiss}>
     <form onSubmit={submit} aria-busy={busy}>
       <header className="task-dialog-header"><h2 id="task-dialog-title">Chi tiết công việc</h2><button type="button" className="task-icon-button" aria-label="Đóng công việc" disabled={busy || personalBusy} onClick={onClose}><X size={18} /></button></header>
+      <nav className="dialog-section-tabs task-detail-tabs" aria-label="Thông tin công việc">
+        <button type="button" aria-pressed={tab === 'details'} disabled={busy || personalBusy || confirm} onClick={() => setTab('details')}><ClipboardList size={15} aria-hidden="true" />Chi tiết công việc</button>
+        <button type="button" aria-pressed={tab === 'history'} disabled={busy || personalBusy || confirm} onClick={() => setTab('history')}><History size={15} aria-hidden="true" />Lịch sử cập nhật</button>
+      </nav>
+      <div className="task-detail-panel" hidden={tab !== 'details'}>
       {!task.can_edit && <div className={`task-readonly-notice${task.is_following ? ' is-following' : ''}`} role="note">
         {task.relationship === 'ASSIGNEE' ? <UserRound size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
         <div><strong>{task.relationship === 'ASSIGNEE' ? 'Bạn là người được giao công việc' : task.is_following ? 'Bạn là người theo dõi · Chỉ xem' : 'Bạn đang xem công việc · Chỉ xem'}</strong>
@@ -113,7 +120,6 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
       {task.relationship === 'ASSIGNEE' && !task.can_edit && <AssigneeReminderControl task={task} disabled={busy} onBusyChange={setPersonalBusy} onSaved={onClose} />}
       {task.is_completed && <section className="task-completion-result"><h3>Cập nhật kết quả</h3><p>{task.completion_note || 'Chưa có nội dung cập nhật.'}</p>
         {task.completed_at && <small>{new Date(task.completed_at).toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'})}</small>}</section>}
-      <TaskResultHistory taskId={task.id} version={version} />
       {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
       {error && <p className="alert-error task-dialog-error" role="alert">{error}</p>}
       {confirm && <div className="task-delete-confirm" role="alert"><p>Xóa công việc “{task.title}”? Hạn công việc sẽ được gỡ khỏi lịch và các thông báo còn chờ sẽ bị hủy. Thao tác này không thể hoàn tác.</p></div>}
@@ -121,6 +127,8 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
         {confirm ? <><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirm(false)}>Giữ lại</button><button type="button" className="btn btn-danger-confirm btn-sm" disabled={busy} onClick={remove}><Trash2 size={14} />{busy ? 'Đang xóa…' : 'Xác nhận xóa'}</button></>
           : <>{task.can_delete&&<button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={() => setConfirm(true)}><Trash2 size={14} /> Xóa công việc</button>}{task.can_edit&&<button type="submit" className="btn btn-primary btn-sm" disabled={busy || !title.trim()}>{busy ? 'Đang lưu…' : 'Lưu công việc'}</button>}</>}
       </footer>}
+      </div>
+      <TaskResultHistory taskId={task.id} version={version} active={tab === 'history'} />
     </form>
   </dialog>;
 }
