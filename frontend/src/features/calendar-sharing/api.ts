@@ -3,7 +3,7 @@ import { requestWithTimeout } from '../../services/requestTimeout';
 export interface Share { id: string; owner_id: string; viewer_id: string; name: string; username: string; version: number; share_events: boolean; share_tasks: boolean; share_notes: boolean }
 export interface ShareState { id: string | null; version: number; active: boolean; share_events: boolean; share_tasks: boolean; share_notes: boolean }
 export type Scope = Pick<Share, 'share_events' | 'share_tasks' | 'share_notes'>;
-export interface SharedItem { series_id?: string; recurrence?: import("../calendar/types").Recurrence; id: string; title: string; kind: 'event' | 'note' | 'task'; starts_at?: string; ends_at?: string; is_all_day?: boolean; due_date?: string; due_time?: string; priority?: string; is_completed?: boolean; note_id?: string; note_color?: string; content?: string; color?: string; location?: string }
+export interface SharedItem { is_indirect?: boolean; completion_note?: string | null; series_id?: string; recurrence?: import("../calendar/types").Recurrence; id: string; title: string; kind: 'event' | 'note' | 'task'; starts_at?: string; ends_at?: string; is_all_day?: boolean; due_date?: string; due_time?: string; priority?: string; is_completed?: boolean; note_id?: string; note_color?: string; content?: string; color?: string; location?: string }
 export interface SharedPage extends Scope { items: SharedItem[]; total: number; truncated: boolean }
 const base = '/api/calendar-sharing';
 const read = <T,>(url: string, signal?: AbortSignal) => requestWithTimeout<T>(url, { signal, cache: 'no-store' });

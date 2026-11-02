@@ -20,7 +20,8 @@ from app.modules.auth.dependencies import get_current_user
 from app.modules.access.service import require, SHARE, permission_users
 from app.modules.notifications.service import fingerprint
 from app.modules.access.audit import record
-from .service import grant_for, lock_owner, flags
+from .service import grant_for, lock_owner, flags, calendar_task_scope, calendar_event_scope
+from app.core.collaboration_limits import MAX_CALENDAR_VIEWERS
 
 router = APIRouter(prefix='/api/calendar-sharing', tags=['Calendar sharing'])
 UserArg = Annotated[User, Depends(get_current_user)]
@@ -46,14 +47,14 @@ def grant_data(row, name, username):
 async def mine(user: UserArg, db: DbArg):
     await require(db, user.id, SHARE)
     rows = (await db.execute(select(CalendarShare, User.full_name, User.username).join(User, User.id == CalendarShare.viewer_id)
-        .where(CalendarShare.owner_id == user.id, CalendarShare.revoked_at.is_(None)).order_by(User.full_name).limit(200))).all()
+        .where(CalendarShare.owner_id == user.id, CalendarShare.revoked_at.is_(None)).order_by(User.full_name).limit(MAX_CALENDAR_VIEWERS))).all()
     return [grant_data(*row) for row in rows]
 
 @router.get('/received')
 async def received(user: UserArg, db: DbArg):
     rows = (await db.execute(select(CalendarShare, User.full_name, User.username).join(User, User.id == CalendarShare.owner_id)
         .where(CalendarShare.viewer_id == user.id, CalendarShare.revoked_at.is_(None), User.is_active.is_(True), User.id.in_(permission_users(SHARE)))
-        .order_by(User.full_name).limit(200))).all()
+        .order_by(User.full_name).limit(MAX_CALENDAR_VIEWERS))).all()
     return [grant_data(*row) for row in rows]
 
 @router.get('/mine/{viewer_id}')
@@ -83,8 +84,8 @@ async def save(viewer_id: str, payload: GrantWrite, user: UserArg, db: DbArg):
     was_active = row is not None and row.revoked_at is None
     before = flags(row) if was_active else None
     if not was_active:
-        if (await db.scalar(select(func.count()).select_from(CalendarShare).where(CalendarShare.owner_id == user.id, CalendarShare.revoked_at.is_(None)))) >= 200:
-            raise HTTPException(422, 'Tối đa 200 người xem cho mỗi lịch.')
+        if (await db.scalar(select(func.count()).select_from(CalendarShare).where(CalendarShare.owner_id == user.id, CalendarShare.revoked_at.is_(None)))) >= MAX_CALENDAR_VIEWERS:
+            raise HTTPException(422, 'Không thể chia sẻ thêm. Hãy thu hồi một chia sẻ trước khi thêm người khác.')
     if not row:
         row = CalendarShare(owner_id=user.id, viewer_id=viewer_id)
         db.add(row)
@@ -131,16 +132,16 @@ async def collection(owner_id: str, user: UserArg, db: DbArg, start: datetime, e
     from app.modules.tasks.deadlines import VN
     first, last = start.astimezone(VN).date(), end.astimezone(VN).date()
     scope = or_(Schedule.note_id.is_(None) if grant.share_events else False, Schedule.note_id.is_not(None) if grant.share_notes else False)
-    conditions = (Event.user_id == owner_id, Event.is_private.is_(False), *overlaps(Event, start, end), scope,
+    conditions = (calendar_event_scope(owner_id), Event.is_private.is_(False), *overlaps(Event, start, end), scope,
                   or_(Schedule.note_id.is_(None), Note.is_private.is_(False)))
-    fields = [Event.id, Event.title, Event.starts_at, Event.ends_at, Event.is_all_day, Event.recurrence, Event.recurrence_until, Schedule.note_id,
+    fields = [Event.id, Event.user_id.label('creator_id'), Event.title, Event.starts_at, Event.ends_at, Event.is_all_day, Event.recurrence, Event.recurrence_until, Schedule.note_id,
               Note.color.label('note_color'), func.count().over().label('_total')]
     rows = []
     if grant.share_events or grant.share_notes:
         rows = (await db.execute(select(*fields).outerjoin(Schedule, Schedule.event_id == Event.id).outerjoin(Note, Note.id == Schedule.note_id)
             .where(*conditions, Event.recurrence == 'NONE').order_by(Event.starts_at, Event.id).limit(offset + 500))).mappings().all()
     total_events = rows[0]['_total'] if rows else 0
-    items = [{**{key: value for key, value in row.items() if key != '_total'}, 'kind': 'note' if row['note_id'] else 'event'} for row in rows]
+    items = [{**{key: value for key, value in row.items() if key != '_total'}, 'is_indirect': row['creator_id'] != owner_id, 'kind': 'note' if row['note_id'] else 'event'} for row in rows]
     recurring = (await db.execute(select(*fields)
         .outerjoin(Schedule, Schedule.event_id == Event.id).outerjoin(Note, Note.id == Schedule.note_id)
         .where(*conditions, Event.recurrence != 'NONE'))).mappings().all() if grant.share_events or grant.share_notes else []
@@ -148,14 +149,14 @@ async def collection(owner_id: str, user: UserArg, db: DbArg, start: datetime, e
     streams = []
     for row in recurring:
         total_events += occurrence_count(row, start, end)
-        streams.append(iter_occurrences({**{key: value for key, value in row.items() if key != '_total'}, 'kind': 'note' if row['note_id'] else 'event'}, start, end))
+        streams.append(iter_occurrences({**{key: value for key, value in row.items() if key != '_total'}, 'is_indirect': row['creator_id'] != owner_id, 'kind': 'note' if row['note_id'] else 'event'}, start, end))
     total_tasks = 0
     if grant.share_tasks:
-        where = (Task.user_id == owner_id, Task.is_private.is_(False), Task.due_date >= first, Task.due_date < last)
-        tasks = (await db.execute(select(Task.id, Task.title, Task.due_date, Task.due_time, Task.priority, Task.is_completed, func.count().over().label('_total'))
+        where = (calendar_task_scope(owner_id), Task.is_private.is_(False), Task.due_date >= first, Task.due_date < last)
+        tasks = (await db.execute(select(Task.id, Task.user_id.label('creator_id'), Task.title, Task.due_date, Task.due_time, Task.priority, Task.is_completed, func.count().over().label('_total'))
             .where(*where).order_by(Task.due_date, func.coalesce(Task.due_time, time.min), Task.id).limit(offset + 500))).mappings().all()
         total_tasks = tasks[0]['_total'] if tasks else 0
-        items.extend({**{key: value for key, value in row.items() if key != '_total'}, 'kind': 'task'} for row in tasks)
+        items.extend({**{key: value for key, value in row.items() if key != '_total'}, 'is_indirect': row['creator_id'] != owner_id, 'kind': 'task'} for row in tasks)
     # Bounded payloads, no descriptions or note bodies in the grid, no per-item queries.
     total = total_events + total_tasks
     def sort_key(row):
@@ -173,12 +174,14 @@ async def collection(owner_id: str, user: UserArg, db: DbArg, start: datetime, e
 async def detail(owner_id: str, kind: str, item_id: str, user: UserArg, db: DbArg, occurrence_at: datetime | None = None):
     grant = await grant_for(db, owner_id, user.id)
     if kind == 'task' and grant.share_tasks:
-        row = await db.scalar(select(Task).where(Task.id == item_id, Task.user_id == owner_id, Task.is_private.is_(False), Task.due_date.is_not(None)))
+        row = await db.scalar(select(Task).where(Task.id == item_id, calendar_task_scope(owner_id), Task.is_private.is_(False), Task.due_date.is_not(None)))
         if row: return {'kind': kind, 'id': row.id, 'title': row.title, 'content': row.description or '', 'due_date': row.due_date,
-                        'due_time': row.due_time, 'is_completed': row.is_completed, 'priority': row.priority}
+                        'due_time': row.due_time, 'is_completed': row.is_completed, 'priority': row.priority,
+                        'completion_note': row.completion_note, 'is_indirect': row.user_id != owner_id}
     if kind in ('event', 'note') and (grant.share_events if kind == 'event' else grant.share_notes):
         query = select(Event, Schedule.note_id).outerjoin(Schedule, Schedule.event_id == Event.id).where(Event.id == item_id,
-            Event.user_id == owner_id, Event.is_private.is_(False), Schedule.note_id.is_(None) if kind == 'event' else Schedule.note_id.is_not(None))
+            calendar_event_scope(owner_id) if kind == 'event' else Event.user_id == owner_id,
+            Event.is_private.is_(False), Schedule.note_id.is_(None) if kind == 'event' else Schedule.note_id.is_not(None))
         result = (await db.execute(query)).first()
         if result:
             event, note_id = result
@@ -193,5 +196,5 @@ async def detail(owner_id: str, kind: str, item_id: str, user: UserArg, db: DbAr
             if note_id and not note: raise HTTPException(404, 'Không tìm thấy ghi chú.')
             return utc_mapping({'kind': kind, 'id': event.id, 'title': note.title if note else event.title,
                     'content': note.content if note else event.description, 'location': event.location if not note else '',
-                    'color': note.color if note else None, 'starts_at': event.starts_at, 'ends_at': event.ends_at, 'is_all_day': event.is_all_day, 'recurrence': event.recurrence, 'recurrence_until': event.recurrence_until})
+                    'color': note.color if note else None, 'starts_at': event.starts_at, 'ends_at': event.ends_at, 'is_all_day': event.is_all_day, 'recurrence': event.recurrence, 'recurrence_until': event.recurrence_until, 'is_indirect': event.user_id != owner_id})
     raise HTTPException(404, 'Mục không tồn tại hoặc không được chia sẻ.')

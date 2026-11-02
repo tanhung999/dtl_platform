@@ -31,11 +31,14 @@ async def update_event_service(event_id: str, payload: EventUpdate, user: User, 
         modified = modified.replace(tzinfo=timezone.utc)
     if modified != payload.expected_updated_at:
         raise HTTPException(409, "Sự kiện đã thay đổi. Nội dung đang sửa được giữ; hãy mở lại bản mới trước khi lưu.")
-    data = payload.model_dump(exclude={"expected_updated_at", "reminder_minutes", "reminder_at", "follower_ids"} | ({key for key in ("is_private", "recurrence") if key not in payload.model_fields_set}))
+    data = payload.model_dump(exclude={"expected_updated_at", "reminder_minutes", "reminder_at", "follower_ids"} | ({key for key in ("is_private", "hide_from_indirect", "recurrence", "reminder_repeat") if key not in payload.model_fields_set}))
     data.update(reminder_update(payload))
+    if data.get('recurrence', event.recurrence) == 'NONE': data['reminder_repeat'] = False
     data = {key: value for key, value in data.items() if getattr(event, key) != value}
     from .access import sync_followers
     added, removed = await sync_followers(db,event,user,payload.follower_ids) if payload.follower_ids is not None else (set(), set())
+    if 'hide_from_indirect' in data:
+        mark_changed(db, user.id, 'calendar-privacy')
     if not data and not added and not removed:
         return event
     if "is_private" in payload.model_fields_set and payload.is_private != event.is_private:

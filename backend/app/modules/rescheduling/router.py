@@ -26,6 +26,7 @@ Database = Annotated[AsyncSession, Depends(get_db, scope='function')]
 
 
 class Move(ReminderFields):
+    reminder_repeat: bool | None = None
     model_config = ConfigDict(extra='forbid')
     scope: Literal["ALL", "FOLLOWING", "THIS"] = "ALL"
     occurrence_at: datetime | None = None
@@ -74,7 +75,10 @@ async def history(kind: Kind, resource_id: str, user: CurrentUser, db: Database,
 async def move(kind: Kind, resource_id: str, payload: Move, user: CurrentUser, db: Database):
     await db.execute(select(User.id).where(User.id == user.id).with_for_update())
     row = await owned(db, user, kind, resource_id)
-    fingerprint = hashlib.sha256(json.dumps({'kind': kind, 'id': resource_id, **payload.model_dump(mode='json')}, sort_keys=True).encode()).hexdigest()
+    fingerprint_data = payload.model_dump(mode='json')
+    if fingerprint_data.get('reminder_repeat') is None:
+        fingerprint_data.pop('reminder_repeat', None)
+    fingerprint = hashlib.sha256(json.dumps({'kind': kind, 'id': resource_id, **fingerprint_data}, sort_keys=True).encode()).hexdigest()
     receipt = await db.get(ScheduleChangeReceipt, (user.id, str(payload.request_id)))
     if receipt:
         if receipt.fingerprint != fingerprint:
@@ -100,7 +104,13 @@ async def move(kind: Kind, resource_id: str, payload: Move, user: CurrentUser, d
         target = {'starts_at': payload.starts_at.isoformat(), 'ends_at': payload.ends_at.isoformat(), 'is_all_day': payload.is_all_day, 'recurrence': payload.recurrence if 'recurrence' in payload.model_fields_set else before.get('recurrence', 'NONE')}
     expected = {'expected_version': payload.expected_version, 'expected_updated_at': payload.expected_updated_at.isoformat() if payload.expected_updated_at else None}
     target.update({key: before.get(key) for key in ('reminder_minutes', 'reminder_at')})
+    if kind != 'task' and not (kind == 'note' and 'event_id' not in guard):
+        target['reminder_repeat'] = before.get('reminder_repeat', False)
+    elif payload.reminder_repeat:
+        raise HTTPException(422, 'Chỉ lịch lặp mới hỗ trợ thông báo lặp lại.')
     target.update({key: value.isoformat() if isinstance(value, datetime) else value for key, value in reminder_update(payload).items()})
+    if kind == 'task' or kind == 'note' and 'event_id' not in guard:
+        target.pop('reminder_repeat', None)
     if any(expected[key] != value for key, value in guard.items() if key.startswith('expected_')):
         raise HTTPException(409, 'Mục đã thay đổi. Hãy mở lại bản mới trước khi dời lịch.')
     if before == target:
@@ -136,6 +146,8 @@ async def move(kind: Kind, resource_id: str, payload: Move, user: CurrentUser, d
         event = row if kind == 'event' else await db.scalar(select(CalendarEvent).join(NoteCalendarSchedule,
             NoteCalendarSchedule.event_id == CalendarEvent.id).where(NoteCalendarSchedule.note_id == row.id))
         metadata = await scoped_move(db, event, payload.scope, payload.occurrence_at, target)
+        from .service import event_snapshot
+        saved_after = event_snapshot(await db.get(CalendarEvent, metadata['child_id']))
         from uuid import uuid4
         source_current, after_guard = await snapshot(db, row, kind)
         metadata['source_current'] = source_current
@@ -143,7 +155,7 @@ async def move(kind: Kind, resource_id: str, payload: Move, user: CurrentUser, d
         change = ScheduleChange(id=str(uuid4()), owner_id=user.id, request_id=str(payload.request_id), fingerprint=fingerprint,
             kind=kind, resource_id=row.id, actor_name=user.full_name[:200], reason=payload.reason,
             before={**before, 'starts_at':metadata['occurrence_at'], 'ends_at':(datetime.fromisoformat(metadata['occurrence_at']) + (datetime.fromisoformat(before['ends_at']) - datetime.fromisoformat(before['starts_at']))).isoformat()},
-            after=target, guard={**after_guard, 'scoped':metadata})
+            after=saved_after, guard={**after_guard, 'scoped':metadata})
         db.add(change)
         await db.flush()
         db.add(ScheduleChangeReceipt(owner_id=user.id, request_id=str(payload.request_id), fingerprint=fingerprint, change_id=change.id))
@@ -198,6 +210,8 @@ async def undo(change_id: UUID, user: CurrentUser, db: Database):
         current, guard = await snapshot(db, row, change.kind)
         return await write_response(db, user, change, current=current, current_guard=guard)
     expected_after = {'reminder_minutes': None, 'reminder_at': None, **change.after}
+    if 'reminder_repeat' in current and 'reminder_repeat' not in expected_after:
+        expected_after['reminder_repeat'] = current['reminder_repeat']
     if current != expected_after or guard != change.guard:
         raise HTTPException(409, 'Mục đã được sửa tiếp. Không thể hoàn tác; hãy mở lại bản mới.')
     await apply(db, user, row, change.kind, {'reminder_minutes': None, 'reminder_at': None, **change.before}, guard, allow_elapsed=True)

@@ -12,6 +12,9 @@ subscribers: dict[str, set[asyncio.Queue]] = {}
 
 
 def broadcast(message):
+    if set(message.get('topics', ())) & {'tasks', 'calendar', 'notes', 'notifications'}:
+        from app.modules.notifications.wakeup import wake_reminders
+        wake_reminders()
     for queue in tuple(subscribers.get(message["user_id"], ())):
         if queue.full():
             dropped = queue.get_nowait()

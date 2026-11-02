@@ -3,6 +3,11 @@
 .privacy-setting .privacy-setting-toggle input { width:16px; height:16px; flex:0 0 16px; margin:0; accent-color:var(--accent); }
 .privacy-setting-toggle svg { flex-shrink:0; }
 .privacy-setting p { margin:0; font-size:12px; line-height:1.5; color:var(--text-muted); }
+.privacy-setting-options { display:grid; gap:12px; min-width:0; }
+.privacy-option { display:grid; gap:4px; min-width:0; }
+.privacy-option > p { padding-inline-start:24px; }
+.privacy-setting.privacy-readonly { display:flex; align-items:flex-start; gap:8px; }
+.privacy-setting-options .privacy-setting-toggle { align-items:flex-start; line-height:1.5; }
 .note-editor-dialog .privacy-setting { margin-top:12px; background:#ffffff55; border-color:#0002; color:#334155; }
 .note-editor-dialog .privacy-setting p { color:#475569; }
 .note-title-with-lock { display:flex; align-items:center; gap:4px; }

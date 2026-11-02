@@ -12,7 +12,7 @@ class CalendarScopeTests(ApiTestCase):
     at='2099-01-07T09:00:00+07:00'
 
     async def make(self, note=False, recurrence='DAILY'):
-        payload=dict(starts_at=self.start, ends_at=self.end, recurrence=recurrence, reminder_minutes=15)
+        payload=dict(starts_at=self.start, ends_at=self.end, recurrence=recurrence, reminder_minutes=15, reminder_repeat=True)
         if note:
             code,row=await self.request('POST','/api/notes',payload={'title':'Scoped note','content':'Preserve content','calendar_schedule':payload})
             self.assertEqual(code,201,row)

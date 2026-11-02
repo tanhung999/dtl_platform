@@ -60,7 +60,8 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
         _, feed = await self.request('GET', '/api/notifications')
         self.assertEqual([n['kind'] for n in feed['items']], ['task.reminder'])
         path = '/api/tasks/' + task['id']
-        await self.request('PATCH', path, payload={'due_date': '2026-11-01'})
+        code, result = await self.request('PATCH', path, payload={'due_date': '2099-11-01'})
+        self.assertEqual(code, 200, result)
         self.assertEqual((await self.request('GET', '/api/notifications'))[1]['items'][0]['state'], 'changed')
         await self.request('PATCH', path, payload={'is_completed': True})
         self.assertEqual((await self.request('GET', '/api/notifications'))[1]['items'][0]['state'], 'completed')

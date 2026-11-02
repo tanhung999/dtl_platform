@@ -10,13 +10,13 @@ from app.core.datetime_utils import database_utc
 async def with_schedule(db, note):
     from app.modules.notes.schemas import NoteResponse
     value = NoteResponse.model_validate(note)
-    row = (await db.execute(select(CalendarEvent.id, CalendarEvent.starts_at, CalendarEvent.ends_at, CalendarEvent.is_all_day, CalendarEvent.recurrence, CalendarEvent.recurrence_until, CalendarEvent.updated_at, CalendarEvent.reminder_minutes, CalendarEvent.reminder_at)
+    row = (await db.execute(select(CalendarEvent.id, CalendarEvent.starts_at, CalendarEvent.ends_at, CalendarEvent.is_all_day, CalendarEvent.recurrence, CalendarEvent.recurrence_until, CalendarEvent.updated_at, CalendarEvent.reminder_minutes, CalendarEvent.reminder_at, CalendarEvent.reminder_repeat)
         .join(NoteCalendarSchedule, NoteCalendarSchedule.event_id == CalendarEvent.id)
         .where(NoteCalendarSchedule.note_id == note.id, CalendarEvent.user_id == note.user_id))).one_or_none()
     if row:
         from .schemas import NoteScheduleResponse
         utc = lambda dt: dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
-        value.calendar_schedule = NoteScheduleResponse(event_id=row.id, starts_at=utc(row.starts_at), ends_at=utc(row.ends_at), is_all_day=row.is_all_day, recurrence=row.recurrence, expected_updated_at=utc(row.updated_at), reminder_minutes=row.reminder_minutes, reminder_at=utc(row.reminder_at) if row.reminder_at else None)
+        value.calendar_schedule = NoteScheduleResponse(event_id=row.id, starts_at=utc(row.starts_at), ends_at=utc(row.ends_at), is_all_day=row.is_all_day, recurrence=row.recurrence, expected_updated_at=utc(row.updated_at), reminder_minutes=row.reminder_minutes, reminder_at=utc(row.reminder_at) if row.reminder_at else None, reminder_repeat=row.reminder_repeat)
         from app.modules.calendar.scopes import series_rule
         value.calendar_series_recurrence = await series_rule(db,row.id,row.recurrence)
         from app.modules.calendar.recurrence import reference_occurrence
@@ -53,6 +53,7 @@ async def save_schedule(db, note, payload, *, allow_elapsed=False):
     if 'recurrence' in payload.model_fields_set or before is None:
         data['recurrence'] = payload.recurrence
     data.update(reminder_update(payload))
+    if data.get('recurrence', event.recurrence) == 'NONE': data['reminder_repeat'] = False
     changed = before is None or any(
         (database_utc(getattr(event, key)) if key in ('starts_at', 'ends_at') else getattr(event, key)) != value
         for key, value in data.items())

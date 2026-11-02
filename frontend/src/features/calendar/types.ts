@@ -4,6 +4,7 @@ export type Recurrence = 'NONE' | 'DAILY' | 'WEEKLY';
 export type CalendarView = 'week' | 'month' | 'agenda';
 
 export interface CalendarEventInput extends ReminderValue {
+  hide_from_indirect?: boolean;
   expected_updated_at?: string;
   recurrence?: Recurrence;
   title: string;

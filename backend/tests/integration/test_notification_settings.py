@@ -46,7 +46,7 @@ class NotificationSettingsTests(ApiTestCase):
         _,once=await self.request('POST','/api/schedule-changes/event/'+event['id'],payload={'request_id':str(uuid4()),'expected_updated_at':event['updated_at'],'scope':'THIS','occurrence_at':'2099-01-06T09:00:00+07:00','starts_at':'2099-01-06T11:00:00+07:00','ends_at':'2099-01-06T12:00:00+07:00','recurrence':'NONE'})
         child_id=once['guard']['scoped']['child_id']
         _,child=await self.request('GET','/api/calendar/events/'+child_id)
-        code,changed=await self.request('POST','/api/schedule-changes/event/'+child_id,payload={'request_id':str(uuid4()),'expected_updated_at':child['updated_at'],'scope':'ALL','starts_at':child['starts_at'],'ends_at':child['ends_at'],'recurrence':'DAILY','reminder_minutes':15})
+        code,changed=await self.request('POST','/api/schedule-changes/event/'+child_id,payload={'request_id':str(uuid4()),'expected_updated_at':child['updated_at'],'scope':'ALL','starts_at':child['starts_at'],'ends_at':child['ends_at'],'recurrence':'DAILY','reminder_minutes':15,'reminder_repeat':True})
         self.assertEqual(code,200,changed)
         _,after=await self.request('GET','/api/calendar/events/'+child_id)
         self.assertEqual(after['starts_at'],child['starts_at'])

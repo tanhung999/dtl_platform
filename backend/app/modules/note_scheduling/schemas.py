@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, model_validator
 
 class NoteScheduleWrite(ReminderFields):
+    reminder_repeat: bool = False
     model_config = ConfigDict(extra="forbid")
     starts_at: datetime
     ends_at: datetime
@@ -25,6 +26,7 @@ class NoteScheduleWrite(ReminderFields):
         return self
 
 class NoteScheduleResponse(BaseModel):
+    reminder_repeat: bool = False
     recurrence: Literal["NONE", "DAILY", "WEEKLY"] = "NONE"
     reminder_minutes: int | None = None
     reminder_at: datetime | None = None

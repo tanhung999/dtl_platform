@@ -14,6 +14,10 @@ export function sameScheduleFields(a: Schedule, b: Schedule): boolean {
   return (['due_date','due_time','starts_at','ends_at','is_all_day','recurrence'] as const).every(key => (a[key] ?? null) === (b[key] ?? null));
 }
 export function notificationLabel(value: Schedule): string {
+  if (value.reminder_repeat && value.recurrence !== 'NONE' && (value.reminder_at || value.reminder_minutes != null)) {
+    const once = notificationLabel({ ...value, reminder_repeat: false });
+    return `${value.reminder_at ? eventTime(value.reminder_at) : once} · Lặp ${value.recurrence === 'WEEKLY' ? 'hằng tuần' : 'hằng ngày'}`;
+  }
   if (value.reminder_at) return new Date(value.reminder_at).toLocaleString('vi-VN', { timeZone:'Asia/Ho_Chi_Minh', day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false });
   if (value.reminder_minutes == null) return 'Không nhắc';
   if (value.reminder_minutes === 0) return 'Đúng giờ';

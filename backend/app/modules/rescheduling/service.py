@@ -15,7 +15,8 @@ from app.modules.calendar.schemas import EventUpdate
 
 
 def reminder_snapshot(row):
-    return {'reminder_minutes': row.reminder_minutes, 'reminder_at': database_utc(row.reminder_at).isoformat() if row.reminder_at else None}
+    return {'reminder_minutes': row.reminder_minutes, 'reminder_at': database_utc(row.reminder_at).isoformat() if row.reminder_at else None,
+            **({'reminder_repeat': row.reminder_repeat} if hasattr(row, 'reminder_repeat') else {})}
 
 
 def event_snapshot(event):

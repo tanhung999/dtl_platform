@@ -4,6 +4,7 @@ import { RecurrenceSelect } from './RecurrenceSelect';
 import { CSSProperties, FormEvent, useEffect, useRef, useState } from 'react';
 import { CalendarDays, Clock, MapPin, Trash2, X } from 'lucide-react';
 import { PrivacyToggle } from '../../access/PrivacyToggle';
+import { useDialogDismiss } from '../../../components/useDialogDismiss';
 import { addDays, dateKey, eventDate, eventTime, parseDate, toTimestamp } from '../dateUtils';
 import { CalendarEvent, CalendarEventInput, EventDraft, Recurrence } from '../types';
 import { EventStatusBadge, EventStatusLegend } from './EventStatusBadge';
@@ -20,6 +21,7 @@ import { sameFields } from '../../../services/unchanged';
 import { ReminderFields, reminderValue, sameReminder } from '../../reminders/ReminderFields';
 import { UserPicker } from '../../collaboration/UserPicker';
 import type { UserBrief } from '../../../types';
+import { occurrenceSchedule } from '../occurrenceSchedule';
 
 interface Props {
   event?: CalendarEvent;
@@ -30,19 +32,21 @@ interface Props {
 }
 
 export function EventModal({ event: initialEvent, draft, onClose, onSave, onDelete }: Props) {
-  const { now } = useTasks();
+  const { now, canAssignTasks } = useTasks();
   const [event, setEvent] = useState(initialEvent);
   // Older API versions omit capabilities. Only the owner can use that fallback;
   // explicit permissions from newer APIs always take precedence.
   const ownsEvent = !!event && event.user_id === getStoredUser()?.id;
   const canEdit = !event || (event.can_edit ?? ownsEvent);
   const canDelete = !!event && (event.can_delete ?? ownsEvent);
+  const dismiss = useDialogDismiss(onClose, !canEdit);
   const dialog = useRef<HTMLDialogElement>(null);
   const initialHour = draft.hour ?? 9;
   const [title, setTitle] = useState(event?.title ?? '');
   const [description, setDescription] = useState(event?.description ?? '');
   const [location, setLocation] = useState(event?.location ?? '');
   const [isPrivate, setIsPrivate] = useState(event?.is_private ?? false);
+  const [hideIndirect, setHideIndirect] = useState(event?.hide_from_indirect ?? false);
   const [followers,setFollowers]=useState<UserBrief[]>(event?.followers??[]);
   const [recurrence, setRecurrence] = useState<Recurrence>(event?.recurrence ?? 'NONE');
   const [allDay, setAllDay] = useState(event?.is_all_day ?? draft.allDay ?? false);
@@ -65,6 +69,9 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
   const [deleteVersion, setDeleteVersion] = useState(event?.updated_at);
   const [updatedAt, setUpdatedAt] = useState(event?.updated_at);
   const [savedSchedule, setSavedSchedule] = useState({ starts_at: event?.starts_at, ends_at: event?.ends_at, is_all_day: event?.is_all_day, recurrence: event?.recurrence });
+  const displayedSchedule = occurrenceSchedule(savedSchedule, occurrenceAt);
+  const displayedStartDate = event && displayedSchedule.starts_at ? dateKey(eventDate(displayedSchedule.starts_at)) : startDate;
+  const displayedEndDate = event && displayedSchedule.ends_at ? dateKey(eventDate(new Date(Date.parse(displayedSchedule.ends_at) - (allDay ? 1 : 0)).toISOString())) : endDate;
   const recurring = !!event && ((savedSchedule.recurrence ?? 'NONE') !== 'NONE' || event.recurrence === 'NONE' && !!event.series_recurrence);
   const status = event && eventStatus({ ...event, starts_at: savedSchedule.starts_at!, ends_at: savedSchedule.ends_at!, recurrence: savedSchedule.recurrence }, now,
     occurrenceAt ? dateKey(eventDate(occurrenceAt)) : dateKey(draft.date));
@@ -97,12 +104,12 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
     const starts = sameStart ? savedSchedule.starts_at! : toTimestamp(parseDate(startDate), allDay ? '00:00' : startTime);
     const ends = sameEnd ? savedSchedule.ends_at! : allDay ? toTimestamp(addDays(parseDate(endDate), 1)) : toTimestamp(parseDate(endDate), endTime);
     const sameFollowers = !!event && JSON.stringify(followers.map(item => item.id).sort()) === JSON.stringify((event.followers ?? []).map(item => item.id).sort());
-    if (event && sameFollowers && recurrence === (savedSchedule.recurrence ?? 'NONE') && sameStart && sameEnd && sameReminder(reminder, savedReminder) && sameFields({ title: title.trim(), description: description.trim(), location: location.trim(), is_private: isPrivate },
+    if (event && hideIndirect === (event.hide_from_indirect ?? false) && sameFollowers && recurrence === (savedSchedule.recurrence ?? 'NONE') && sameStart && sameEnd && sameReminder(reminder, savedReminder) && sameFields({ title: title.trim(), description: description.trim(), location: location.trim(), is_private: isPrivate },
       { ...event, title: event.title.trim(), description: (event.description ?? '').trim(), location: (event.location ?? '').trim(), is_private: event.is_private ?? false })) { onClose(); return; }
     if (Date.parse(ends) <= Date.parse(starts)) { setError('Thời gian kết thúc phải sau thời gian bắt đầu.'); return; }
     submitting.current = true; setBusy(true);
     try {
-      const payload: CalendarEventInput = { title: title.trim(), description, location, starts_at: starts, ends_at: ends, is_all_day: allDay, recurrence, is_private: isPrivate, color: event?.color ?? '#2563eb', follower_ids:followers.map(item=>item.id), ...reminder, ...(event ? { expected_updated_at: updatedAt } : {}) };
+      const payload: CalendarEventInput = { title: title.trim(), description, location, starts_at: starts, ends_at: ends, is_all_day: allDay, recurrence, is_private: isPrivate, hide_from_indirect: hideIndirect, color: event?.color ?? '#2563eb', follower_ids:followers.map(item=>item.id), ...reminder, reminder_repeat: recurrence !== 'NONE' && !!reminder.reminder_repeat, ...(event ? { expected_updated_at: updatedAt } : {}) };
       if (!event) attempt.current ??= { requestId: createRequestId(), original: payload };
       await onSave(payload, event?.id, attempt.current);
       if (mounted.current) onClose();
@@ -131,7 +138,7 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
 
   return (
     <dialog ref={dialog} className="calendar-event-dialog" aria-labelledby="calendar-dialog-title"
-      onCancel={e => { e.preventDefault(); e.stopPropagation(); }}>
+      {...dismiss}>
       <form onSubmit={submit} aria-busy={busy}>
         <header className="calendar-dialog-header">
           <div><span className="calendar-eyebrow">LỊCH CÁ NHÂN</span><h2 id="calendar-dialog-title">{event ? 'Chi tiết sự kiện' : 'Tạo sự kiện mới'}</h2></div>
@@ -147,15 +154,15 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
             if (!e.target.checked) { setStartTime('09:00'); setEndTime('10:00'); }
           }} /> Sự kiện cả ngày</label>
           <div className="calendar-form-row">
-            <div className="calendar-field"><span><CalendarDays size={15} /> Ngày bắt đầu</span><DatePicker label="Ngày bắt đầu" value={startDate} required disabled={busy || !!event} onChange={value => { setStartDate(value); if (!allDay || value > endDate) setEndDate(value); }} /></div>
-            {allDay && <div className="calendar-field"><span><CalendarDays size={15} /> Ngày kết thúc</span><DatePicker label="Ngày kết thúc" value={endDate} min={startDate} required disabled={busy || !!event} align="end" onChange={setEndDate}/></div>}
+            <div className="calendar-field"><span><CalendarDays size={15} /> Ngày bắt đầu</span><DatePicker label="Ngày bắt đầu" value={displayedStartDate} required disabled={busy || !!event} onChange={value => { setStartDate(value); if (!allDay || value > endDate) setEndDate(value); }} /></div>
+            {allDay && <div className="calendar-field"><span><CalendarDays size={15} /> Ngày kết thúc</span><DatePicker label="Ngày kết thúc" value={displayedEndDate} min={displayedStartDate} required disabled={busy || !!event} align="end" onChange={setEndDate}/></div>}
           </div>
           {!allDay && <div className="calendar-form-row">
             <div className="calendar-field"><span><Clock size={15} /> Giờ bắt đầu</span><TimePicker label="Giờ bắt đầu" value={startTime} required disabled={busy || !!event} onChange={value => { setStartTime(value); setEndDate(startDate); }} /></div>
             <div className="calendar-field"><span><Clock size={15} /> Giờ kết thúc</span><TimePicker label="Giờ kết thúc" value={endTime} required disabled={busy || !!event} onChange={value => { setEndTime(value); setEndDate(startDate); }} /></div>
           </div>}
 
-          <RecurrenceSelect startDate={startDate} value={recurrence} disabled={busy || !!event} onChange={value => { setRecurrence(value); if (!allDay) setEndDate(startDate); }}/>
+          <RecurrenceSelect startDate={displayedStartDate} value={recurrence} disabled={busy || !!event} onChange={value => { setRecurrence(value); setReminder(previous => ({ ...previous, reminder_repeat: value !== 'NONE' })); if (!allDay) setEndDate(startDate); }}/>
           {event && <p className="calendar-repeat-help">Chọn “Dời lịch / Thông báo” để thay đổi lịch hoặc cài đặt thông báo.</p>}
           {event && <RescheduleControl occurrenceAt={occurrenceAt} seriesRecurrence={event.series_recurrence} kind="event" id={event.id} title={event.title} current={{ ...savedSchedule, ...savedReminder }} updatedAt={updatedAt} disabled={busy} onMoved={change => {
             const fresh = change.editor?.kind === 'event' ? change.editor.resource : undefined;
@@ -167,6 +174,7 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
             setDescription(value => value === (event.description ?? '') ? next.description ?? '' : value);
             setLocation(value => value === (event.location ?? '') ? next.location ?? '' : value);
             setIsPrivate(value => value === !!event.is_private ? !!next.is_private : value);
+            setHideIndirect(value => value === !!event.hide_from_indirect ? !!next.hide_from_indirect : value);
             setReminder(reminderValue(next)); setSavedReminder(reminderValue(next));
             setSavedSchedule({ starts_at: next.starts_at, ends_at: next.ends_at, is_all_day: next.is_all_day, recurrence: next.recurrence });
             setRecurrence(next.recurrence ?? 'NONE');
@@ -176,7 +184,7 @@ export function EventModal({ event: initialEvent, draft, onClose, onSave, onDele
           }}/>}
           <label className="calendar-field"><span><MapPin size={15} /> Địa điểm</span><input className="form-input" value={location} onChange={e => setLocation(e.target.value)} placeholder="Thêm địa điểm" maxLength={255} /></label>
           <label className="calendar-field">Mô tả<textarea className="form-input" value={description} onChange={e => setDescription(e.target.value)} placeholder="Ghi chú cho sự kiện…" rows={3} maxLength={10000} /></label>
-          <PrivacyToggle label="Sự kiện riêng tư" value={isPrivate} onChange={setIsPrivate} />
+          <PrivacyToggle label="Sự kiện riêng tư" value={isPrivate} onChange={setIsPrivate} hideIndirect={hideIndirect} onHideIndirect={setHideIndirect} readOnly={!canEdit} canAssign={canAssignTasks} />
           {canEdit&&<UserPicker multiple label="Người theo dõi" value={followers} onChange={setFollowers} disabled={busy}/>}
           {!event && <ReminderFields recurrence={recurrence} value={reminder} onChange={setReminder} anchor={startDate && (allDay || startTime) ? toTimestamp(parseDate(startDate), allDay ? '00:00' : startTime) : null} endsAt={endDate && (allDay || endTime) ? toTimestamp(allDay ? addDays(parseDate(endDate), 1) : parseDate(endDate), allDay ? '00:00' : endTime) : null} allDay={allDay} disabled={busy} />}
 

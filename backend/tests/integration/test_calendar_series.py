@@ -23,7 +23,7 @@ class CalendarSeriesTests(ApiTestCase):
 
     async def make(self):
         code, event = await self.request('POST', payload=self.event_payload(starts_at='2099-01-05T09:00:00+07:00',
-            ends_at='2099-01-05T10:00:00+07:00', recurrence='DAILY', reminder_minutes=15))
+            ends_at='2099-01-05T10:00:00+07:00', recurrence='DAILY', reminder_minutes=15, reminder_repeat=True))
         self.assertEqual(code, 201, event)
         return event
 

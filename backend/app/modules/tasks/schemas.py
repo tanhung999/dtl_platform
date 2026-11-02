@@ -3,11 +3,13 @@ from datetime import date, datetime
 from uuid import UUID
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from app.core.collaboration_limits import MAX_FOLLOWERS
 
 PriorityType = Literal["LOW", "MEDIUM", "URGENT"]
 
 
 class TaskCreate(ReminderFields):
+    hide_from_indirect: bool = False
     is_private: bool = False
     client_request_id: UUID | None = None
     model_config = ConfigDict(extra="forbid")
@@ -17,7 +19,7 @@ class TaskCreate(ReminderFields):
     due_date: date | None = None
     due_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     assignee_id: str | None = Field(default=None, max_length=36)
-    follower_ids: list[str] = Field(default_factory=list, max_length=50)
+    follower_ids: list[str] = Field(default_factory=list, max_length=MAX_FOLLOWERS)
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -30,6 +32,8 @@ class TaskCreate(ReminderFields):
         return value.strip() if isinstance(value, str) else value
 
 class TaskUpdate(ReminderFields):
+    hide_from_indirect: bool | None = None
+    completion_note: str | None = Field(default=None, max_length=500)
     is_private: bool | None = None
     expected_version: int = Field(ge=0)
     model_config = ConfigDict(extra="forbid")
@@ -41,7 +45,7 @@ class TaskUpdate(ReminderFields):
     is_completed: bool | None = None
     expected_deadline_version: int | None = Field(default=None, ge=0)
     assignee_id: str | None = Field(default=None, max_length=36)
-    follower_ids: list[str] | None = Field(default=None, max_length=50)
+    follower_ids: list[str] | None = Field(default=None, max_length=MAX_FOLLOWERS)
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -62,6 +66,7 @@ class TaskUpdate(ReminderFields):
 
 
 class TaskResponse(BaseModel):
+    hide_from_indirect: bool = False
     @field_validator("priority", mode="before")
     @classmethod
     def normalize_legacy_priority(cls, value):
@@ -83,6 +88,9 @@ class TaskResponse(BaseModel):
     legacy_due_date: str | None
     deadline_version: int
     is_completed: bool
+    completion_note: str | None = None
+    completed_at: datetime | None = None
+    completed_by_id: str | None = None
     created_at: datetime
     updated_at: datetime
     creator: dict | None = None

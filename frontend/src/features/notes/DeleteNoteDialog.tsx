@@ -4,6 +4,7 @@ import { notesApi, notifyNotesChanged } from './api';
 import type { NoteSchedule } from '../note-scheduling/types';
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogDismiss } from '../../components/useDialogDismiss';
 import { getDeleteInfo, DeleteStatusUnknownError } from './deleteNote';
 import './notes.css';
 import { ApiError } from '../../services/api';
@@ -31,6 +32,7 @@ export function DeleteNoteDialog({ note, occurrenceAt, onScopedDelete, onClose, 
   const [revision, setRevision] = useState(0);
   const [uncertain, setUncertain] = useState(false);
   const [scopedUncertain, setScopedUncertain] = useState(false);
+  const dismiss = useDialogDismiss(onClose, !busy);
   useEffect(() => {
     const element = dialog.current, previous = document.activeElement as HTMLElement | null;
     element?.showModal(); cancel.current?.focus({ preventScroll: true });
@@ -58,9 +60,9 @@ export function DeleteNoteDialog({ note, occurrenceAt, onScopedDelete, onClose, 
     finally { deleting.current = false; setBusy(false); }
   };
   return createPortal(<dialog ref={dialog} className="note-delete-dialog" aria-labelledby={headingId} aria-describedby={descriptionId}
-    onCancel={event => { event.preventDefault(); event.stopPropagation();  }}
+    onPointerDown={dismiss.onPointerDown} onCancel={dismiss.onCancel}
     onKeyDown={event => { if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) { event.preventDefault(); event.stopPropagation(); } }}
-    onClick={event => event.stopPropagation()}>
+    onClick={event => { dismiss.onClick(event); event.stopPropagation(); }}>
     <header className="note-delete-heading"><h2 id={headingId}>Xóa ghi chú?</h2><button type="button" className="task-icon-button" aria-label="Đóng xác nhận xóa" disabled={busy} onClick={onClose}>×</button></header>
     <p className="note-delete-title" title={title}>{title}</p>
     <div id={descriptionId}>{recurring && <RecurrenceScopePicker action="delete" at={at!} value={scope} onChange={setScope} disabled={busy || scopedUncertain} />}<p>{recurring && scope !== 'ALL' ? 'Chỉ xóa các lần trên lịch đã chọn; nội dung ghi chú và các lần còn lại được giữ.' : 'Ghi chú sẽ bị xóa vĩnh viễn.'}</p>

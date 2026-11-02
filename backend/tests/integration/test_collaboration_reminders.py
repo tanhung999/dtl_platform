@@ -90,7 +90,7 @@ class CollaborationReminderTests(ApiTestCase):
         self.assertEqual((await self.request('PATCH', '/api/notifications/' + notice['id'], user='bob', payload={'read': True}))[0], 404)
 
     async def test_recurrence_notifies_each_occurrence_and_inactive_users_are_skipped(self):
-        await self.event(follower_ids=['bob', 'charlie'], reminder_minutes=15, recurrence='DAILY')
+        await self.event(follower_ids=['bob', 'charlie'], reminder_minutes=15, recurrence='DAILY', reminder_repeat=True)
         async with self.sessions() as db:
             (await db.get(User, 'charlie')).is_active = False; await db.commit()
         await self.tick(START - timedelta(minutes=15)); await self.tick(START + timedelta(days=1, minutes=-15))

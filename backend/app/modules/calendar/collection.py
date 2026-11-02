@@ -33,7 +33,7 @@ async def events_page(user: UserArg, db: DbArg, start: datetime, end: datetime, 
     event_total, note_total = (await db.execute(select(func.count().filter(~is_note), func.count().filter(is_note))
         .select_from(Event).outerjoin(Schedule, Schedule.event_id == Event.id).where(*owned))).one()
     fields = [Event.id, Event.user_id, Event.title, Event.location, Event.starts_at, Event.ends_at,
-              Event.recurrence, Event.recurrence_until, Event.is_all_day, Event.is_private, Event.color, Event.created_at, Event.updated_at, Schedule.note_id.label("scheduled_note_id")]
+              Event.recurrence, Event.recurrence_until, Event.is_all_day, Event.is_private, Event.hide_from_indirect, Event.reminder_repeat, Event.color, Event.created_at, Event.updated_at, Schedule.note_id.label("scheduled_note_id")]
     recurring = (await db.execute(select(*fields).outerjoin(Schedule, Schedule.event_id == Event.id)
         .where(*owned, Event.recurrence != 'NONE'))).mappings().all()
     recurring = await attach_exclusions(db, recurring, start, end)

@@ -1,0 +1,4 @@
+.collection-search { display:grid;gap:8px;min-width:0;color:var(--text-main);font-size:13px;font-weight:600; }
+.collection-search-label { display:flex;align-items:center;gap:7px;line-height:1.5; }
+.collection-search-label > svg { flex-shrink:0;color:var(--text-muted); }
+.collection-search > input { min-width:0;min-height:40px;font-size:14px;font-weight:400; }

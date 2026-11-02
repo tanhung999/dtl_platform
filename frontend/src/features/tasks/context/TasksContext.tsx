@@ -6,6 +6,7 @@ import { tasksApi } from '../api';
 import { TaskCollection, TaskFilter, TaskInput, TaskScope } from '../types';
 import { sortTasks } from '../deadlineUtils';
 import { TaskModal } from '../components/TaskModal';
+import { TaskCompletionDialog } from '../components/TaskCompletionDialog';
 import '../tasks.css';
 import { useWorkspaceRealtime, WORKSPACE_CHANGED } from '../../realtime/useWorkspaceRealtime';
 import { useInvalidation } from '../../realtime/useInvalidation';
@@ -48,6 +49,10 @@ export function TasksProvider({ children, fullPage = false, collectionEnabled = 
   const scope = `${view}/${filter}/${offset}/${overdueOffset}/${limit}/${search}`;
   const [loadedScope, setLoadedScope] = useState('');
   const [editing, setEditing] = useState<Task>(), [now, setNow] = useState(new Date()), [overdueRequest, setOverdueRequest] = useState(0);
+  const [completion, setCompletion] = useState<Task>();
+  const completionResolve = useRef<(() => void)>();
+  useEffect(() => () => { completionResolve.current?.(); }, []);
+  const closeCompletion = () => { setCompletion(undefined); completionResolve.current?.(); completionResolve.current = undefined; };
   const opening = useLatestRequest();
   const openTask = async (id: string, signal?: AbortSignal) => {
     const controller = opening.start();
@@ -130,9 +135,16 @@ export function TasksProvider({ children, fullPage = false, collectionEnabled = 
     revision, loading: collectionEnabled && (fullPage && query !== debounced || loadedScope !== scope || loading), error, busyIds, refresh, create, update, remove,
     openTask,
     edit: task => { openTask(task.id).catch(reason => setError(reason.message)); },
-    toggle: async task => { await mutate(task, { is_completed: !task.is_completed }); },
+    toggle: async task => {
+      if (task.is_completed) { await mutate(task, { is_completed: false }); return; }
+      if (completionResolve.current) return;
+      await new Promise<void>(resolve => { completionResolve.current = resolve; setCompletion(task); });
+    },
     overdueRequest, showOverdue: () => setOverdueRequest(v => v + 1), acknowledgeOverdue: () => setOverdueRequest(0), canAssignTasks }}>
     {children}<MutationStatus />{editing && <TaskModal key={editing.id} task={editing} onClose={() => { opening.cancel(); setEditing(undefined); }} onSave={update} onDelete={remove} />}
+    {completion && <TaskCompletionDialog task={completion} onClose={closeCompletion} onSave={async note => {
+      await mutate(completion, { is_completed: true, completion_note: note }); closeCompletion();
+    }} />}
   </Context.Provider>;
 }
 export function useTasks(): TasksState { const value = useContext(Context); if (!value) throw new Error('TasksProvider is required.'); return value; }

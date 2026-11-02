@@ -7,6 +7,7 @@ import { useMutationChecking } from '../mutations/useMutationChecking';
 import { ApiError } from '../../services/api';
 import { appsApi, UserApplicationAccess } from '../apps/api';
 import { WorkflowAccountLinker } from './components/WorkflowAccountLinker';
+import { sameFields } from '../../services/unchanged';
 
 export function AccessManagement({ onChanged, revision }: { onChanged: () => void; revision: number }) {
   const checking=useMutationChecking();
@@ -62,6 +63,12 @@ export function AccessManagement({ onChanged, revision }: { onChanged: () => voi
   };
   const saveAppPolicy = async (application: UserApplicationAccess, changes: Partial<Pick<UserApplicationAccess, 'role_key' | 'permission_keys' | 'project_names'>>) => {
     if (!target || applicationBusy) return;
+    if (sameFields({ role_key:changes.role_key ?? application.role_key,
+      permission_keys:[...(changes.permission_keys ?? application.permission_keys)].sort(),
+      project_names:[...new Set(changes.project_names ?? application.project_names)].sort() },
+      { role_key:application.role_key, permission_keys:[...application.permission_keys].sort(), project_names:[...application.project_names].sort() })) {
+      setError(''); setSuccess('Thông tin chưa thay đổi.'); return;
+    }
     setApplicationBusy(application.key); setError(''); setSuccess('');
     try {
       const result = await appsApi.setUserAccess(application.key, target.id, {

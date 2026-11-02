@@ -94,7 +94,7 @@ class CalendarRecurrenceTests(ApiTestCase):
 
     async def test_relative_reminders_repeat_once_and_cancel_on_rule_edit(self):
         start=datetime(2099,1,5,2,tzinfo=timezone.utc)
-        event=await self.make(starts_at=start.isoformat(),ends_at=(start+timedelta(hours=1)).isoformat(),reminder_minutes=15)
+        event=await self.make(starts_at=start.isoformat(),ends_at=(start+timedelta(hours=1)).isoformat(),reminder_minutes=15,reminder_repeat=True)
         for index in (0,1):
             tick=start+timedelta(days=index,minutes=-15)
             async with self.sessions() as db:

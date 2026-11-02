@@ -145,7 +145,7 @@
   .dashboard-app .nav-brand-text { gap:2px; }
   .dashboard-app .nav-brand-name { font-size:12px; line-height:18px; }
   .dashboard-app .nav-brand-text > span { font-size:7.5px; line-height:10px; letter-spacing:0; }
-  .dashboard-app .nav-actions { gap:5px; }.dashboard-app .theme-toggle-btn > span,.dashboard-app .theme-toggle-btn > svg:last-child { display:none; }
+  .dashboard-app .nav-actions { gap:5px; flex-wrap:wrap; justify-content:center; max-width:100%; margin-left:0; }.dashboard-app .theme-toggle-btn > span,.dashboard-app .theme-toggle-btn > svg:last-child { display:none; }
   .dashboard-app .theme-toggle-btn { padding:8px; }.dashboard-app .workspace-logout { padding:8px; }
   .workspace-search { order:3; flex-basis:100%; max-width:none; padding:10px 12px; }
   .workspace-shell { grid-template-columns:minmax(0,1fr); }
@@ -233,7 +233,7 @@
 .dashboard-app .nav-admin:active { transform:translateY(0); }
 .dashboard-app .nav-admin.is-active { outline:2px solid var(--accent); outline-offset:2px; }
 @media(max-width:700px) {
-  .dashboard-app .nav-home { padding:7px 12px; min-height:34px; font-size:12px; }
-  .dashboard-app .nav-admin { padding:7px 12px; min-height:34px; font-size:12px; }
+  .dashboard-app .nav-home { padding:7px 8px; min-height:34px; font-size:12px; }
+  .dashboard-app .nav-admin { padding:7px 8px; min-height:34px; font-size:12px; }
   .dashboard-app .workspace-search { order:4; flex:1 1 150px; min-width:0; margin-left:0; padding:9px 10px; }
 }

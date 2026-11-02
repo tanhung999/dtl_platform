@@ -1,11 +1,11 @@
 """Preview the next reminder for an existing recurring calendar series."""
-from datetime import timedelta
+from datetime import datetime
+from types import SimpleNamespace
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.datetime_utils import database_utc
 from app.db.calendar import CalendarEvent
 from app.db.calendar_exceptions import CalendarException
 from app.db.models import Note, User, utcnow
@@ -17,19 +17,22 @@ DbArg = Annotated[AsyncSession, Depends(get_db, scope='function')]
 
 
 @router.get('/{event_id}/next-reminder')
-async def next_reminder(event_id: str, user: UserArg, db: DbArg, minutes: int = Query(ge=0, le=10080)):
+async def next_reminder(event_id: str, user: UserArg, db: DbArg, minutes: int | None = Query(default=None, ge=0, le=10080), at: datetime | None = Query(default=None)):
     event = await db.scalar(select(CalendarEvent).where(CalendarEvent.id == event_id, CalendarEvent.user_id == user.id))
     if not event: raise HTTPException(404, 'Không tìm thấy sự kiện.')
-    from app.modules.notifications.scheduling import recurring_period
+    from app.modules.notifications.scheduling import recurring_period, reminder_time, reminder_occurrence, valid_recurring_stamp
     period, now = recurring_period(event), utcnow()
-    if not period or event.is_all_day: return {'at': None}
+    if not period or event.is_all_day and minutes is not None: return {'at': None}
+    if (minutes is None) == (at is None): raise HTTPException(422, 'Chọn một cách thông báo.')
+    if at is not None and (at.tzinfo is None or at.utcoffset() is None): raise HTTPException(422, 'Giờ thông báo phải kèm múi giờ.')
     note = await db.get(Note, event.scheduled_note_id) if event.scheduled_note_id else None
     if note and note.is_archived: return {'at': None}
-    offset = timedelta(minutes=minutes)
-    stamp = database_utc(event.starts_at) - offset
-    if stamp <= now: stamp += ((now - stamp) // period + 1) * period
+    preview = SimpleNamespace(starts_at=event.starts_at, ends_at=event.ends_at, is_all_day=event.is_all_day,
+        recurrence=event.recurrence, recurrence_until=event.recurrence_until, reminder_repeat=True, reminder_minutes=minutes, reminder_at=at)
+    stamp = reminder_time(preview, 'event', now)
+    if stamp is None: return {'at': None}
     skipped = set((await db.scalars(select(CalendarException.occurrence_at).where(
-        CalendarException.event_id == event.id, CalendarException.occurrence_at >= stamp + offset))).all())
-    while stamp + offset in skipped: stamp += period
-    if event.recurrence_until and stamp + offset >= database_utc(event.recurrence_until): return {'at': None}
+        CalendarException.event_id == event.id, CalendarException.occurrence_at >= reminder_occurrence(preview, stamp)))).all())
+    while reminder_occurrence(preview, stamp) in skipped: stamp += period
+    if not valid_recurring_stamp(preview, stamp): return {'at': None}
     return {'at': stamp}

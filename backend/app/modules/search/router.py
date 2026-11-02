@@ -2,6 +2,8 @@
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import select, func, and_, or_, case
+from sqlalchemy.orm import aliased
+from app.modules.calendar_sharing.service import shared_calendar_for
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.text_search import fold_text
@@ -45,13 +47,19 @@ async def search(
     task_direct = visible_tasks(user.id)
     event_direct = visible_events(user.id)
     note_direct = Note.user_id == user.id
-    task_shared = and_(Task.user_id.in_(shared_owner_ids(user.id, 'share_tasks')),
+    task_calendar = shared_calendar_for(user.id, 'task')
+    event_calendar = shared_calendar_for(user.id, 'event')
+    task_shared = and_(task_calendar.is_not(None),
                        Task.is_private.is_(False), Task.due_date.is_not(None))
-    event_shared = and_(Event.user_id.in_(shared_owner_ids(user.id, 'share_events')), Event.is_private.is_(False))
+    event_shared = and_(event_calendar.is_not(None), Event.is_private.is_(False))
     note_shared = and_(Note.user_id.in_(shared_owner_ids(user.id, 'share_notes')), Note.is_private.is_(False),
                       Event.user_id == Note.user_id, Event.is_private.is_(False))
     def access_fields(model, direct):
-        return [model.user_id.label('owner_id'), User.full_name.label('owner_name'),
+        shared_owner = task_calendar if model is Task else event_calendar if model is Event else model.user_id
+        owner_id = case((direct, model.user_id), else_=shared_owner)
+        owner_user = aliased(User)
+        owner_name = select(owner_user.full_name).where(owner_user.id == owner_id).correlate(model).scalar_subquery()
+        return [owner_id.label('owner_id'), owner_name.label('owner_name'),
                 case((direct, False), else_=True).label('shared_only')]
     specs = {
         'tasks': (Task, [Task.id, Task.title, func.substr(Task.description, 1, 240).label('preview'), Task.due_date, Task.due_time, Task.is_completed],

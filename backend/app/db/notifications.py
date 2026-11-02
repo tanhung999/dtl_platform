@@ -52,6 +52,7 @@ class NotificationJob(Base):
     event_id = Column(String(36), ForeignKey('calendar_events.id', ondelete='CASCADE'), nullable=True, index=True)
     reminder_version = Column(Integer, nullable=True)
     user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    recipient_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
     deadline_version = Column(Integer, nullable=False)
     kind = Column(String(20), nullable=False)
     event_key = Column(String(200), nullable=False, unique=True)
@@ -68,3 +69,14 @@ class NotificationPreference(Base):
     workflows = Column(Boolean, nullable=False, default=True, server_default=text('true'))
     itam = Column(Boolean, nullable=False, default=True, server_default=text('true'))
     version = Column(Integer, nullable=False, default=0, server_default='0')
+
+
+class TaskReminderPreference(Base):
+    """A missing row inherits the creator; a null selection is an explicit opt-out."""
+    __tablename__ = 'task_reminder_preferences'
+    task_id = Column(String(36), ForeignKey('tasks.id', ondelete='CASCADE'), primary_key=True)
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    reminder_minutes = Column(Integer, nullable=True)
+    reminder_at = Column(UTCDateTime(), nullable=True)
+    version = Column(Integer, nullable=False, default=0, server_default='0')
+    updated_at = Column(UTCDateTime(), nullable=False, default=utcnow)

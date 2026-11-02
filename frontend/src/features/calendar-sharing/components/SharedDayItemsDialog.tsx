@@ -1,4 +1,5 @@
 import { CSSProperties, useEffect, useRef } from 'react';
+import { useDialogDismiss } from '../../../components/useDialogDismiss';
 import { CalendarDays, CheckSquare, Clock, StickyNote, X } from 'lucide-react';
 import { addDays, dateKey, eventDayLabel, formatDate, toTimestamp } from '../../calendar/dateUtils';
 import { eventStatus } from '../../calendar/eventStatus';
@@ -16,6 +17,7 @@ interface Props {
 
 export function SharedDayItemsDialog({ day, share, now, revision, accessEpoch, accessPending, onClose, onSelect, onRetry }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const dismiss = useDialogDismiss(onClose);
   const data = useSharedCalendar(share, toTimestamp(day), toTimestamp(addDays(day, 1)), revision, accessEpoch);
   const visible = !accessPending && data.visible;
   const items = visible ? sharedItemsOnDay(data.items, day) : [];
@@ -26,7 +28,7 @@ export function SharedDayItemsDialog({ day, share, now, revision, accessEpoch, a
   ] as const;
   useEffect(() => { const node = dialog.current; node?.showModal(); return () => node?.close(); }, []);
   return <dialog ref={dialog} className="calendar-day-dialog shared-day-dialog" aria-labelledby="shared-day-dialog-title"
-    onCancel={event => { event.preventDefault(); onClose(); }}>
+    {...dismiss}>
     <header className="calendar-day-dialog-header">
       <div><p>Lịch trong ngày · Chỉ xem</p><h2 id="shared-day-dialog-title">{formatDate(day, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}</h2></div>
       <button type="button" className="calendar-icon-button" aria-label="Đóng danh sách trong ngày" onClick={onClose}><X size={20} /></button>
