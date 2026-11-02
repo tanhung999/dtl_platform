@@ -10,9 +10,31 @@
 .reschedule-help { color:var(--text-muted); font-size:12px; }
 .reschedule-dialog footer { display:flex; justify-content:flex-end; margin-top:16px; }
 .reschedule-error { color:var(--error,#b91c1c); font-size:13px; margin-top:12px; }
-.reschedule-history article { padding:12px 0; border-bottom:1px solid var(--border); font-size:13px; overflow-wrap:anywhere; white-space:pre-wrap; }
-.reschedule-history article p { margin-bottom:6px; }
-.reschedule-history small { color:var(--text-muted); }
+.schedule-history-caption { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:11px; color:var(--text-muted); }
+.schedule-history-caption > span:first-child { display:inline-flex; align-items:center; gap:5px; }
+.schedule-history-state { min-height:175px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:24px 12px; text-align:center; }
+.schedule-history-empty-icon { display:grid; place-items:center; width:52px; height:52px; margin-bottom:2px; border-radius:16px; background:var(--primary-light); color:var(--accent-text); }
+.schedule-history-state > strong { font-size:14px; font-weight:600; color:var(--text-main); }
+.schedule-history-state p { margin:0; max-width:310px; font-size:13px; line-height:1.65; color:var(--text-secondary); overflow-wrap:anywhere; }
+.schedule-history-state.is-error > strong { color:var(--error); }
+.schedule-history-list { display:grid; gap:12px; list-style:none; padding:0; margin:14px 0 0; }
+.schedule-history-card { padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--bg-surface); font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.schedule-history-card-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.schedule-history-type { display:inline-flex; align-items:center; gap:7px; color:var(--accent-text); }
+.schedule-history-type strong { font-weight:600; }
+.schedule-history-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:6px; background:var(--bg-subtle); color:var(--text-secondary); font-size:11px; }
+.schedule-history-scope { display:block; margin:-4px 0 10px; font-size:11px; color:var(--text-secondary); }
+.schedule-history-comparison { display:grid; gap:6px; margin:0; }
+.schedule-history-comparison > div { display:grid; grid-template-columns:38px minmax(0,1fr); gap:8px; padding:7px 9px; border-radius:7px; background:var(--bg-card-solid); }
+.schedule-history-comparison dt { font-size:11px; color:var(--text-muted); padding-top:1px; }
+.schedule-history-comparison dd { margin:0; min-width:0; color:var(--text-main); }
+.schedule-history-comparison > div:last-child dd { font-weight:500; }
+.schedule-history-reminder { margin-top:12px; }
+.schedule-history-reminder > span { display:flex; align-items:center; gap:5px; margin-bottom:6px; font-size:12px; font-weight:500; }
+.schedule-history-reason { margin:10px 0 0; color:var(--text-secondary); white-space:pre-wrap; }
+.schedule-history-reason strong { font-weight:500; }
+.schedule-history-meta { display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px 12px; margin-top:12px; padding-top:9px; border-top:1px solid var(--border); color:var(--text-muted); font-size:11px; }
+@media(max-width:480px) { .reschedule-dialog .reschedule-history { padding:16px; }.schedule-history-card { padding:12px; } }
 .reschedule-toast { position:fixed; inset:84px 18px auto auto; margin:0; z-index:15000; display:flex; align-items:center; gap:14px; width:max-content; max-width:min(390px,calc(100vw - 24px)); padding:14px 18px; background:var(--bg-card-solid); color:var(--text-main); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-xl); font-size:13px; }
 .reschedule-toast button { flex-shrink:0; border:0; background:transparent; color:var(--accent-text); cursor:pointer; font:inherit; font-weight:600; }
 .reschedule-toast.has-error { border-color:#b91c1c; }

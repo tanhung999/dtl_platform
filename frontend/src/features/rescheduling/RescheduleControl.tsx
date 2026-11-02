@@ -9,7 +9,7 @@ import { DatePicker } from '../../components/date-time/DatePicker';
 import { TimePicker } from '../../components/date-time/TimePicker';
 import { addDays, dateKey, eventDate, eventTime, parseDate, toTimestamp } from '../calendar/dateUtils';
 import { Change, history, Kind, move, MoveInput, notifyMoved, Schedule, hydrateEditor } from './api';
-import { scheduleLabel, sameScheduleFields, notificationLabel } from './labels';
+import { ScheduleHistory } from './ScheduleHistory';
 import { showMoved } from './RescheduleToast';
 import { isUncertainFailure } from '../../services/mutationRecovery';
 import './rescheduling.css';
@@ -107,8 +107,7 @@ function MoveDialog({ kind, id, title, current, version, updatedAt, eventId, ser
   return createPortal(<dialog ref={ref} className="reschedule-dialog" aria-label={label} onCancel={event => { event.preventDefault(); event.stopPropagation(); }}>
     <header><div><h2>{label}</h2><p title={title}>{title}</p></div><button type="button" className="task-icon-button" aria-label="Đóng dời lịch" disabled={busy || syncFailed} onClick={onClose}><X size={20}/></button></header>
     <div className="dialog-section-tabs reschedule-tabs"><button type="button" aria-pressed={tab === 'move'} onClick={() => setTab('move')}>{label}</button><button type="button" aria-pressed={tab === 'history'} onClick={() => setTab('history')}><History size={14}/>Lịch sử</button></div>
-    {tab === 'history' ? <section className="reschedule-history"><p className="reschedule-help">Chỉ bạn xem được lịch sử này. Hiển thị tối đa 20 lần gần nhất.</p>
-      {historyError ? <p role="alert">{historyError}<button type="button" onClick={() => setRetry(value => value + 1)}>Thử lại</button></p> : !entries ? <p role="status">Đang tải lịch sử…</p> : !entries.length ? <p>Chưa có thay đổi nào.</p> : entries.map(entry => <article key={entry.id}><p>{sameScheduleFields(entry.before, entry.after) ? <>Thông báo: {notificationLabel(entry.before)} <span aria-label="sang">→</span> {notificationLabel(entry.after)}</> : <>{scheduleLabel(entry.before)} <span aria-label="sang">→</span> {scheduleLabel(entry.after)}</>}</p>{!sameScheduleFields(entry.before, entry.after) && !sameReminder(entry.before, entry.after) && <p>{'Th\u00f4ng b\u00e1o: '}{notificationLabel(entry.before)} <span aria-label="sang">→</span> {notificationLabel(entry.after)}</p>}<p>{entry.reason || 'Không nhập lý do'}</p><small>{kind !== 'task' && (entry.guard.scoped || entry.guard.family || entry.before.recurrence && entry.before.recurrence !== 'NONE') && `${(entry.guard.scoped?.scope ?? entry.guard.family?.scope) === 'THIS' ? 'Chỉ lần này' : (entry.guard.scoped?.scope ?? entry.guard.family?.scope) === 'FOLLOWING' ? 'Lần này và các lần sau' : 'Cả chuỗi'} · `}{entry.actor_name} · {new Date(entry.created_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}{entry.undone_at ? ' · Đã hoàn tác' : ''}</small></article>)}</section>
+    {tab === 'history' ? <ScheduleHistory kind={kind} entries={entries} error={historyError} onRetry={() => setRetry(value => value + 1)} />
       : <form onSubmit={submit} aria-busy={busy}><fieldset disabled={busy || uncertain || syncFailed}>
         {recurring && <RecurrenceScopePicker action="move" at={at!} value={scope} disabled={busy || uncertain || syncFailed} onChange={value => { setScope(value); modeDrafts.current = {}; const origin = value === 'ALL' ? current.starts_at! : at!; setStartDate(dateKey(eventDate(origin))); setEndDate(dateKey(eventDate(new Date(Date.parse(origin) + Date.parse(current.ends_at!) - Date.parse(current.starts_at!) - (current.is_all_day ? 1 : 0)).toISOString()))); }} />}
         {!unscheduledNote && <>
