@@ -13,6 +13,9 @@ import { RescheduleControl } from '../../rescheduling/RescheduleControl';
 import { sameFields } from '../../../services/unchanged';
 import { reminderValue, sameReminder } from '../../reminders/ReminderFields';
 import { UserPicker } from '../../collaboration/UserPicker';
+import { AssigneeReminderControl } from './AssigneeReminderControl';
+import { TaskResultHistory } from './TaskResultHistory';
+import { useDialogDismiss } from '../../../components/useDialogDismiss';
 import type { UserBrief } from '../../../types';
 
 interface Props {
@@ -28,6 +31,7 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   const [description, setDescription] = useState(task.description ?? '');
   const [priority, setPriority] = useState(task.priority);
   const [isPrivate, setIsPrivate] = useState(task.is_private ?? false);
+  const [hideIndirect, setHideIndirect] = useState(task.hide_from_indirect ?? true);
   const [assignee,setAssignee]=useState<UserBrief[]>(task.assignee?[task.assignee]:[]);
   const [followers,setFollowers]=useState<UserBrief[]>((task.followers??[]).filter(item=>item.id!==task.user_id&&item.id!==task.assignee_id));
   const [dueDate, setDueDate] = useState(task.due_date ?? '');
@@ -37,11 +41,13 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   const [version, setVersion] = useState(task.version);
   const [savedDeadline, setSavedDeadline] = useState({ due_date: task.due_date, due_time: task.due_time });
   const [busy, setBusy] = useState(false);
+  const [personalBusy, setPersonalBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [deleteVersion, setDeleteVersion] = useState(task.version);
   const checking = useMutationChecking();
   const mounted = useRef(true), submitting = useRef(false);
+  const dismiss = useDialogDismiss(onClose, !task.can_edit && task.relationship !== 'ASSIGNEE' && !busy);
   const assigneeId = task.can_assign ? assignee[0]?.id ?? task.user_id : task.assignee_id;
   const followerIds = followers.filter(user => user.id !== task.user_id && user.id !== assigneeId).map(user => user.id);
   useEffect(() => {
@@ -55,12 +61,12 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
   }, []);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (submitting.current || confirm) return;
-    if (sameFields({ title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate, due_time: dueTime, assignee_id:assigneeId, follower_ids:[...followerIds].sort() },
+    if (!task.can_edit || submitting.current || confirm) return;
+    if (sameFields({ title: title.trim(), description, priority, is_private: isPrivate, hide_from_indirect: hideIndirect, due_date: dueDate, due_time: dueTime, assignee_id:assigneeId, follower_ids:[...followerIds].sort() },
       { ...task, ...savedDeadline, title: task.title.trim(), is_private: task.is_private ?? false,
         follower_ids:(task.followers??[]).filter(item=>item.id!==task.user_id&&item.id!==task.assignee_id).map(item=>item.id).sort() }) && sameReminder(reminder, savedReminder)) { onClose(); return; }
     submitting.current = true; setBusy(true); setError('');
-    try { await onSave(task.id, { title: title.trim(), description, priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, ...(task.can_assign ? { assignee_id: assigneeId } : {}), follower_ids:followerIds, expected_version: version, ...reminder }); if (mounted.current) onClose(); }
+    try { await onSave(task.id, { title: title.trim(), description, priority, is_private: isPrivate, hide_from_indirect: hideIndirect, due_date: dueDate || null, due_time: dueTime || null, ...(task.can_assign ? { assignee_id: assigneeId } : {}), follower_ids:followerIds, expected_version: version, ...reminder }); if (mounted.current) onClose(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể lưu công việc.'); }
     finally { submitting.current = false; if (mounted.current) setBusy(false); }
   };
@@ -76,41 +82,45 @@ export function TaskModal({ task, onClose, onSave, onDelete }: Props) {
     }
     finally { submitting.current = false; if (mounted.current) setBusy(false); }
   };
-  return <dialog className="task-dialog" ref={dialog} aria-labelledby="task-dialog-title" onCancel={e => { e.preventDefault(); e.stopPropagation(); }}>
+  return <dialog className="task-dialog" ref={dialog} aria-labelledby="task-dialog-title" {...dismiss}>
     <form onSubmit={submit} aria-busy={busy}>
-      <header className="task-dialog-header"><h2 id="task-dialog-title">Chi tiết công việc</h2><button type="button" className="task-icon-button" aria-label="Đóng công việc" disabled={busy} onClick={onClose}><X size={18} /></button></header>
+      <header className="task-dialog-header"><h2 id="task-dialog-title">Chi tiết công việc</h2><button type="button" className="task-icon-button" aria-label="Đóng công việc" disabled={busy || personalBusy} onClick={onClose}><X size={18} /></button></header>
       {!task.can_edit && <div className={`task-readonly-notice${task.is_following ? ' is-following' : ''}`} role="note">
         {task.relationship === 'ASSIGNEE' ? <UserRound size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
         <div><strong>{task.relationship === 'ASSIGNEE' ? 'Bạn là người được giao công việc' : task.is_following ? 'Bạn là người theo dõi · Chỉ xem' : 'Bạn đang xem công việc · Chỉ xem'}</strong>
-          <p>{task.can_complete ? 'Chỉ người tạo được sửa nội dung, dời lịch hoặc xóa. Bạn có thể đánh dấu hoàn thành trên danh sách hoặc lịch.' : 'Chỉ người tạo công việc được sửa nội dung, dời lịch hoặc xóa.'}</p>
         </div>
       </div>}
       <fieldset disabled={busy||confirm||!task.can_edit} className="task-dialog-fields">
         <label>Tên công việc<input className="form-input" value={title} required maxLength={255} autoFocus onChange={e => setTitle(e.target.value)} /></label>
         <div className="task-priority-field"><span>Ưu tiên</span><PrioritySelect label="Ưu tiên" value={priority} disabled={busy} onChange={setPriority} /></div>
         <div className="task-form-row"><div className="task-date-field"><span>Ngày đến hạn</span><DatePicker label="Ngày đến hạn" value={dueDate} disabled onChange={setDueDate} /></div><div className="task-date-field"><span>Giờ đến hạn</span><TimePicker label="Giờ đến hạn" value={dueTime} disabled onChange={setDueTime} /></div></div>
-        <RescheduleControl kind="task" id={task.id} title={task.title} current={{ ...savedDeadline, ...savedReminder }} version={version} disabled={busy} onMoved={change => {
+        {task.can_edit && <RescheduleControl kind="task" id={task.id} title={task.title} current={{ ...savedDeadline, ...savedReminder }} version={version} disabled={busy} onMoved={change => {
           setReminder(reminderValue(change.after)); setSavedReminder(reminderValue(change.after));
           setDueDate(change.after.due_date || ''); setDueTime(change.after.due_time || '');
           setSavedDeadline({ due_date: change.after.due_date ?? null, due_time: change.after.due_time ?? null });
           setVersion(change.guard.expected_version!); setDeleteVersion(change.guard.expected_version!);
-        }}/>
+        }}/>}
         <label>Mô tả công việc<textarea className="form-input" rows={3} maxLength={10000} value={description} onChange={e => setDescription(e.target.value)} /></label>
-        <PrivacyToggle label="Công việc riêng tư" value={isPrivate} onChange={setIsPrivate} />
+        <PrivacyToggle label="Công việc riêng tư" value={isPrivate} onChange={setIsPrivate} hideIndirect={hideIndirect} onHideIndirect={setHideIndirect} readOnly={!task.can_edit} canAssign={task.can_assign} />
         <div className="people-picker-grid">
           {task.can_assign&&<div className="people-picker-field"><UserPicker label="Giao cho" endpoint="/api/task-assignees" value={assignee} onChange={setAssignee} disabled={busy}/>
             {!assignee.length&&<p className="people-picker-hint" role="status">Để trống sẽ giao lại cho người tạo công việc.</p>}
           </div>}
-          {task.can_edit&&<UserPicker multiple label="Người theo dõi" value={followers} onChange={setFollowers} disabled={busy}/>}
+          {task.can_edit&&<div><UserPicker multiple maxSelected={assigneeId !== task.user_id ? 499 : 500} label="Người theo dõi" value={followers} onChange={setFollowers} disabled={busy}/>
+          </div>}
         </div>
       </fieldset>
+      {task.relationship === 'ASSIGNEE' && !task.can_edit && <AssigneeReminderControl task={task} disabled={busy} onBusyChange={setPersonalBusy} onSaved={onClose} />}
+      {task.is_completed && <section className="task-completion-result"><h3>Cập nhật kết quả</h3><p>{task.completion_note || 'Chưa có nội dung cập nhật.'}</p>
+        {task.completed_at && <small>{new Date(task.completed_at).toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'})}</small>}</section>}
+      <TaskResultHistory taskId={task.id} version={version} />
       {checking && busy && <p role="status">Đang kiểm tra lại kết quả…</p>}
       {error && <p className="alert-error task-dialog-error" role="alert">{error}</p>}
       {confirm && <div className="task-delete-confirm" role="alert"><p>Xóa công việc “{task.title}”? Hạn công việc sẽ được gỡ khỏi lịch và các thông báo còn chờ sẽ bị hủy. Thao tác này không thể hoàn tác.</p></div>}
-      <footer className={`task-dialog-footer${confirm ? ' is-delete-confirm' : ''}`}>
+      {(confirm || task.can_delete || task.can_edit) && <footer className={`task-dialog-footer${confirm ? ' is-delete-confirm' : ''}`}>
         {confirm ? <><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirm(false)}>Giữ lại</button><button type="button" className="btn btn-danger-confirm btn-sm" disabled={busy} onClick={remove}><Trash2 size={14} />{busy ? 'Đang xóa…' : 'Xác nhận xóa'}</button></>
           : <>{task.can_delete&&<button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={() => setConfirm(true)}><Trash2 size={14} /> Xóa công việc</button>}{task.can_edit&&<button type="submit" className="btn btn-primary btn-sm" disabled={busy || !title.trim()}>{busy ? 'Đang lưu…' : 'Lưu công việc'}</button>}</>}
-      </footer>
+      </footer>}
     </form>
   </dialog>;
 }

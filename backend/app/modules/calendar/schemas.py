@@ -4,6 +4,7 @@ from uuid import UUID
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from app.core.collaboration_limits import MAX_FOLLOWERS
 
 
 CALENDAR_TIMEZONE = timezone(timedelta(hours=7))
@@ -13,15 +14,17 @@ class EventWrite(ReminderFields):
     model_config = ConfigDict(extra="forbid")
 
     recurrence: Literal["NONE", "DAILY", "WEEKLY"] = "NONE"
+    reminder_repeat: bool = False
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=10000)
     location: str = Field(default="", max_length=255)
     starts_at: datetime
     ends_at: datetime
     is_private: bool = False
+    hide_from_indirect: bool = False
     is_all_day: bool = False
     color: str = Field(default="#2563eb", pattern=r"^#[0-9a-fA-F]{6}$")
-    follower_ids: list[str] = Field(default_factory=list, max_length=100)
+    follower_ids: list[str] = Field(default_factory=list, max_length=MAX_FOLLOWERS)
 
     @field_validator("title", "description", "location", mode="before")
     @classmethod
@@ -50,6 +53,7 @@ class EventWrite(ReminderFields):
 
 
 class EventResponse(BaseModel):
+    reminder_repeat: bool = False
     recurrence: Literal["NONE", "DAILY", "WEEKLY"] = "NONE"
     series_id: str | None = None
     series_recurrence: Literal["DAILY", "WEEKLY"] | None = None
@@ -68,6 +72,7 @@ class EventResponse(BaseModel):
     starts_at: datetime
     ends_at: datetime
     is_private: bool = False
+    hide_from_indirect: bool = False
     is_all_day: bool
     color: str
     created_at: datetime
@@ -92,7 +97,7 @@ class EventCreate(EventWrite):
 
 
 class EventUpdate(EventWrite):
-    follower_ids: list[str] | None = Field(default=None, max_length=100)
+    follower_ids: list[str] | None = Field(default=None, max_length=MAX_FOLLOWERS)
     expected_updated_at: datetime
 
     @field_validator("expected_updated_at")

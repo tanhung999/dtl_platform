@@ -7,14 +7,16 @@ import { addDays, dateKey, eventDate, eventTime, parseDate, toTimestamp } from '
 import { NoteSchedule } from './types';
 import './note-scheduling.css';
 import { ReminderFields } from '../reminders/ReminderFields';
+import { occurrenceSchedule } from '../calendar/occurrenceSchedule';
 
 export function initialNoteSchedule(): NoteSchedule {
   const day = eventDate(new Date().toISOString());
-  return { starts_at: toTimestamp(day, '09:00'), ends_at: toTimestamp(day, '10:00'), is_all_day: false };
+  return { starts_at: toTimestamp(day, '09:00'), ends_at: toTimestamp(day, '10:00'), is_all_day: false, reminder_repeat: false };
 }
-export function NoteScheduleFields({ value, onChange, scheduleReadOnly = false, scheduleAction, showNotifications = true }: { showNotifications?: boolean; value: NoteSchedule; scheduleReadOnly?: boolean; scheduleAction?: ReactNode; onChange: (value: NoteSchedule) => void }) {
-  const startDay = dateKey(eventDate(value.starts_at));
-  const endDay = dateKey(eventDate(new Date(Date.parse(value.ends_at) - (value.is_all_day ? 1 : 0)).toISOString()));
+export function NoteScheduleFields({ value, onChange, scheduleReadOnly = false, scheduleAction, showNotifications = true, occurrenceAt }: { occurrenceAt?: string; showNotifications?: boolean; value: NoteSchedule; scheduleReadOnly?: boolean; scheduleAction?: ReactNode; onChange: (value: NoteSchedule) => void }) {
+  const displayed = scheduleReadOnly ? occurrenceSchedule(value, occurrenceAt) : value;
+  const startDay = dateKey(eventDate(displayed.starts_at));
+  const endDay = dateKey(eventDate(new Date(Date.parse(displayed.ends_at) - (value.is_all_day ? 1 : 0)).toISOString()));
   const changeStart = (day: string, time: string) => {
     if (!day) return;
     if (!time) { onChange(changeNoteScheduleStart(value, day, '')); return; }
@@ -31,8 +33,7 @@ export function NoteScheduleFields({ value, onChange, scheduleReadOnly = false, 
     {!value.is_all_day && <div><span>Giờ bắt đầu</span><TimePicker disabled={scheduleReadOnly} label="Giờ bắt đầu" required value={eventTime(value.starts_at)} onChange={time => { if (time) changeStart(startDay, time); }} /></div>}
     {value.is_all_day && <div><span>Ngày kết thúc</span><DatePicker disabled={scheduleReadOnly} label="Ngày kết thúc" required min={startDay} value={endDay} align="end" onChange={day => { if (day) onChange({ ...value, ends_at: toTimestamp(addDays(parseDate(day), 1)) }); }}/></div>}
     {!value.is_all_day && <div><span>Giờ kết thúc</span><TimePicker disabled={scheduleReadOnly} label="Giờ kết thúc" required value={eventTime(value.ends_at)} onChange={time => { if (time) onChange({ ...value, ends_at: toTimestamp(parseDate(startDay), time) }); }} /></div>}
-    <RecurrenceSelect startDate={startDay} value={value.recurrence ?? 'NONE'} disabled={scheduleReadOnly} onChange={recurrence => onChange({ ...value, recurrence, ends_at: value.is_all_day ? value.ends_at : toTimestamp(parseDate(startDay), eventTime(value.ends_at)) })}/>
-    {scheduleReadOnly && value.recurrence && value.recurrence !== 'NONE' && <p>Đây là lịch lặp. Khi thay đổi hoặc xóa, hãy chọn lần cần áp dụng.</p>}
+    <RecurrenceSelect startDate={startDay} value={value.recurrence ?? 'NONE'} disabled={scheduleReadOnly} onChange={recurrence => onChange({ ...value, recurrence, reminder_repeat: recurrence !== 'NONE', ends_at: value.is_all_day ? value.ends_at : toTimestamp(parseDate(startDay), eventTime(value.ends_at)) })}/>
     {scheduleReadOnly && scheduleAction && <p>Chọn “Dời lịch / Thông báo” để thay đổi lịch hoặc cài đặt thông báo.</p>}
     {scheduleAction && <div className="note-schedule-action">{scheduleAction}</div>}
     {showNotifications && <ReminderFields eventId={value.event_id} recurrence={value.recurrence} value={value} onChange={reminder => onChange({ ...value, ...reminder })} anchor={value.starts_at} endsAt={value.ends_at} allDay={value.is_all_day} />}

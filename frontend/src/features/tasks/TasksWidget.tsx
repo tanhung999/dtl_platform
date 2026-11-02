@@ -5,7 +5,8 @@ import { FeatureIcon } from '../../components/FeatureIcon';
 import { taskTooltip } from '../calendar/itemTooltip';
 import { PrivacyToggle } from '../access/PrivacyToggle';
 import { MouseEvent, useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Calendar, CheckCircle2, Clock, Eye, Lock, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowUpRight, Calendar, CheckCircle2, Clock, Eye, Lock, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CollectionSearch } from '../../components/CollectionSearch';
 import { TaskPriority } from '../../types';
 import { useTasks } from './context/TasksContext';
 import { deadlineLabel, isOverdue, overdueLabel } from './deadlineUtils';
@@ -16,7 +17,7 @@ import { TimePicker } from '../../components/date-time/TimePicker';
 import { AnimatedCount } from '../../components/AnimatedCount';
 import { CreateAttempt } from '../../services/mutationRecovery';
 import { TaskInput } from './types';
-import { ApiError } from '../../services/api';
+import { ApiError, getStoredUser } from '../../services/api';
 import { ReminderFields, ReminderValue, noReminder } from '../reminders/ReminderFields';
 import { dateKey, today, parseDate, toTimestamp } from '../calendar/dateUtils';
 import { UserPicker } from '../collaboration/UserPicker';
@@ -28,6 +29,7 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
   const [isPrivate, setIsPrivate] = useState(false);
+  const [hideIndirect, setHideIndirect] = useState(false);
   const [dueDate, setDueDate] = useState('');
   const [dueTime, setDueTime] = useState('');
   const [reminder, setReminder] = useState<ReminderValue>(noReminder);
@@ -58,9 +60,9 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
     if (!title.trim() || submitting.current || !e.currentTarget.form?.reportValidity()) return;
     submitting.current = true;
     setSaving(true); setActionError(''); setActionSuccess('');
-    const payload = { title: title.trim(), priority, is_private: isPrivate, due_date: dueDate || null, due_time: dueTime || null, assignee_id:assignee[0]?.id, follower_ids:followers.map(item=>item.id), ...reminder };
+    const payload = { title: title.trim(), priority, is_private: isPrivate, hide_from_indirect: hideIndirect, due_date: dueDate || null, due_time: dueTime || null, assignee_id:assignee[0]?.id, follower_ids:followers.map(item=>item.id), ...reminder };
     createAttempt.current ??= { requestId: createRequestId(), original: payload };
-    try { await data.create(payload, createAttempt.current); createAttempt.current = undefined; setTitle(''); setAssignee([]); setFollowers([]); setIsPrivate(false); setDueDate(''); setDueTime(''); setReminder(noReminder()); setActionSuccess('Đã thêm công việc thành công.'); }
+    try { await data.create(payload, createAttempt.current); createAttempt.current = undefined; setTitle(''); setAssignee([]); setFollowers([]); setIsPrivate(false); setHideIndirect(false); setDueDate(''); setDueTime(''); setReminder(noReminder()); setActionSuccess('Đã thêm công việc thành công.'); }
     catch (reason) { if (reason instanceof ApiError && [400, 404, 422].includes(reason.status)) createAttempt.current = undefined; setActionError(reason instanceof Error ? reason.message : 'Không thể tạo công việc.'); }
     finally { submitting.current = false; setSaving(false); }
   };
@@ -75,14 +77,15 @@ export function TasksWidget({ fullPage = false, onOpenAll }: { fullPage?: boolea
       <div className="task-quick-deadline"><div className="task-date-field"><span><Calendar size={13} /> Ngày đến hạn</span><DatePicker clearLabel="Xóa hạn" label="Ngày đến hạn" value={dueDate} disabled={saving} onChange={value => { setDueDate(value); if (!value) { setDueTime(''); if (reminder.reminder_minutes != null) setReminder(noReminder()); } }} /></div><div className="task-date-field"><span><Clock size={13} /> Giờ đến hạn</span><TimePicker label="Giờ đến hạn" value={dueTime} disabled={saving} onChange={value => { setDueTime(value); if (!value && !dueDate && reminder.reminder_minutes != null) setReminder(noReminder()); }} /></div></div>
       {!dueDate && dueTime && <p className="task-time-default-hint">Chỉ chọn giờ: hạn vào ngày tạo công việc.</p>}
       <ReminderFields allowUnscheduled value={reminder} onChange={setReminder} disabled={saving} anchor={dueDate || dueTime ? toTimestamp(parseDate(dueDate || dateKey(today())), dueTime || '00:00') : null} allDay={!dueTime} />
-      <PrivacyToggle label="Công việc mới riêng tư" value={isPrivate} onChange={setIsPrivate} disabled={saving} />
+      <PrivacyToggle label="Công việc mới riêng tư" value={isPrivate} onChange={setIsPrivate} hideIndirect={hideIndirect} onHideIndirect={setHideIndirect} disabled={saving} canAssign={data.canAssignTasks} />
       {fullPage&&<div className="people-picker-grid">
         {data.canAssignTasks&&<UserPicker label="Giao cho" endpoint="/api/task-assignees" value={assignee} onChange={setAssignee} disabled={saving}/>}
-        <UserPicker multiple label="Người theo dõi" value={followers} onChange={setFollowers} disabled={saving}/>
+        <div><UserPicker multiple maxSelected={assignee[0] && assignee[0].id !== getStoredUser()?.id ? 499 : 500} label="Người theo dõi" value={followers} onChange={setFollowers} disabled={saving}/>
+        </div>
       </div>}
       <div className="task-create-actions"><button type="button" onClick={create} className="btn btn-primary btn-sm" disabled={saving || !title.trim()}><Plus size={16} />{saving ? 'Đang thêm…' : 'Thêm công việc'}</button></div>
     </form>
-    {fullPage && <label className="tasks-search"><span className="tasks-search-label"><Search size={15} aria-hidden="true" />Tìm công việc</span><input type="search" className="form-input" placeholder="Tìm theo tiêu đề hoặc mô tả…" maxLength={200} value={data.query} onChange={event => data.setQuery(event.target.value)} /></label>}
+    {fullPage && <CollectionSearch className="tasks-search" label="Tìm công việc" placeholder="Tìm theo tiêu đề hoặc mô tả…" value={data.query} onChange={data.setQuery} />}
     {fullPage && data.query.trim().length === 1 && <p className="task-search-hint">Nhập ít nhất 2 ký tự để tìm kiếm.</p>}
     {fullPage&&<div className="task-scope-filters">{([['all','Tất cả'],['assigned_to_me','Việc của tôi'],['created_by_me','Tôi đã giao'],['following','Đang theo dõi']] as const).map(([value,label])=><button type="button" key={value} className={`btn btn-sm ${data.scope===value?'btn-secondary':'btn-outline'} ${value==='following'?'tracking-filter':''}`} onClick={()=>data.setScope(value)}>{value==='following'&&<Eye size={13}/>} {label}</button>)}</div>}
     <div className="task-filters">{([

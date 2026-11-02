@@ -4,9 +4,11 @@ import { Bell, X } from 'lucide-react';
 import { useNotifications } from './NotificationsProvider';
 import { useNotificationFeed } from './useNotificationFeed';
 import { NotificationCard } from './NotificationCard';
+import { usePopoverDismiss } from '../../components/usePopoverDismiss';
 export const NotificationBell = memo(function NotificationBell({ onOpenAll }: { onOpenAll: () => void }) {
   const data = useNotifications(), [open, setOpen] = useState(false), [error, setError] = useState('');
   const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
+  usePopoverDismiss(open, panel, button, () => setOpen(false));
   const feed = useNotificationFeed(open);
   const [position, setPosition] = useState({ top: 84, right: 20 });
   useLayoutEffect(() => {

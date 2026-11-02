@@ -1,6 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, delete, update
+from sqlalchemy import select, delete, update, func
+from app.core.collaboration_limits import MAX_FOLLOWERS
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -17,6 +18,7 @@ from .ownership import owned_task
 from .access import visible_tasks, accessible_task, serialize_task, serialize_tasks
 from app.modules.access.service import MANAGE, has_permission
 from .permissions import can_assign_tasks, require_assignable_target, subordinate_ids
+from .reminders import AssigneeReminderWrite, get_assignee_reminder, save_assignee_reminder
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
 
@@ -83,7 +85,7 @@ async def create_task(payload: TaskCreate, user: CurrentUser, db: Database):
         mark_changed(db, user.id, "tasks")
         return task
     fingerprint = {**data, 'assignee_id': payload.assignee_id or user.id, 'follower_ids': sorted(payload.follower_ids)}
-    task = await create_once(db, user, "task", payload.client_request_id, {k: v for k, v in fingerprint.items() if k != 'is_private' or v}, Task, create)
+    task = await create_once(db, user, "task", payload.client_request_id, {k: v for k, v in fingerprint.items() if k not in {'is_private', 'hide_from_indirect'} or v}, Task, create)
     return await serialize_task(db, task, user)
 
 
@@ -99,6 +101,8 @@ async def delete_task(task_id: str, user: CurrentUser, db: Database, expected_ve
     if task.version != expected_version:
         raise HTTPException(409, {"message": "Công việc vừa được cập nhật. Hãy xem bản mới và xác nhận xóa lại.", "current": TaskResponse.model_validate(task).model_dump(mode="json")})
     await db.execute(delete(NotificationJob).where(NotificationJob.task_id == task.id))
+    from app.db.task_history import TaskResultHistory
+    await db.execute(delete(TaskResultHistory).where(TaskResultHistory.task_id == task.id))
     await db.execute(update(Notification).where(Notification.task_id == task.id).values(task_id=None))
     affected = {task.user_id, task.assignee_id}
     affected.update((await db.scalars(select(TaskFollower.user_id).where(TaskFollower.task_id == task.id))).all())
@@ -114,11 +118,32 @@ async def get_task(task_id: str, user: CurrentUser, db: Database):
     return await serialize_task(db, await accessible_task(task_id, user, db), user)
 
 
+@router.get('/{task_id}/personal-reminder')
+async def personal_reminder(task_id: str, user: CurrentUser, db: Database):
+    return await get_assignee_reminder(db, task_id, user)
+
+
+@router.get('/{task_id}/result-history')
+async def result_history(task_id: str, user: CurrentUser, db: Database, offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=50)):
+    from .history import list_result_history
+    return await list_result_history(db, task_id, user, offset, limit)
+
+
+@router.put('/{task_id}/personal-reminder')
+async def update_personal_reminder(task_id: str, payload: AssigneeReminderWrite, user: CurrentUser, db: Database):
+    return await save_assignee_reminder(db, task_id, user, payload)
+
+
 @router.post("/{task_id}/follow", response_model=TaskResponse)
 async def follow_task(task_id: str, user: CurrentUser, db: Database):
     task = await accessible_task(task_id, user, db, lock=True)
+    if task.assignee_id == user.id:
+        return await serialize_task(db, task, user)
     existing = await db.scalar(select(TaskFollower).where(TaskFollower.task_id == task.id, TaskFollower.user_id == user.id))
     if not existing:
+        count = await db.scalar(select(func.count()).select_from(TaskFollower).where(TaskFollower.task_id == task.id))
+        if count >= MAX_FOLLOWERS:
+            raise HTTPException(422, 'Không thể thêm người theo dõi. Hãy bỏ bớt người trước khi thêm.')
         db.add(TaskFollower(task_id=task.id, user_id=user.id, added_by_id=user.id)); await db.flush()
         task.version += 1; task.updated_at = utcnow()
         mark_changed(db, user.id, "tasks")

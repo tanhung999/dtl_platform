@@ -33,7 +33,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
   // Profile edit form state
   const [fullName, setFullName] = useState(user.full_name || '');
   const [phone, setPhone] = useState(user.phone || '');
-  const [positionId, setPositionId] = useState(user.position_id || '');
+  const positionId = user.position_id || '';
   const [workLocationId, setWorkLocationId] = useState(user.work_location_id || '');
   const [profileOptions, setProfileOptions] = useState<ProfileOptions | null>(profileOptionsCache);
   const [optionsError, setOptionsError] = useState('');
@@ -53,8 +53,6 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
     profileApi.options().then(options => {
       profileOptionsCache = options;
       setProfileOptions(options);
-      if (!positionId) setPositionId(options.positions.find(item => item.name === user.job_title)?.id || '');
-      if (!workLocationId) setWorkLocationId(options.work_locations.find(item => item.name === user.office_location)?.id || '');
     }).catch(error => setOptionsError(error instanceof Error ? error.message : 'Không thể tải danh mục tổ chức.'));
   }, []);
 
@@ -64,7 +62,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (savingProfile) return;
-    const payload = { full_name: fullName.trim(), phone: phone.trim(), work_location_id: workLocationId, bio: bio.trim() };
+    const payload = { full_name: fullName.trim(), phone: phone.trim(), bio: bio.trim(),
+      ...(workLocationId !== (user.work_location_id || '') ? { work_location_id: workLocationId } : {}) };
     if (sameFields(payload, { ...user })) { setProfileMessage({ type: 'success', text: 'Thông tin chưa thay đổi.' }); return; }
     setSavingProfile(true);
     setProfileMessage(null);
@@ -281,7 +280,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
                   className="form-input"
                   value={positionId}
                   title="Chức danh do quản trị viên thiết lập"
-                ><option value="">Chọn vị trí / chức danh</option>{profileOptions?.positions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+                ><option value="">{user.job_title || 'Chọn vị trí / chức danh'}</option>{positionId && !profileOptions?.positions.some(item=>item.id===positionId) && <option value={positionId}>{user.job_title || 'Vị trí hiện tại'}</option>}{profileOptions?.positions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
               </div>
 
               <div className="form-group">
@@ -291,7 +290,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
                   value={selectedDepartment?.id || ''}
                   disabled
                   style={{ background: 'var(--input-disabled-bg)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
-                ><option value="">Chọn phòng ban</option>{profileOptions?.departments.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+                ><option value="">{user.department || 'Chọn phòng ban'}</option>{profileOptions?.departments.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
               </div>
             </div>
 
@@ -301,7 +300,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, onUserUpdated, can
                 className="form-input"
                 value={workLocationId}
                 onChange={(e) => setWorkLocationId(e.target.value)}
-              ><option value="">Chọn địa điểm làm việc</option>{profileOptions?.work_locations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+              ><option value="">{!user.work_location_id && user.office_location ? user.office_location : 'Chọn địa điểm làm việc'}</option>{user.work_location_id && !profileOptions?.work_locations.some(item=>item.id===user.work_location_id) && <option value={user.work_location_id}>{user.office_location || 'Địa điểm hiện tại'}</option>}{profileOptions?.work_locations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
             </div>
 
             <div className="form-group">

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { requestWithTimeout } from "../../services/requestTimeout";
+import { sameFields } from '../../services/unchanged';
 type Item = {
   id: string;
   code: string;
@@ -22,6 +23,7 @@ export function OrganizationManagement() {
     }),
     [error, setError] = useState("");
   const [editingId, setEditingId] = useState<string>();
+  const savedItem = useRef<Record<string, unknown>>();
   const [busy, setBusy] = useState(false), [deletingId, setDeletingId] = useState<string>();
   const [success, setSuccess] = useState("");
   const submitting = useRef(false);
@@ -44,22 +46,18 @@ export function OrganizationManagement() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (submitting.current) return;
+    const payload = { name, code, is_active: editingId ? savedItem.current?.is_active ?? true : true, rank,
+      department_id: department || null, job_level_id: level || null, is_management: isManagement,
+      reports_to_level_id: savedItem.current?.reports_to_level_id && reportToLevels.includes(String(savedItem.current.reports_to_level_id)) ? savedItem.current.reports_to_level_id : reportToLevels[0] || null, report_to_level_ids: [...reportToLevels].sort() };
+    if (editingId && savedItem.current && sameFields(payload, savedItem.current)) {
+      setError(''); setSuccess('Thông tin chưa thay đổi.'); return;
+    }
     submitting.current = true; setBusy(true); setError(""); setSuccess("");
     try {
       await requestWithTimeout(`/api/admin/organization/${kind}${editingId ? `/${editingId}` : ""}`, {
         method: editingId ? "PUT" : "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          name,
-          code,
-          is_active: true,
-          rank,
-          department_id: department || null,
-          job_level_id: level || null,
-          is_management: isManagement,
-          reports_to_level_id: reportToLevels[0] || null,
-          report_to_level_ids: reportToLevels,
-        }),
+        body: JSON.stringify(payload),
       });
       setSuccess(editingId ? "Đã lưu thay đổi thành công." : "Đã thêm thành công.");
       setName("");
@@ -129,7 +127,7 @@ export function OrganizationManagement() {
             >
               <option value="">Chọn phòng ban</option>
               {data.departments
-                .filter((x) => x.is_active)
+                .filter((x) => x.is_active || x.id === department)
                 .map((x) => (
                   <option key={x.id} value={x.id}>
                     {x.name}
@@ -145,7 +143,7 @@ export function OrganizationManagement() {
             >
               <option value="">Chọn cấp bậc</option>
               {data.job_levels
-                .filter((x) => x.is_active)
+                .filter((x) => x.is_active || x.id === level)
                 .map((x) => (
                   <option key={x.id} value={x.id}>
                     {x.name}
@@ -187,6 +185,10 @@ export function OrganizationManagement() {
             <div className="organization-item-actions"><button type="button" disabled={busy} className="btn btn-outline btn-sm" onClick={()=>{
               setError("");setSuccess("");
               setEditingId(item.id);setName(item.name);setCode(item.code);setRank(item.rank??100);setDepartment(item.department_id??"");setLevel(item.job_level_id??"");setIsManagement(Boolean(item.is_management));setReportToLevels(item.report_to_level_ids??(item.reports_to_level_id?[item.reports_to_level_id]:[]));
+              const reports = item.report_to_level_ids ?? (item.reports_to_level_id ? [item.reports_to_level_id] : []);
+              savedItem.current = { name:item.name, code:item.code, is_active:item.is_active, rank:item.rank??100,
+                department_id:item.department_id??null, job_level_id:item.job_level_id??null, is_management:!!item.is_management,
+                reports_to_level_id:reports[0]??null, report_to_level_ids:[...reports].sort() };
             }}>Sửa</button><button type="button" disabled={busy} className="btn btn-danger-outline btn-sm" onClick={async () => {
                 if (submitting.current) return;
                 submitting.current = true; setBusy(true); setDeletingId(item.id); setError(""); setSuccess("");

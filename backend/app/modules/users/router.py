@@ -307,6 +307,10 @@ async def update_user(target_id: str, payload: UserUpdate, actor: CurrentUser, d
         'is_active': target.is_active, 'platform_admin': await _is_platform_admin(db, target.id),
     }
     manager,position,level,department,location=await organization_assignment(db,payload,target.id)
+    unchanged = all((getattr(target, field) or '') == (getattr(payload, field) or '') for field in
+        ('email', 'full_name', 'department', 'job_title', 'employee_code', 'phone', 'office_location', 'is_active'))
+    if unchanged and payload.platform_admin == before['platform_admin'] and (target.position_id, target.manager_id, target.work_location_id) == (position.id if position else None, manager.id if manager else None, location.id if location else None):
+        return _view(target, before['platform_admin'], position, level, location)
     await keycloak_user_admin.update_user(
         target.identity_subject, email=payload.email,
         full_name=payload.full_name, enabled=payload.is_active,

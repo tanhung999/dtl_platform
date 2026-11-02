@@ -46,6 +46,10 @@ export interface Note {
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 export interface Task extends ReminderValue {
+  hide_from_indirect?: boolean;
+  completion_note?: string | null;
+  completed_at?: string | null;
+  completed_by_id?: string | null;
   is_private: boolean;
   version: number;
   id: string;

@@ -16,16 +16,18 @@ from app.db.calendar_exceptions import CalendarException
 from app.db.note_scheduling import NoteCalendarSchedule
 from app.db.notifications import Notification, NotificationJob as Job, NotificationPreference as Preference
 from app.modules.tasks.deadlines import VN, deadline_at
-from .scheduling import reminder_time, recurring_period, valid_recurring_stamp, plan
+from .scheduling import reminder_time, valid_recurring_stamp, plan
 from .sharing import active_grants
 from .collaboration import reminder_recipients
 from .service import insert_unique, fingerprint, utc
+from app.db.notifications import TaskReminderPreference
+from app.modules.tasks.reminders import configured_task, preference_key
 
 log = logging.getLogger(__name__)
 
 async def deliver_batch(db, now=None, limit=100):
     now = now or utcnow()
-    candidates = (await db.execute(select(Job.task_id, Job.event_id, Job.note_id, Job.user_id).where(Job.processed_at.is_(None), Job.available_at <= now)
+    candidates = (await db.execute(select(Job.task_id, Job.event_id, Job.note_id, Job.user_id, Job.recipient_id).where(Job.processed_at.is_(None), Job.available_at <= now)
         .order_by(Job.available_at, Job.id).limit(limit))).all()
     if not candidates:
         return 0
@@ -38,7 +40,7 @@ async def deliver_batch(db, now=None, limit=100):
     # Lock recipients before resources too: a viewer may concurrently edit their
     # own Notes or be deleted. Include inactive owners so their queued jobs can
     # still be consumed; only active viewers are eligible for shared delivery. Never insert a delivery while waiting on its FK lock.
-    recipients = owners | {g.viewer_id for g in grants} | set().union(*collaborators.values(), set())
+    recipients = owners | {g.viewer_id for g in grants} | {r.recipient_id for r in candidates if r.recipient_id} | set().union(*collaborators.values(), set())
     locked = set((await db.scalars(select(User.id).where(User.id.in_(recipients))
         .order_by(User.id).with_for_update(read=True, key_share=True, skip_locked=True))).all())
     # Share writers lock their owner. Re-read after taking those locks so newly
@@ -54,17 +56,19 @@ async def deliver_batch(db, now=None, limit=100):
     event_ids = {r.event_id for r in candidates if r.event_id}
     note_ids = {r.note_id for r in candidates if r.note_id}
     # Lock business resources before queue rows, after the optional owner lock.
-    tasks = (await db.scalars(select(Task).options(load_only(Task.id, Task.user_id, Task.title, Task.is_completed,
+    tasks = (await db.scalars(select(Task).options(load_only(Task.id, Task.user_id, Task.assignee_id, Task.title, Task.is_completed,
         Task.due_date, Task.due_time, Task.deadline_version, Task.reminder_minutes, Task.reminder_at, Task.reminder_version, Task.is_private, raiseload=True))
         .where(Task.id.in_(task_ids), Task.user_id.in_(user_ids)).order_by(Task.id).with_for_update(skip_locked=True))).all() if task_ids else []
     events = (await db.scalars(select(CalendarEvent).options(load_only(CalendarEvent.id, CalendarEvent.user_id, CalendarEvent.title,
         CalendarEvent.starts_at, CalendarEvent.ends_at, CalendarEvent.is_all_day, CalendarEvent.reminder_minutes, CalendarEvent.reminder_at,
-        CalendarEvent.reminder_version, CalendarEvent.is_private, CalendarEvent.recurrence, CalendarEvent.recurrence_until, raiseload=True)).where(CalendarEvent.id.in_(event_ids), CalendarEvent.user_id.in_(user_ids)).order_by(CalendarEvent.id).with_for_update(skip_locked=True))).all() if event_ids else []
+        CalendarEvent.reminder_version, CalendarEvent.is_private, CalendarEvent.recurrence, CalendarEvent.recurrence_until, CalendarEvent.reminder_repeat, raiseload=True)).where(CalendarEvent.id.in_(event_ids), CalendarEvent.user_id.in_(user_ids)).order_by(CalendarEvent.id).with_for_update(skip_locked=True))).all() if event_ids else []
     direct_notes = (await db.scalars(select(Note).options(load_only(Note.id, Note.user_id, Note.title, Note.is_archived, Note.is_private,
         Note.reminder_at, Note.reminder_version, raiseload=True)).where(Note.id.in_(note_ids), Note.user_id.in_(user_ids))
         .order_by(Note.id).with_for_update(skip_locked=True))).all() if note_ids else []
     direct_map = {r.id:r for r in direct_notes}
     task_map, event_map = {r.id:r for r in tasks}, {r.id:r for r in events}
+    selections = (await db.scalars(select(TaskReminderPreference).where(TaskReminderPreference.task_id.in_(task_map)))).all() if task_map else []
+    personal = {(row.task_id, row.user_id): row for row in selections}
     # Membership may change while waiting for a resource lock. Read it again;
     # leave the job pending if a newly added recipient was not locked up front.
     collaborators = await reminder_recipients(db, set(task_map), set(event_map))
@@ -85,31 +89,37 @@ async def deliver_batch(db, now=None, limit=100):
     preferences = (await db.scalars(select(Preference).where(Preference.user_id.in_(users)))).all()
     muted = {row.user_id for row in preferences if not row.task_reminders}
     rows = []
-    occurrences = {(job.event_id, utc(job.scheduled_at) + timedelta(minutes=event_map[job.event_id].reminder_minutes)
-                    if recurring_period(event_map[job.event_id]) and event_map[job.event_id].reminder_minutes is not None
-                    else utc(event_map[job.event_id].starts_at)) for job in jobs if job.event_id in event_map}
+    from .scheduling import repeating_reminder_period, reminder_occurrence
+    occurrences = {(job.event_id, reminder_occurrence(event_map[job.event_id], utc(job.scheduled_at))) for job in jobs if job.event_id in event_map}
     excluded = set((await db.execute(select(CalendarException.event_id, CalendarException.occurrence_at).where(
         tuple_(CalendarException.event_id, CalendarException.occurrence_at).in_(occurrences)))).all()) if occurrences else set()
     for job in jobs:
         row = task_map.get(job.task_id) if job.task_id else direct_map.get(job.note_id) if job.note_id else event_map.get(job.event_id)
         note = direct_map.get(job.note_id) if job.note_id else note_map.get(job.event_id)
-        valid = row is not None and row.user_id == job.user_id and job.reminder_version is not None and row.reminder_version == job.reminder_version
+        own_selection = personal.get((job.task_id, job.recipient_id)) if job.kind == 'assignee' else None
+        valid = row is not None and row.user_id == job.user_id and job.reminder_version is not None
+        if job.kind == 'assignee':
+            valid = valid and own_selection is not None and row.assignee_id == job.recipient_id and row.assignee_id != row.user_id
+            valid = valid and job.recipient_id in collaborators.get(('task', job.task_id), set())
+            valid = valid and own_selection.version == job.reminder_version and job.event_key == preference_key(row, own_selection)
+        else:
+            valid = valid and row.reminder_version == job.reminder_version
         valid = valid and (not row.is_completed if job.task_id else not note or not note.is_archived)
         if valid:
             try:
-                stamp = reminder_time(row, 'task' if job.task_id else 'note' if job.note_id else 'event', now)
-                valid = stamp is not None and (job.kind == 'snooze' or (valid_recurring_stamp(row, utc(job.scheduled_at)) if job.event_id and recurring_period(row) and row.reminder_minutes is not None else stamp == utc(job.scheduled_at)))
+                stamp = reminder_time(configured_task(row, own_selection) if own_selection else row, 'task' if job.task_id else 'note' if job.note_id else 'event', now)
+                valid = valid_recurring_stamp(row, utc(job.scheduled_at)) if job.event_id and repeating_reminder_period(row) else stamp is not None and (job.kind == 'snooze' or stamp == utc(job.scheduled_at))
             except HTTPException:
                 valid = False
         if not valid:
             continue
         kind = 'task' if job.task_id else 'note' if note else 'event'
         due = deadline_at(row) if job.task_id else None if job.note_id else utc(row.starts_at)
-        if job.event_id and recurring_period(row) and row.reminder_minutes is not None:
-            due = utc(job.scheduled_at) + timedelta(minutes=row.reminder_minutes)
+        if job.event_id and repeating_reminder_period(row):
+            due = reminder_occurrence(row, utc(job.scheduled_at))
             if job.kind != 'snooze':
                 await insert_unique(db, Job, plan(row, max(now, utc(job.scheduled_at)) + timedelta(microseconds=1), 'event'), ['event_key'])
-        if job.event_id and row.reminder_minutes is not None and (job.event_id, due) in excluded:
+        if job.event_id and (repeating_reminder_period(row) or row.reminder_minutes is not None) and (job.event_id, reminder_occurrence(row, utc(job.scheduled_at))) in excluded:
             continue
         label = {'task':'Thông báo công việc', 'event':'Thông báo sự kiện', 'note':'Thông báo ghi chú'}[kind]
         when = utc(job.scheduled_at).astimezone(VN).strftime('%d/%m/%Y %H:%M') if due is None else (datetime.fromisoformat(row.due_date).strftime('%d/%m/%Y') + ' (cả ngày)') if job.task_id and not row.due_time else due.astimezone(VN).strftime('%d/%m/%Y' + (' (cả ngày)' if not job.task_id and row.is_all_day else ' %H:%M'))
@@ -118,15 +128,20 @@ async def deliver_batch(db, now=None, limit=100):
             body=f'{"Thông báo lúc" if due is None else "Hạn" if kind == "task" else "Bắt đầu"} {when}', resource_type=kind, resource_id=note.id if note else row.id,
             task_id=job.task_id, event_id=job.event_id, note_id=job.note_id, deadline_version=job.deadline_version if job.task_id else None,
             reminder_version=job.reminder_version, due_at=due, occurred_at=job.scheduled_at, created_at=now)
+        if job.kind == 'assignee':
+            rows.append({**delivery, 'user_id': job.recipient_id, 'kind': 'task.personal_reminder'})
+            continue
         if row.user_id not in muted:
             rows.append(delivery)
         explicit = collaborators.get(('task' if job.task_id else 'event', row.id), set()) if not job.note_id and not note and job.kind != 'snooze' else set()
+        overridden = {row.assignee_id} if job.task_id and (row.id, row.assignee_id) in personal else set()
+        explicit = explicit - overridden
         for recipient in explicit - {row.user_id}:
             rows.append({**delivery, 'user_id': recipient, 'kind': kind + '.follow_reminder'})
         # Snooze is an owner's personal action, not a new reminder for viewers.
         if job.kind != 'snooze' and not job.note_id and due is not None and not row.is_private and not (note and note.is_private):
             for grant in by_owner.get(row.user_id, []):
-                if getattr(grant, 'share_' + {'task':'tasks', 'event':'events', 'note':'notes'}[kind]) and grant.viewer_id not in explicit:
+                if getattr(grant, 'share_' + {'task':'tasks', 'event':'events', 'note':'notes'}[kind]) and grant.viewer_id not in explicit | overridden:
                     rows.append({**delivery, 'user_id': grant.viewer_id, 'calendar_owner_id': row.user_id})
     inserted = await insert_unique(db, Notification, rows, ['user_id','source','event_key'], [Notification.user_id])
     if jobs:
@@ -139,8 +154,13 @@ async def deliver_batch(db, now=None, limit=100):
 @asynccontextmanager
 async def run_worker(enabled=True):
     async def loop():
+        from .wakeup import reminder_wakeup
+        wake = reminder_wakeup()
+        failures = 0
         while True:
+            wake.clear()
             count = 0
+            delay = 30
             try:
                 for _ in range(5):
                     async with async_session_maker() as db:
@@ -151,12 +171,27 @@ async def run_worker(enabled=True):
                             broadcast({'user_id': user_id, 'topics': sorted(topics)})
                     if count < 100:
                         break
+                failures = 0
+                if count >= 100:
+                    delay = .25
+                else:
+                    async with async_session_maker() as db:
+                        next_at = await db.scalar(select(Job.available_at).where(Job.processed_at.is_(None))
+                            .order_by(Job.available_at, Job.id).limit(1))
+                    if next_at:
+                        delay = max(.25, min(30, (utc(next_at) - utcnow()).total_seconds()))
             except asyncio.CancelledError:
                 raise
             except Exception:
                 log.exception('Notification delivery failed; pending jobs will retry')
-            # Drain backlog promptly in bounded batches; idle cost stays one shared poll.
-            await asyncio.sleep(.25 if count >= 100 else 15 + random.random())
+                failures += 1
+                delay = min(30, 2 ** min(failures, 5)) + random.random()
+            # The indexed nearest-job lookup avoids constant fast polling when idle.
+            # Wakeups arrive after commit, including via PostgreSQL NOTIFY across workers.
+            try:
+                await asyncio.wait_for(wake.wait(), timeout=delay)
+            except asyncio.TimeoutError:
+                pass
     task = asyncio.create_task(loop()) if enabled else None
     try:
         yield

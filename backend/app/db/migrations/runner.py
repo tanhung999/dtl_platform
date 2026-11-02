@@ -13,6 +13,7 @@ from .calendar_sharing import migrate_calendar_privacy, migrate_access_catalog
 from app.db import notifications
 from app.db import calendar_exceptions
 from app.db import applications
+from app.db import task_history
 from .notifications import migrate_notifications
 from .task_deadlines import migrate_task_deadlines
 from .note_versions import migrate_note_versions
@@ -334,6 +335,24 @@ async def upgrade(conn):
         await conn.execute(text("UPDATE applications SET sort_order = 40, display_name = 'DT Income Statement' WHERE key = 'income-statement'"))
         await conn.execute(text("UPDATE applications SET sort_order = 50, display_name = 'DT Sales Commission' WHERE key = 'sales-commission'"))
         await conn.execute(text("UPDATE applications SET sort_order = 60, display_name = 'DT Workflow' WHERE key = 'workflows'"))
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'tasks_006_personal_reminders_completion'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .task_personal_reminders import migrate_task_personal_reminders
+        await migrate_task_personal_reminders(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'calendar_005_repeating_reminders'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .repeating_reminders import migrate_repeating_reminders
+        await migrate_repeating_reminders(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'tasks_007_result_history'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .task_result_history import migrate_task_result_history
+        await migrate_task_result_history(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
 async def run():

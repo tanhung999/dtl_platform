@@ -22,7 +22,7 @@ async def insert_unique(db, model, rows, keys, returning=()):
         return []
     dialect = db.dialect.name if hasattr(db, 'dialect') else db.bind.dialect.name
     results = []
-    # A batch can fan out to 200 viewers per owner; stay below driver bind limits.
+    # A batch can fan out to 500 viewers per owner; stay below driver bind limits.
     for offset in range(0, len(rows), 500):
         stmt = (pg_insert if dialect == 'postgresql' else sqlite_insert)(model).values(rows[offset:offset + 500]).on_conflict_do_nothing(index_elements=keys)
         result = await db.execute(stmt.returning(*returning) if returning else stmt)
@@ -44,7 +44,7 @@ def serialize(notification, task, now, event=None, note=None, owners=None):
     state = 'active'
     if notification.resource_type == 'task':
         state = 'deleted' if task is None else 'completed' if task.is_completed else 'changed' if task.deadline_version != notification.deadline_version else 'overdue' if notification.due_at and utc(notification.due_at) <= now else 'active'
-        if task is not None and not task.is_completed and notification.reminder_version is not None and task.reminder_version != notification.reminder_version:
+        if task is not None and not task.is_completed and notification.kind != 'task.personal_reminder' and notification.reminder_version is not None and task.reminder_version != notification.reminder_version:
             state = 'changed'
     elif notification.resource_type == 'note' and notification.note_id:
         state = 'deleted' if note is None else 'archived' if note.is_archived else 'changed' if note.reminder_version != notification.reminder_version else 'active'
@@ -53,7 +53,9 @@ def serialize(notification, task, now, event=None, note=None, owners=None):
         state = 'deleted' if event is None or notification.resource_type == 'note' and note is None else 'archived' if note is not None and note.is_archived else 'changed' if event.reminder_version != notification.reminder_version else 'ended' if event_end <= now else 'active'
     owner_id = notification.calendar_owner_id
     ownership_label = ('Của ' + owners[owner_id]) if owner_id and owners and owner_id in owners else 'Của bạn' if owners and notification.source == 'platform' and notification.resource_type in ('task', 'event', 'note') else None
-    if notification.kind in ('task.follow_reminder', 'event.follow_reminder'):
+    if notification.kind == 'task.personal_reminder':
+        ownership_label = 'Thông báo riêng của bạn'
+    elif notification.kind in ('task.follow_reminder', 'event.follow_reminder', 'task_deadline_changed'):
         ownership_label = 'Được giao / theo dõi' if notification.resource_type == 'task' else 'Sự kiện đang theo dõi'
     return {key: utc(getattr(notification, key)) for key in ('id', 'source', 'kind', 'title', 'body', 'resource_type', 'resource_id', 'due_at', 'occurred_at', 'created_at', 'read_at', 'dismissed_at', 'snoozed_until')} | {'state': state, 'calendar_owner_id': owner_id, 'ownership_label': ownership_label}
 

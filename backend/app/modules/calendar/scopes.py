@@ -112,15 +112,22 @@ async def scoped_move(db, event, scope, at, target):
     previous_until = database_utc(event.recurrence_until).isoformat() if event.recurrence_until else None
     note_id = await db.scalar(select(NoteCalendarSchedule.note_id).where(NoteCalendarSchedule.event_id == event.id))
     note = await db.get(Note, note_id) if note_id else None
-    data = {key:getattr(event,key) for key in ('title','description','location','color','is_private')}
+    data = {key:getattr(event,key) for key in ('title','description','location','color','is_private','hide_from_indirect')}
     data.update(target)
     data['starts_at'] = datetime.fromisoformat(data['starts_at'])
     data['ends_at'] = datetime.fromisoformat(data['ends_at'])
     if isinstance(data.get('reminder_at'), str): data['reminder_at'] = datetime.fromisoformat(data['reminder_at'])
     # An unchanged absolute reminder belongs to the source and must not be duplicated.
-    if data.get('reminder_at') and event.reminder_at and database_utc(data['reminder_at']) == database_utc(event.reminder_at):
+    inherited_clock = bool(data.get('reminder_at') and event.reminder_at and event.reminder_repeat and database_utc(data['reminder_at']) == database_utc(event.reminder_at))
+    if data.get('reminder_at') and event.reminder_at and not data.get('reminder_repeat') and not event.reminder_repeat and database_utc(data['reminder_at']) == database_utc(event.reminder_at):
         data['reminder_at'] = None
-    if scope == 'THIS': data['recurrence'] = 'NONE'
+    if (data.get('reminder_repeat') or inherited_clock) and data.get('reminder_at'):
+        from types import SimpleNamespace
+        from app.modules.notifications.scheduling import custom_clock_stamp
+        data['reminder_at'] = custom_clock_stamp(SimpleNamespace(starts_at=data['starts_at']), data['reminder_at'])
+    if scope == 'THIS':
+        data['recurrence'] = 'NONE'
+        data['reminder_repeat'] = False
     child = CalendarEvent(user_id=event.user_id, **data)
     if scope == 'FOLLOWING' and event.recurrence_until:
         # Preserve the number of retained starts when the series was already bounded.
@@ -207,7 +214,7 @@ async def family_move(db, event, target):
         note_id = await db.scalar(select(NoteCalendarSchedule.note_id).where(NoteCalendarSchedule.event_id == item.id))
         note = await db.get(Note, note_id) if note_id else None
         before = signature(item, 'event', not note.is_archived if note else True)
-        fields = ('starts_at','ends_at','is_all_day','recurrence','recurrence_until','reminder_minutes','reminder_at')
+        fields = ('starts_at','ends_at','is_all_day','recurrence','recurrence_until','reminder_minutes','reminder_at','reminder_repeat')
         saved = {key:database_utc(getattr(item,key)).isoformat() if isinstance(getattr(item,key),datetime) else getattr(item,key) for key in fields}
         if not notifications_only:
             item.starts_at = anchors.get(item.id, database_utc(item.starts_at)) + delta
@@ -215,11 +222,15 @@ async def family_move(db, event, target):
             item.is_all_day = target['is_all_day']
             if item.recurrence != 'NONE': item.recurrence = target['recurrence']
             if item.recurrence_until: item.recurrence_until = database_utc(item.recurrence_until) + delta
-        item.reminder_minutes = target.get('reminder_minutes')
-        # Absolute reminders stay one-shot on their existing resource.
-        if item.id == event.id:
-            item.reminder_at = datetime.fromisoformat(target['reminder_at']) if target.get('reminder_at') else None
-        elif item.reminder_minutes is not None: item.reminder_at = None
+        repeating = bool(target.get('reminder_repeat')) and (target.get('reminder_minutes') is not None or target.get('reminder_at') is not None)
+        item.reminder_repeat = repeating and item.recurrence != 'NONE'
+        item.reminder_minutes = target.get('reminder_minutes') if repeating or item.id == event.id else None
+        if target.get('reminder_at') and (repeating or item.id == event.id):
+            from app.modules.notifications.scheduling import custom_clock_stamp
+            stamp = datetime.fromisoformat(target['reminder_at'])
+            item.reminder_at = custom_clock_stamp(item, stamp) if repeating else stamp
+        else:
+            item.reminder_at = None
         await sync_event_jobs(db, item, before=before, active=not note.is_archived if note else True, allow_elapsed=True)
         await source_changed(db, item)
         snapshots.append({'id':item.id, 'before':saved, 'after_updated_at':database_utc(item.updated_at).isoformat(),
@@ -268,7 +279,7 @@ async def move_edited_following(db, event, at, target):
     parent=await db.get(CalendarEvent,link.event_id)
     boundary=database_utc(link.occurrence_at)
     before_until=parent.recurrence_until
-    fields=('starts_at','ends_at','is_all_day','recurrence','recurrence_until','reminder_minutes','reminder_at')
+    fields=('starts_at','ends_at','is_all_day','recurrence','recurrence_until','reminder_minutes','reminder_at','reminder_repeat')
     items=[parent,event]
     saved=[]
     for item in items:

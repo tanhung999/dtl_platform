@@ -3,6 +3,7 @@ import { notesApi, notifyNotesChanged } from './api';
 import { useEffect, useRef, useState } from 'react';
 import { Archive, ArrowUpRight, Plus } from 'lucide-react';
 import { FeatureIcon } from '../../components/FeatureIcon';
+import { CollectionSearch } from '../../components/CollectionSearch';
 import { Note } from '../../types';
 import { NoteModal } from './NoteModal';
 import { DeleteNoteDialog } from './DeleteNoteDialog';
@@ -73,7 +74,7 @@ export function NotesWidget({ fullPage = false, initialFilter = 'all', onOpenAll
     <div className="widget-header"><div className="widget-title"><FeatureIcon name="notes" /><span>DT My Note</span></div>
       <button type="button" className="btn btn-secondary btn-sm" title="Tạo ghi chú mới" onClick={() => { if (archived) { setArchived(false); setFilter('all'); setOffset(0); } open(null); }}><Plus size={14} /><span>Thêm</span></button>
     </div>
-    {fullPage && <div className="notes-page-tools"><label className="notes-search">Tìm ghi chú<input className="form-input" type="search" placeholder="Tìm theo tiêu đề hoặc nội dung…" value={query} maxLength={200} onChange={event => { setQuery(event.target.value); setOffset(0); }} /></label>
+    {fullPage && <div className="notes-page-tools"><CollectionSearch className="notes-search" label="Tìm ghi chú" placeholder="Tìm theo tiêu đề hoặc nội dung…" value={query} onChange={value => { setQuery(value); setOffset(0); }} />
       <button type="button" className={`notes-archive-toggle ${archived ? 'is-active' : ''}`} aria-pressed={archived} onClick={() => { setArchived(value => !value); setFilter('all'); setOffset(0); }}><Archive size={15} />{archived ? 'Đang xem lưu trữ' : 'Đã lưu trữ'}</button></div>}
     {(hasScheduledNotes || fullPage) && <div className="notes-filters" role="group" aria-label="Lọc ghi chú">{([{ value: 'all', label: 'Tất cả' }, ...(hasScheduledNotes ? [{ value: 'scheduled', label: 'Có lịch' }] : []), { value: 'pinned', label: 'Ghim' }] as { value: NoteFilter; label: string }[]).map(option => <button key={option.value} type="button" aria-pressed={filter === option.value} className={filter === option.value ? 'is-active' : ''} onClick={() => { setFilter(option.value); setOffset(0); }}>{option.label}</button>)}</div>}
     {query.trim().length === 1 && <p className="notes-empty">Nhập ít nhất 2 ký tự để tìm kiếm.</p>}

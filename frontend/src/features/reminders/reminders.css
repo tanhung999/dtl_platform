@@ -12,6 +12,9 @@
 .reminder-fields.is-unavailable .reminder-choice.is-locked,
 .reminder-fields.is-unavailable .reminder-custom { opacity:.55; }
 .reminder-fields select:disabled { cursor:not-allowed; }
+.reminder-fields .reminder-repeat { display:flex;align-items:center;gap:8px;font-size:13px;line-height:1.5;margin:0;cursor:pointer; }
+.reminder-repeat input { width:16px;height:16px;margin:0;accent-color:var(--accent);flex-shrink:0; }
+.reminder-custom.is-repeating { grid-template-columns:minmax(0,1fr); }
 
 .reminder-fields.is-unavailable .app-date-input:has(input:disabled),
 .reminder-fields.is-unavailable .app-time-input:has(input:disabled) { opacity:1; }

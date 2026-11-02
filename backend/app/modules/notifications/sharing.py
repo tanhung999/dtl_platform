@@ -32,8 +32,8 @@ def visible_notice():
     followed_event = select(Event.id).where(Event.id == N.event_id, or_(Event.user_id == N.user_id,
         select(CalendarEventFollower.event_id).where(CalendarEventFollower.event_id == Event.id, CalendarEventFollower.user_id == N.user_id).correlate(Event, N).exists())).correlate(N).exists()
     personal = and_(N.calendar_owner_id.is_(None), or_(
-        N.kind.notin_(('task.follow_reminder', 'event.follow_reminder')),
-        and_(N.kind == 'task.follow_reminder', followed_task), and_(N.kind == 'event.follow_reminder', followed_event)))
+        N.kind.notin_(('task.follow_reminder', 'task.personal_reminder', 'event.follow_reminder')),
+        and_(N.kind.in_(('task.follow_reminder', 'task.personal_reminder')), followed_task), and_(N.kind == 'event.follow_reminder', followed_event)))
     return or_(personal, and_(N.source == 'platform', grant))
 
 

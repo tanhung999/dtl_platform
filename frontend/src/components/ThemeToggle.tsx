@@ -4,6 +4,7 @@ import { Check, ChevronDown, Gem, Heart, Leaf, Moon, Palette, Sparkles, Sun, Sun
 import { useTheme } from '../context/ThemeContext';
 import { THEMES, themePreview } from '../theme/catalog';
 import './theme-picker.css';
+import { usePopoverDismiss } from './usePopoverDismiss';
 
 interface ThemeToggleProps { className?: string; showLabel?: boolean; }
 const icons: Record<string, typeof Sun> = { sun: Sun, moon: Moon, sparkles: Sparkles, leaf: Leaf, sunset: Sunset, gem: Gem, heart: Heart };
@@ -21,6 +22,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLa
     setOpen(false);
     if (restoreFocus) trigger.current?.focus();
   };
+  usePopoverDismiss(open, panel, trigger, () => close());
 
   useLayoutEffect(() => {
     if (!open) return;

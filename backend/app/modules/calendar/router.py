@@ -56,6 +56,7 @@ async def list_events(
 @router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
 async def create_event(payload: EventCreate, user: CurrentUser, db: Database):
     data = payload.model_dump(exclude={"client_request_id", "follower_ids"})
+    if payload.recurrence == 'NONE': data['reminder_repeat'] = False
     async def create():
         await db.execute(select(User.id).where(User.id == user.id).with_for_update())
         from app.modules.access.privacy import require_privacy_change
@@ -75,7 +76,7 @@ async def create_event(payload: EventCreate, user: CurrentUser, db: Database):
         mark_changed(db, user.id, "calendar")
         return event
     fingerprint = {**data, 'follower_ids': sorted(set(payload.follower_ids))}
-    event = await create_once(db, user, "event", payload.client_request_id, {k: v for k, v in fingerprint.items() if k != "is_private" or v}, CalendarEvent, create)
+    event = await create_once(db, user, "event", payload.client_request_id, {k: v for k, v in fingerprint.items() if k not in {'is_private', 'hide_from_indirect', 'reminder_repeat'} or v}, CalendarEvent, create)
     return EventResponse.model_validate(event).model_copy(update=await event_metadata(db,event,user))
 
 

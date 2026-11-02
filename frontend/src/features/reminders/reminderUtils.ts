@@ -1,9 +1,12 @@
-export interface ReminderValue { reminder_minutes?: number | null; reminder_at?: string | null }
+export interface ReminderValue { reminder_minutes?: number | null; reminder_at?: string | null; reminder_repeat?: boolean }
 export const noReminder = (): ReminderValue => ({ reminder_minutes: null, reminder_at: null });
-export const reminderValue = (value: ReminderValue): ReminderValue => ({ reminder_minutes: value.reminder_minutes ?? null, reminder_at: value.reminder_at ?? null });
+export const reminderValue = (value: ReminderValue): ReminderValue => ({ reminder_minutes: value.reminder_minutes ?? null, reminder_at: value.reminder_at ?? null,
+  ...(typeof value.reminder_repeat === 'boolean' ? { reminder_repeat: value.reminder_repeat } : {}) });
 export function sameReminder(a: ReminderValue, b: ReminderValue): boolean {
-  return (a.reminder_minutes ?? null) === (b.reminder_minutes ?? null)
-    && (a.reminder_at ? Date.parse(a.reminder_at) : null) === (b.reminder_at ? Date.parse(b.reminder_at) : null);
+  const stamp = (value: ReminderValue) => value.reminder_at ? value.reminder_repeat
+    ? ((Date.parse(value.reminder_at) % 86400000) + 86400000) % 86400000 : Date.parse(value.reminder_at) : null;
+  return !!a.reminder_repeat === !!b.reminder_repeat && (a.reminder_minutes ?? null) === (b.reminder_minutes ?? null)
+    && stamp(a) === stamp(b);
 }
 
 

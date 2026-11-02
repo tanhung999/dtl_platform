@@ -1,4 +1,5 @@
 import { CSSProperties, useEffect, useRef, useState } from 'react';
+import { useDialogDismiss } from '../../../components/useDialogDismiss';
 import { CalendarDays, CheckSquare, Clock, Eye, LoaderCircle, Plus, StickyNote, X } from 'lucide-react';
 import { useLatestRequest } from '../../../services/useLatestRequest';
 import { addDays, dateKey, eventDayLabel, formatDate, toTimestamp } from '../dateUtils';
@@ -36,6 +37,7 @@ export function DayItemsDialog({ day, showEvents, showNotes, showTasks, onClose,
   const pendingId = useRef<string>();
   const [openingState, setOpeningState] = useState<{ id: string; pending: boolean; error?: string }>();
   const close = () => { opening.cancel(); pendingId.current = undefined; onClose(); };
+  const dismiss = useDialogDismiss(close);
   const open = async (id: string, action: (signal: AbortSignal) => Promise<void>) => {
     if (pendingId.current === id) return;
     const controller = opening.start();
@@ -70,7 +72,7 @@ export function DayItemsDialog({ day, showEvents, showNotes, showTasks, onClose,
   }, []);
 
   return <dialog ref={dialog} className="calendar-day-dialog" aria-labelledby="calendar-day-dialog-title"
-    onCancel={event => { event.preventDefault(); close(); }}>
+    {...dismiss}>
     <header className="calendar-day-dialog-header">
       <div><p>Lịch trong ngày</p><h2 id="calendar-day-dialog-title">{formatDate(day, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}</h2></div>
       <button type="button" className="calendar-icon-button" aria-label="Đóng danh sách trong ngày" onClick={close}><X size={20} /></button>

@@ -21,7 +21,7 @@
 .notes-page-heading { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; animation: dtlFadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.04s both; }
 .notes-page-heading h1 { font-size: 22px; }
 .notes-page-tools { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; animation: dtlFadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both; }
-.notes-search { display: grid; gap: 6px; flex: 1 1 240px; font-size: 13px; color: var(--text-secondary); }
+.notes-search { flex:1 1 240px; }
 .notes-archive-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
 .notes-full-collection .notes-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .notes-full-collection .note-card { min-height: 170px; animation: dtlFadeScaleIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both; }

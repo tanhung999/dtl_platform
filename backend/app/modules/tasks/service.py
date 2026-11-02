@@ -14,6 +14,7 @@ from app.modules.notifications.reminder_fields import reminder_update
 from .access import accessible_task
 from .permissions import require_assignable_target
 from app.db.models import TaskFollower
+from app.core.collaboration_limits import MAX_FOLLOWERS
 
 
 async def sync_task_followers(db, task, actor, follower_ids, *, assignee_id=None):
@@ -24,6 +25,8 @@ async def sync_task_followers(db, task, actor, follower_ids, *, assignee_id=None
     requested = set(follower_ids) - {task.user_id, final_assignee}
     if final_assignee != task.user_id:
         requested.add(task.user_id)
+    if len(requested) > MAX_FOLLOWERS:
+        raise HTTPException(422, 'Không thể thêm người theo dõi. Hãy bỏ bớt người trước khi lưu.')
     active = set((await db.scalars(select(User.id).where(User.id.in_(requested), User.is_active.is_(True)))).all()) if requested else set()
     if active != requested:
         raise HTTPException(404, "Có người theo dõi không tồn tại hoặc đã ngừng hoạt động.")
@@ -37,15 +40,16 @@ async def sync_task_followers(db, task, actor, follower_ids, *, assignee_id=None
 
 
 async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db: AsyncSession, *, record_history=True, allow_elapsed=False):
-    if 'is_private' in payload.model_fields_set:
+    if {'is_private', 'hide_from_indirect'} & payload.model_fields_set:
         # Serialize permission changes with assignment/revocation for this owner.
         await db.execute(select(User.id).where(User.id == user.id).with_for_update())
     task = await accessible_task(task_id, user, db, lock=True)
     owner = task.user_id == user.id
     assignee = task.assignee_id == user.id
+    was_completed, previous_result = task.is_completed, task.completion_note
     supplied = set(payload.model_fields_set) - {'expected_version', 'expected_deadline_version'}
     if not owner:
-        if not assignee or supplied - {'is_completed'}:
+        if not assignee or supplied - {'is_completed', 'completion_note'}:
             raise HTTPException(403, "Bạn không có quyền sửa nội dung công việc này.")
     if 'assignee_id' in supplied:
         if not owner:
@@ -59,6 +63,20 @@ async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db:
     before.update(reminder_snapshot(task))
     reminder_before = signature(task, 'task')
     data = payload.model_dump(exclude_unset=True)
+    if 'hide_from_indirect' in supplied:
+        if payload.hide_from_indirect is None:
+            raise HTTPException(422, 'Lựa chọn ẩn người xem gián tiếp phải là bật hoặc tắt.')
+        if payload.hide_from_indirect != task.hide_from_indirect:
+            mark_changed(db, task.user_id, 'calendar-privacy')
+    if 'completion_note' in supplied and payload.is_completed is not True:
+        raise HTTPException(422, 'Nội dung cập nhật kết quả chỉ được lưu cùng thao tác hoàn thành công việc.')
+    if 'completion_note' in supplied:
+        data['completion_note'] = (payload.completion_note or '').strip() or None
+    if payload.is_completed is True and not task.is_completed:
+        data.update(completion_note=(payload.completion_note or '').strip() or None,
+                    completed_at=utcnow(), completed_by_id=user.id)
+    elif payload.is_completed is False and task.is_completed:
+        data.update(completion_note=None, completed_at=None, completed_by_id=None)
     if 'assignee_id' in supplied:
         data['assignee_id'] = target_id
     data.update(reminder_update(payload))
@@ -115,7 +133,20 @@ async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db:
     task.version += 1
     task.updated_at = utcnow()
     await db.flush()
-    await sync_task_jobs(db, task, before=reminder_before, allow_elapsed=allow_elapsed)
+    action = 'COMPLETED' if task.is_completed and not was_completed else 'REOPENED' if was_completed and not task.is_completed else 'RESULT_UPDATED' if task.is_completed and task.completion_note != previous_result else None
+    if action:
+        from app.db.task_history import TaskResultHistory
+        db.add(TaskResultHistory(task_id=task.id, task_version=task.version, actor_id=user.id, action=action,
+            note=task.completion_note if task.is_completed else None, occurred_at=task.completed_at if action == 'COMPLETED' else utcnow(), is_snapshot=False))
+    deadline_changed = (before['due_date'], before['due_time']) != (task.due_date, task.due_time)
+    reset_private = False
+    if deadline_changed:
+        from .reminders import reset_invalid_assignee_reminder
+        reset_private = await reset_invalid_assignee_reminder(db, task, utcnow())
+    await sync_task_jobs(db, task, before=reminder_before, allow_elapsed=allow_elapsed, assignee_changed=old_assignee != task.assignee_id)
+    if deadline_changed:
+        from .deadline_notifications import notify_deadline_change
+        await notify_deadline_change(db, task, user, before, utcnow(), reset_private=reset_private)
     affected = {task.user_id, task.assignee_id, user.id}
     affected.update(added_followers); affected.update(removed_followers)
     affected.update((await db.scalars(select(TaskFollower.user_id).where(TaskFollower.task_id == task.id))).all())
@@ -128,7 +159,7 @@ async def update_task_service(task_id: str, payload: TaskUpdate, user: User, db:
     if 'is_completed' in data and task.is_completed and user.id != task.user_id:
         from app.modules.collaboration_notifications import notify
         notify(db, task.user_id, 'task_completed', f'Công việc đã hoàn thành: {task.title}',
-            f'{user.full_name} đã đánh dấu hoàn thành.', 'task', task.id, task_id=task.id, revision=str(task.version))
+            f'{user.full_name} đã đánh dấu hoàn thành.' + (f' {task.completion_note}' if task.completion_note else ''), 'task', task.id, task_id=task.id, revision=str(task.version))
         mark_changed(db, task.user_id, 'notifications')
     if added_followers:
         from app.modules.collaboration_notifications import notify

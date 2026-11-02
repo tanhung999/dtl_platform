@@ -26,6 +26,8 @@ class ReminderFields(BaseModel):
 
 def reminder_update(payload):
     data = payload.model_dump(include={'reminder_minutes', 'reminder_at'}, exclude_unset=True)
+    if 'reminder_repeat' in payload.model_fields_set and isinstance(getattr(payload, 'reminder_repeat', None), bool):
+        data['reminder_repeat'] = payload.reminder_repeat
     if data.get('reminder_minutes') is not None:
         data['reminder_at'] = None
     elif data.get('reminder_at') is not None:

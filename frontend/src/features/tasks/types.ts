@@ -2,6 +2,8 @@ import type { ReminderValue } from '../reminders/ReminderFields';
 import { TaskPriority } from '../../types';
 
 export interface TaskInput extends ReminderValue {
+  hide_from_indirect?: boolean;
+  completion_note?: string | null;
   is_private?: boolean;
   expected_version?: number;
   title: string;
