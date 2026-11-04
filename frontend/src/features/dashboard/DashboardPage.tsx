@@ -72,7 +72,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
     <SharingCapabilityContext.Provider value={access.can_share && !access.loading && !access.error}><TasksProvider key={user.id} canAssignTasks={access.can_assign_tasks && !access.loading && !access.error} fullPage={activeTab === 'tasks'} collectionEnabled={activeTab === 'dashboard' || activeTab === 'tasks' || activeTab === 'calendar'}><NotificationsProvider userId={user.id}><div className={`dashboard-app${activeTab === 'calendar' ? ' calendar-is-active' : ''}`}>
       <DashboardBranding page={activeTab} notFound={!activeTab && location.pathname !== '/'} />
       <RescheduleToast />
-      <Navbar canManage={access.can_manage && !access.loading && !access.error} user={user} query={searchQuery} onSearch={search}
+      <Navbar canManage={(access.can_access_admin ?? access.can_manage) && !access.loading && !access.error} user={user} query={searchQuery} onSearch={search}
         onOpenProfile={() => navigate(workspaceRoutes.profile.path)} onOpenNotifications={() => navigate(workspaceRoutes.notifications.path)} onLogout={onLogout} />
       <div className="workspace-shell">
         <div className="workspace-content"><main className="workspace-main" id="workspace-main">
@@ -84,9 +84,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
             <Route path={workspaceRoutes.tasks.path} element={<TasksPage />} />
             <Route path={workspaceRoutes.notes.path} element={<NotesPage initialFilter="all" />} />
             <Route path={workspaceRoutes.calendar.path} element={<CalendarWorkspace key={`${user.id}:${sharedOwner ?? 'mine'}`} initialOwner={sharedOwner} initialDate={calendarDate} onDateChange={changeCalendarDate} onOwnerChange={changeCalendarOwner} userName={user.full_name} userId={user.id} />} />
-            <Route path={workspaceRoutes.profile.path} element={<ProfileTab user={user} onUserUpdated={onUserUpdated} canManage={access.can_manage && !access.loading && !access.error} />} />
+            <Route path={workspaceRoutes.profile.path} element={<ProfileTab user={user} onUserUpdated={onUserUpdated} canManage={(access.can_access_admin ?? access.can_manage) && !access.loading && !access.error} />} />
             <Route path={workspaceRoutes.notifications.path} element={<NotificationsPage />} />
-            <Route path={`${workspaceRoutes.admin.path}/*`} element={<AdminPage revision={access.revision} allowed={access.can_manage} loading={access.loading} error={access.error} onChanged={access.refresh} />} />
+            <Route path={`${workspaceRoutes.admin.path}/*`} element={<AdminPage revision={access.revision} allowed={access.can_access_admin ?? access.can_manage} capabilities={access} loading={access.loading} error={access.error} onChanged={access.refresh} />} />
             <Route path={workspaceRoutes.search.path} element={<SearchPage query={searchQuery} user={user} />} />
             <Route path="*" element={<section className="workspace-section-page workspace-not-found" aria-labelledby="not-found-title"><h1 id="not-found-title">Không tìm thấy trang</h1><p>Đường dẫn này không tồn tại. Bạn có thể trở về trang chủ.</p><Link className="btn btn-primary" to={workspaceRoutes.dashboard.path}>Về trang chủ</Link></section>} />
           </Routes></Suspense></PageLoadBoundary>

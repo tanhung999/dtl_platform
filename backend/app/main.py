@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.core.csrf import protect_cookie_writes
 from app.core.database import engine, async_session_maker
 from app.core.security import hash_password
-from app.db.models import User, Note, Task, Bookmark
+from app.db.models import User, Note, Task
 from app.db.migrations.runner import upgrade
 from app.modules.tasks.deadlines import VN
 from app.modules.search.router import router as search_router
@@ -34,6 +34,8 @@ from app.modules.notifications.worker import run_worker
 from app.modules.applications.router import router as applications_router, admin_router as applications_admin_router
 from app.modules.applications.integration import router as application_integrations_router
 from app.modules.applications.account_linking import router as account_linking_router
+from app.modules.applications.policy_linking import router as policy_linking_router
+from app.modules.applications.provisioning import router as provisioning_router
 from app.modules.users.router import router as user_admin_router
 from app.modules.organization.router import router as organization_router
 from app.modules.notifications.scheduling import sync_task_jobs
@@ -122,21 +124,6 @@ async def seed_initial_data():
             for task in (t1, t2, t3):
                 await sync_task_jobs(session, task)
 
-            # Seed sample bookmarks
-            b1 = Bookmark(
-                title="Webmail Đông Tây Land",
-                url="https://mail.dongtayland.vn",
-                category="Hệ thống nội bộ",
-                is_global=True,
-            )
-            b2 = Bookmark(
-                title="Cổng thông tin nhân sự",
-                url="https://hrm.dongtayland.vn",
-                category="Hệ thống nội bộ",
-                is_global=True,
-            )
-            session.add_all([b1, b2])
-
             await session.commit()
 
 
@@ -194,6 +181,8 @@ app.include_router(sso_router)
 app.include_router(applications_router)
 app.include_router(applications_admin_router)
 app.include_router(account_linking_router)
+app.include_router(policy_linking_router)
+app.include_router(provisioning_router)
 app.include_router(application_integrations_router)
 app.include_router(user_admin_router)
 app.include_router(organization_router)

@@ -12,11 +12,6 @@ def _code(value: str) -> str:
 
 async def migrate_organization_hierarchy_locations(conn):
     await conn.run_sync(lambda sync: WorkLocation.__table__.create(sync, checkfirst=True))
-    level_columns = {column['name'] for column in await conn.run_sync(lambda sync: inspect(sync).get_columns('job_levels'))}
-    if 'is_management' not in level_columns:
-        await conn.execute(text("ALTER TABLE job_levels ADD COLUMN is_management BOOLEAN NOT NULL DEFAULT FALSE"))
-    if 'reports_to_level_id' not in level_columns:
-        await conn.execute(text('ALTER TABLE job_levels ADD COLUMN reports_to_level_id VARCHAR(36)'))
     user_columns = {column['name'] for column in await conn.run_sync(lambda sync: inspect(sync).get_columns('users'))}
     if 'work_location_id' not in user_columns:
         await conn.execute(text('ALTER TABLE users ADD COLUMN work_location_id VARCHAR(36)'))

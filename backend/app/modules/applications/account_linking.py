@@ -15,7 +15,7 @@ from app.db.access import AccessAuditLog
 from app.db.applications import Application, UserApplicationAccess
 from app.db.models import User
 from app.modules.access.audit import record
-from app.modules.access.service import APPLICATIONS_MANAGE, require
+from app.modules.access.service import MANAGE, require
 from app.modules.applications.router import _access_view
 from app.modules.auth.dependencies import get_current_user
 
@@ -65,7 +65,7 @@ async def workflow_request(method, path, *, params=None, body=None):
 
 
 async def context(db, actor, target_id, *, lock=False):
-    await require(db, actor.id, APPLICATIONS_MANAGE)
+    await require(db, actor.id, MANAGE)
     query = select(User).where(User.id == target_id).execution_options(populate_existing=True)
     target = await db.scalar(query.with_for_update() if lock else query)
     if target is None:
@@ -167,6 +167,16 @@ async def unlink(target_id: str, payload: UnlinkInput, user: CurrentUser, db: Da
     # Workflow commits its SSO block first. A lost response cannot silently restore SSO access.
     # A replay must not revoke an application grant another administrator has since re-enabled.
     if not audit:
+        from app.db.applications import ApplicationPolicyOwnership
+        ownership = await db.get(ApplicationPolicyOwnership, (target.id, 'workflows'))
+        if ownership:
+            await db.delete(ownership)
+        from app.db.applications import ApplicationProvisioningPolicy
+        creation = await db.get(ApplicationProvisioningPolicy, (target.id, 'workflows'), with_for_update=True)
+        if creation:
+            creation.enabled = False
+            creation.generation = max(creation.generation, creation.pending_generation or 0) + 1
+            creation.pending_enabled = None; creation.pending_generation = None; creation.version += 1
         before_enabled = bool(grant and grant.enabled)
         if payload.revoke_access and grant:
             grant.enabled = False

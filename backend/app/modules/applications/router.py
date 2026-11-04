@@ -2,9 +2,9 @@ import re
 from typing import Annotated
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -15,9 +15,9 @@ from app.db.applications import (
     ApplicationRolePermission,
     UserApplicationAccess,
 )
-from app.db.models import User
+from app.db.models import User, utcnow
 from app.modules.access.audit import record
-from app.modules.access.service import APPLICATIONS_MANAGE, require
+from app.modules.access.service import MANAGE, require
 from app.modules.auth.dependencies import get_current_user
 from app.modules.applications.service import listed_applications_query
 
@@ -96,6 +96,7 @@ class LegacyLoginPolicyInput(BaseModel):
 class AccessInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool
+    expected_updated_at: str | None = Field(default=None, max_length=64)
     role_key: str | None = Field(default=None, max_length=100)
     permission_keys: list[str] | None = None
     project_names: list[str] | None = None
@@ -164,8 +165,12 @@ class UserApplicationAccessView(BaseModel):
     description: str
     icon_key: str
     enabled: bool
+    access_updated_at: str | None = None
     role_key: str | None = None
     role_display_name: str | None = None
+    role_keys: list[str] = Field(default_factory=list)
+    policy_import_id: str | None = None
+    linked_account_id: str | None = None
     permission_keys: list[str] = Field(default_factory=list)
     project_names: list[str] = Field(default_factory=list)
     roles: list[ApplicationRoleView] = Field(default_factory=list)
@@ -196,17 +201,28 @@ async def _access_view(
     for role_id, code in links:
         permissions_by_role.setdefault(role_id, set()).add(code)
     selected_role = next((role for role in roles if grant and role.id == grant.role_id), None)
-    effective = set(permissions_by_role.get(selected_role.id, set())) if selected_role else set()
+    from app.db.applications import ApplicationPolicyOwnership
+    ownership = await db.get(ApplicationPolicyOwnership, (grant.user_id, application.key)) if grant else None
+    selected_keys = ownership.role_keys if ownership else ([selected_role.key] if selected_role else [])
+    effective = set().union(*(permissions_by_role.get(role.id, set()) for role in roles if role.key in selected_keys))
     for code, allowed in ((grant.permission_overrides if grant else {}) or {}).items():
         effective.add(code) if allowed else effective.discard(code)
+    # Booking's admin role bypasses per-permission checks in the destination.
+    # Report its actual semantics instead of displaying ineffective denials.
+    if application.key == 'bookingreports' and selected_role and selected_role.key == 'admin':
+        effective = {permission.code for permission in permissions}
     return UserApplicationAccessView(
         key=application.key,
         display_name=application.display_name,
         description=application.description,
         icon_key=application.icon_key,
         enabled=bool(grant and grant.enabled),
+        access_updated_at=grant.updated_at.isoformat() if grant else None,
         role_key=selected_role.key if selected_role else None,
-        role_display_name=selected_role.display_name if selected_role else None,
+        role_display_name=', '.join(role.display_name for role in roles if role.key in selected_keys) or None,
+        role_keys=selected_keys,
+        policy_import_id=ownership.operation_id if ownership else None,
+        linked_account_id=ownership.external_user_id if ownership else None,
         permission_keys=sorted(effective),
         project_names=sorted((grant.project_names if grant else []) or []),
         roles=[ApplicationRoleView(
@@ -230,7 +246,7 @@ async def my_applications(user: CurrentUser, db: Database):
 
 @admin_router.get("", response_model=list[ApplicationView])
 async def list_applications(user: CurrentUser, db: Database):
-    await require(db, user.id, APPLICATIONS_MANAGE)
+    await require(db, user.id, MANAGE)
     return list((await db.scalars(select(Application).order_by(Application.sort_order, Application.key))).all())
 
 
@@ -238,7 +254,7 @@ async def list_applications(user: CurrentUser, db: Database):
 async def upsert_application(
     application_key: str, payload: ApplicationInput, user: CurrentUser, db: Database
 ):
-    await require(db, user.id, APPLICATIONS_MANAGE)
+    await require(db, user.id, MANAGE)
     if application_key != payload.key:
         raise HTTPException(422, "Mã ứng dụng trên URL và nội dung phải giống nhau.")
     application = await db.get(Application, application_key)
@@ -255,7 +271,7 @@ async def upsert_application(
 async def update_legacy_login_policy(
     application_key: str, payload: LegacyLoginPolicyInput, user: CurrentUser, db: Database
 ):
-    await require(db, user.id, APPLICATIONS_MANAGE)
+    await require(db, user.id, MANAGE)
     application = await db.get(Application, application_key)
     if application is None:
         raise HTTPException(404, "Ứng dụng không tồn tại.")
@@ -276,7 +292,7 @@ async def apply_application_manifest(
     db: Database,
 ):
     """Idempotently register an app and its authorization catalog."""
-    await require(db, user.id, APPLICATIONS_MANAGE)
+    await require(db, user.id, MANAGE)
     if application_key != payload.application.key:
         raise HTTPException(422, "Mã ứng dụng trên URL và manifest phải giống nhau.")
     application = await db.get(Application, application_key)
@@ -342,20 +358,27 @@ async def set_user_access(
     payload: AccessInput,
     user: CurrentUser,
     db: Database,
+    background_tasks: BackgroundTasks,
 ):
-    await require(db, user.id, APPLICATIONS_MANAGE)
+    await require(db, user.id, MANAGE)
     application = await db.get(Application, application_key)
-    target = await db.get(User, target_id)
+    target = await db.get(User, target_id, with_for_update=True, populate_existing=True)
     if not application:
         raise HTTPException(404, "Không tìm thấy ứng dụng.")
     if not target:
         raise HTTPException(404, "Không tìm thấy tài khoản.")
-    grant = await db.get(UserApplicationAccess, (target_id, application_key))
+    grant = await db.get(UserApplicationAccess, (target_id, application_key), with_for_update=True, populate_existing=True)
+    from app.db.applications import ApplicationPolicyOwnership
+    ownership = await db.get(ApplicationPolicyOwnership, (target_id, application_key))
+    if ((payload.expected_updated_at is not None or ownership is not None)
+            and payload.expected_updated_at != (grant.updated_at.isoformat() if grant else None)):
+        raise HTTPException(409, 'Quyền ứng dụng vừa thay đổi. Hãy tải lại trước khi lưu.')
     previous = {
         "enabled": bool(grant and grant.enabled),
         "role_id": grant.role_id if grant else None,
         "permission_overrides": (grant.permission_overrides if grant else {}) or {},
         "project_names": (grant.project_names if grant else []) or [],
+        "role_keys": list(ownership.role_keys) if ownership else [],
     }
     if grant is None:
         grant = UserApplicationAccess(
@@ -372,13 +395,19 @@ async def set_user_access(
         .order_by(ApplicationRole.sort_order)
     )).all())
     selected_role = next((role for role in roles if role.key == payload.role_key), None)
+    role_changed = selected_role is not None and (selected_role.id != grant.role_id or
+        (ownership is not None and ownership.role_keys != [selected_role.key]))
     if payload.role_key is not None and selected_role is None:
         raise HTTPException(422, "Role không thuộc ứng dụng này.")
     if selected_role is not None:
         grant.role_id = selected_role.id
-    elif grant.role_id is None and roles:
-        grant.role_id = roles[0].id
-        selected_role = roles[0]
+        if ownership and role_changed:
+            ownership.role_keys = [selected_role.key]
+            grant.updated_at = utcnow()
+    elif grant.role_id is None and payload.enabled and ownership is None:
+        from .default_roles import default_role
+        selected_role = default_role(application_key, roles)
+        grant.role_id = selected_role.id if selected_role else None
     else:
         selected_role = next((role for role in roles if role.id == grant.role_id), None)
 
@@ -391,19 +420,21 @@ async def set_user_access(
         unknown = sorted(requested - valid_codes)
         if unknown:
             raise HTTPException(422, f"Permission không thuộc ứng dụng: {', '.join(unknown)}")
+        if application_key == 'bookingreports' and selected_role and selected_role.key == 'admin' and requested != valid_codes:
+            raise HTTPException(422, 'Vai trò Quản trị viên của Booking 360 có toàn quyền. Chọn vai trò khác nếu muốn giới hạn quyền.')
         base_codes = set()
         if selected_role:
             base_codes = set((await db.scalars(
                 select(ApplicationPermission.code)
                 .join(ApplicationRolePermission, ApplicationRolePermission.permission_id == ApplicationPermission.id)
-                .where(ApplicationRolePermission.role_id == selected_role.id)
+                .where(ApplicationRolePermission.role_id.in_([role.id for role in roles if role.key in ownership.role_keys] if ownership else [selected_role.id]))
             )).all())
         grant.permission_overrides = {
             code: code in requested
             for code in valid_codes
             if (code in requested) != (code in base_codes)
         }
-    elif payload.role_key is not None:
+    elif role_changed:
         grant.permission_overrides = {}
     if payload.project_names is not None:
         grant.project_names = payload.project_names
@@ -413,6 +444,7 @@ async def set_user_access(
         "role_id": grant.role_id,
         "permission_overrides": grant.permission_overrides or {},
         "project_names": grant.project_names or [],
+        "role_keys": list(ownership.role_keys) if ownership else [],
     }
     record(
         db,
@@ -421,12 +453,16 @@ async def set_user_access(
         "application_access_updated",
         {"application": application_key, "before": previous, "after": current},
     )
+    if application_key == 'workflows' and previous != current:
+        from .policy_notifications import notify_workflow_policy_changed
+        # Database's function-scoped dependency commits before BackgroundTasks run.
+        background_tasks.add_task(notify_workflow_policy_changed, target.id, target.identity_subject)
     return await _access_view(db, application, grant)
 
 
 @admin_router.get("/users/{target_id}/access", response_model=list[UserApplicationAccessView])
 async def user_application_access(target_id: str, user: CurrentUser, db: Database):
-    await require(db, user.id, APPLICATIONS_MANAGE)
+    await require(db, user.id, MANAGE)
     target = await db.get(User, target_id)
     if not target:
         raise HTTPException(404, "Không tìm thấy tài khoản.")

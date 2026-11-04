@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { History, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { accessApi, AuditPage, AuditEntry } from '../api';
+import { permissionNames } from '../platformPermissions';
 const labels: Record<string, string> = {
+  task_assignment_revoked_department_change: 'Thu hồi quyền giao việc khi đổi phòng ban',
+  platform_permissions_updated: 'Cập nhật quyền Platform',
   sharing_capability_granted: 'Cấp quyền chia sẻ lịch',
   sharing_capability_revoked: 'Thu hồi quyền chia sẻ lịch',
   calendar_shared: 'Chia sẻ lịch cho người xem',
@@ -9,6 +12,7 @@ const labels: Record<string, string> = {
   calendar_revoked: 'Thu hồi quyền xem lịch',
   application_access_updated: 'Cập nhật quyền ứng dụng',
   application_account_linked: 'Liên kết tài khoản ứng dụng',
+  application_policy_imported: 'Liên kết và nhập quyền từ ứng dụng',
   application_account_unlinked: 'Hủy liên kết tài khoản ứng dụng',
   user_created: 'Tạo tài khoản',
   user_updated: 'Cập nhật tài khoản',
@@ -44,6 +48,22 @@ function parseAuditEntry(entry: AuditEntry): ParsedAudit {
   const changes = (entry.changes || {}) as Record<string, unknown>;
   const after = (changes.after || {}) as Record<string, unknown>;
   const before = (changes.before || {}) as Record<string, unknown>;
+
+  if (entry.action === 'task_assignment_revoked_department_change') {
+    return { category: 'Platform', target: 'Giao công việc', statusText: 'Đã thu hồi', statusType: 'danger', details: 'Tài khoản đã chuyển phòng ban. Cần cấp lại quyền và phạm vi giao việc.' };
+  }
+
+  if (entry.action === 'platform_permissions_updated') {
+    const previous = Array.isArray(changes.before) ? changes.before as string[] : [];
+    const next = Array.isArray(changes.after) ? changes.after as string[] : [];
+    const added = next.filter(code => !previous.includes(code)).map(code => permissionNames[code] || code);
+    const removed = previous.filter(code => !next.includes(code)).map(code => permissionNames[code] || code);
+    const scopeChanged = JSON.stringify(changes.scope_before) !== JSON.stringify(changes.scope_after);
+    const scope = changes.scope_after as { mode?: string } | undefined;
+    const scopeDescription = scopeChanged && next.includes('tasks.assign') ? scope?.mode === 'selected_departments' ? `Phạm vi: ${(changes.scope_department_names as string[] || []).join(', ')}` : 'Phạm vi: Phòng ban hiện tại' : '';
+    return { category: 'Platform', target: 'Quyền Platform', statusText: 'Đã cập nhật', statusType: 'info',
+      details: [added.length ? `Cấp: ${added.join(', ')}` : '', removed.length ? `Thu hồi: ${removed.join(', ')}` : '', scopeDescription].filter(Boolean).join(' · ') };
+  }
 
   if (entry.action === 'application_account_linked') {
     return {

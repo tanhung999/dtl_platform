@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.db.access import AccessAuditLog, AccessPermission, AccessRole, RolePermission, UserRole
 from app.db.applications import Application, ApplicationPermission, ApplicationRole, ApplicationRolePermission, UserApplicationAccess
 from app.db.models import User
-from app.modules.access.service import APPLICATIONS_MANAGE
+from app.modules.access.service import MANAGE
 from app.modules.applications import account_linking as linking
 
 
@@ -25,10 +25,10 @@ class AccountLinkingTests(ApiTestCase):
                         'full_name': 'Bob Workflow', 'is_active': True, 'updated_at': '2026-10-29T00:00:00Z'}
         async with self.sessions() as db:
             db.add_all([AccessRole(id='app-manager', name='Application manager'),
-                        AccessPermission(code=APPLICATIONS_MANAGE, name='Manage applications'),
+                        AccessPermission(code=MANAGE, name='Manage applications'),
                         Application(key='workflows', display_name='DT Workflow', launch_url='http://localhost:18082', permission_prefix='workflow')])
             await db.flush()
-            db.add_all([UserRole(user_id='alice', role_id='app-manager'), RolePermission(role_id='app-manager', permission_code=APPLICATIONS_MANAGE),
+            db.add_all([UserRole(user_id='alice', role_id='app-manager'), RolePermission(role_id='app-manager', permission_code=MANAGE),
                         ApplicationRole(id='workflows:STAFF', application_key='workflows', key='STAFF', display_name='Nhân viên'),
                         ApplicationPermission(id='workflows:view', application_key='workflows', code='document.view', display_name='Xem hồ sơ')])
             await db.flush()
