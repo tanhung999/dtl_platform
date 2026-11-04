@@ -13,10 +13,13 @@
 .admin-card { border-radius:16px; padding:24px; }
 .access-account-card .calendar-field { margin-top:16px; }
 .access-account-card .form-input { min-height:42px; font-size:13px; }
-.access-account-list { max-height:570px; overflow:auto; scrollbar-width:thin; }
+.access-account-card .access-account-list { max-height:clamp(280px,calc(100dvh - 300px),570px); overflow:auto; scrollbar-width:thin; }
 .access-selected-account { padding:12px 0 20px; }
 .access-selected-account h3 { font-size:17px; }
-.access-account-list button { min-height:64px; }
+.access-account-card .access-account-list > button { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; min-height:64px; padding:12px; text-align:left; }
+.access-account-card .access-account-identity { flex:1; min-width:0; }
+.access-account-card .access-account-identity strong,.access-account-card .access-account-identity small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.access-account-card .access-account-list .access-status { flex-shrink:0; white-space:nowrap; }
 .access-section-tabs { max-width:560px; }
 .user-admin-grid { grid-template-columns:minmax(300px,.8fr) minmax(0,1.2fr); align-items:start; }
 .organization-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
@@ -48,5 +51,5 @@
 .assignment-department-options small { color:var(--text-muted); }
 @media(min-width:1100px) { .access-account-card { position:sticky; top:94px; } }
 @media(max-width:1099px) { .access-management { grid-template-columns:260px minmax(0,1fr); gap:16px; } .organization-form.organization-simple-form,.organization-form.organization-simple-form.is-positions { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media(max-width:850px) { .access-management,.user-admin-grid { grid-template-columns:1fr; } .access-account-list { max-height:210px; } .admin-sidebar>a { padding:10px 8px; font-size:12px; gap:7px; } }
+@media(max-width:850px) { .access-management,.user-admin-grid { grid-template-columns:1fr; } .access-account-card .access-account-list { max-height:clamp(180px,40dvh,320px); } .admin-sidebar>a { padding:10px 8px; font-size:12px; gap:7px; } }
 @media(max-width:600px) { .admin-page { padding:18px 12px 28px; } .admin-heading h1 { font-size:21px; } .admin-sidebar { grid-template-columns:repeat(2,minmax(0,1fr)); margin-bottom:20px; } .admin-sidebar>a { min-height:44px; font-size:13px; } .admin-card { padding:18px; } .organization-form.organization-simple-form,.organization-form.organization-simple-form.is-positions { grid-template-columns:1fr; padding:14px; } .organization-form-actions .btn { flex:1; } .assignment-department-options { grid-template-columns:1fr; } .organization-list>div { padding:12px; } }
