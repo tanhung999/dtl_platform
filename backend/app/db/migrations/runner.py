@@ -292,6 +292,12 @@ async def upgrade(conn):
         await migrate_task_delegation_and_followers(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
+    version = 'organization_004_department_delegation'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .department_delegation import migrate_department_delegation
+        await migrate_department_delegation(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
     version = 'organization_001_catalog'
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
         from .organization_catalog import migrate_organization_catalog
@@ -306,8 +312,6 @@ async def upgrade(conn):
 
     version = 'organization_003_multiple_report_targets'
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
-        from .organization_multiple_report_targets import migrate_organization_multiple_report_targets
-        await migrate_organization_multiple_report_targets(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
     version = 'notes_002_pin_time'
@@ -353,6 +357,30 @@ async def upgrade(conn):
     if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
         from .task_result_history import migrate_task_result_history
         await migrate_task_result_history(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'access_003_platform_permissions'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .platform_permissions import migrate_platform_permissions
+        await migrate_platform_permissions(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'access_004_unified_administration'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .platform_permissions import migrate_platform_permissions
+        await migrate_platform_permissions(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_011_policy_ownership'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .application_policy_ownership import migrate_application_policy_ownership
+        await migrate_application_policy_ownership(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
+    version = 'applications_012_per_user_provisioning'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .per_user_provisioning import migrate_per_user_provisioning
+        await migrate_per_user_provisioning(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
 async def run():

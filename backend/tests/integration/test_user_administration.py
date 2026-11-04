@@ -2,7 +2,6 @@ from unittest.mock import AsyncMock, patch
 
 from app.db.access import AccessPermission, AccessRole, RolePermission, UserRole
 from app.modules.access.service import MANAGE
-from app.db.models import User
 from app.db.migrations.organization_catalog import unique_code
 from tests.support.api_case import ApiTestCase
 
@@ -84,20 +83,14 @@ class UserAdministrationTests(ApiTestCase):
         self.assertEqual(status, 422)
         self.assertIn('chính mình', result['detail'])
 
-    async def test_organization_hierarchy_locations_and_manager_candidates(self):
+    async def test_organization_has_positions_departments_locations_without_hierarchy(self):
         await self.seed_admin()
-        _, department = await self.request('POST', '/api/admin/organization/departments', payload={'code':'TECH','name':'Công nghệ'})
-        _, director = await self.request('POST', '/api/admin/organization/job-levels', payload={'code':'DIRECTOR','name':'Giám đốc','rank':1,'is_management':True})
-        _, lead = await self.request('POST', '/api/admin/organization/job-levels', payload={'code':'LEAD','name':'Trưởng nhóm','rank':5,'is_management':True,'report_to_level_ids':[director['id']]})
-        _, staff = await self.request('POST', '/api/admin/organization/job-levels', payload={'code':'STAFF2','name':'Nhân viên','rank':10,'is_management':False,'report_to_level_ids':[lead['id'],director['id']]})
-        _, manager_position = await self.request('POST', '/api/admin/organization/positions', payload={'code':'TECH-DIR','name':'Giám đốc công nghệ','department_id':department['id'],'job_level_id':director['id']})
-        _, staff_position = await self.request('POST', '/api/admin/organization/positions', payload={'code':'TECH-STAFF','name':'Chuyên viên công nghệ','department_id':department['id'],'job_level_id':staff['id']})
-        _, location = await self.request('POST', '/api/admin/organization/work-locations', payload={'code':'HCM','name':'Trụ sở TP. Hồ Chí Minh'})
-        async with self.sessions() as db:
-            alice = await db.get(User, 'alice'); alice.position_id = manager_position['id']; await db.commit()
-        status, managers = await self.request('GET', '/api/admin/users/manager-candidates', query={'position_id':staff_position['id']})
-        self.assertEqual(status, 200); self.assertEqual([item['id'] for item in managers], ['alice'])
+        _, department = await self.request('POST', '/api/admin/organization/departments', payload={'code':'TECH','name':'Technology'})
+        status, position = await self.request('POST', '/api/admin/organization/positions', payload={'code':'TECH-POS','name':'Staff','department_id':department['id']})
+        self.assertEqual(status, 201)
+        _, location = await self.request('POST', '/api/admin/organization/work-locations', payload={'code':'HCM','name':'Head office'})
         _, catalog = await self.request('GET', '/api/admin/organization')
         self.assertEqual(catalog['work_locations'][0]['id'], location['id'])
-        self.assertTrue(next(item for item in catalog['job_levels'] if item['id']==director['id'])['is_management'])
-        self.assertEqual(set(next(item for item in catalog['job_levels'] if item['id']==staff['id'])['report_to_level_ids']), {lead['id'],director['id']})
+        self.assertEqual(catalog['positions'][0]['id'], position['id'])
+        self.assertNotIn('job_levels', catalog)
+        self.assertEqual((await self.request('POST', '/api/admin/organization/job-levels', payload={'code':'OLD','name':'Removed'}))[0], 422)

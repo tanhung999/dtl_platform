@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     # Explicit opt-in, separate from SSO launch/entitlement credentials.
     WORKFLOWS_ACCOUNT_LINKING_URL: str = ""
     WORKFLOWS_ACCOUNT_LINKING_SECRET: str = ""
+    ASSETS_ACCOUNT_LINKING_URL: str = ""
+    ASSETS_ACCOUNT_LINKING_SECRET: str = ""
+    BOOKINGREPORTS_ACCOUNT_LINKING_URL: str = ""
+    BOOKINGREPORTS_ACCOUNT_LINKING_SECRET: str = ""
     INTEGRATION_ITAM_SECRET: str = ""
     # Deprecated development fallback. Production requires one secret per application.
     INTEGRATION_SHARED_SECRET: str = ""

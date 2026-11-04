@@ -17,7 +17,7 @@ from app.db.notifications import Notification, NotificationJob
 from .ownership import owned_task
 from .access import visible_tasks, accessible_task, serialize_task, serialize_tasks
 from app.modules.access.service import MANAGE, has_permission
-from .permissions import can_assign_tasks, require_assignable_target, subordinate_ids
+from .permissions import assignment_department_ids, can_assign_tasks, department_recipient_ids, require_assignable_target
 from .reminders import AssigneeReminderWrite, get_assignee_reminder, save_assignee_reminder
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
@@ -161,26 +161,28 @@ async def unfollow_task(task_id: str, user: CurrentUser, db: Database):
 directory_router = APIRouter(prefix="/api/task-assignees", tags=["Tasks"])
 colleagues_router = APIRouter(prefix="/api/colleagues", tags=["Directory"])
 
-async def colleague_results(db, q):
+async def colleague_results(db, q, department_ids=None, exclude_user_id=None):
     value = q.strip()
     if len(value) < 2: raise HTTPException(422, "Nhập ít nhất 2 ký tự.")
     term = '%' + value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
     from sqlalchemy import or_
-    rows = (await db.scalars(select(User).where(User.is_active.is_(True), or_(
+    statement = select(User).where(User.is_active.is_(True), or_(
         User.full_name.ilike(term, escape='\\'), User.username.ilike(term, escape='\\'),
-        User.department.ilike(term, escape='\\'))).order_by(User.full_name, User.id).limit(20))).all()
+        User.department.ilike(term, escape='\\')))
+    if department_ids is not None:
+        statement = statement.where(User.id.in_(department_recipient_ids(department_ids)))
+    if exclude_user_id:
+        statement = statement.where(User.id != exclude_user_id)
+    rows = (await db.scalars(statement.order_by(User.full_name, User.id).limit(20))).all()
     return [{key:getattr(row,key) for key in ('id','full_name','username','department','job_title','avatar_url')} for row in rows]
 
 @directory_router.get("")
 async def task_assignees(user: CurrentUser, db: Database, q: str = Query(min_length=2, max_length=100)):
     if not await can_assign_tasks(db, user):
         raise HTTPException(403, "Bạn không có quyền tìm người nhận việc.")
-    rows=await colleague_results(db,q)
-    if not await has_permission(db,user.id,MANAGE):
-        allowed = await subordinate_ids(db, user.id)
-        rows = [row for row in rows if row['id'] in allowed]
-    return rows
+    departments = None if await has_permission(db, user.id, MANAGE) else await assignment_department_ids(db, user)
+    return await colleague_results(db, q, departments, user.id)
 
 @colleagues_router.get("")
 async def colleagues(user: CurrentUser, db: Database, q: str = Query(min_length=2,max_length=100)):
-    return [row for row in await colleague_results(db,q) if row['id'] != user.id]
+    return await colleague_results(db, q, exclude_user_id=user.id)

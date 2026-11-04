@@ -52,6 +52,34 @@ class UserApplicationAccess(Base):
     updated_at = Column(UTCDateTime(), nullable=False, default=utcnow, onupdate=utcnow)
 
 
+class ApplicationPolicyOwnership(Base):
+    """Confirmed handover from an existing destination account to Platform."""
+
+    __tablename__ = 'application_policy_ownership'
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    application_key = Column(String(80), ForeignKey('applications.key', ondelete='CASCADE'), primary_key=True)
+    external_user_id = Column(String(100), nullable=False)
+    operation_id = Column(String(36), nullable=False, unique=True)
+    role_keys = Column(JSON, nullable=False, default=list)
+    imported_snapshot = Column(JSON, nullable=False)
+    imported_at = Column(UTCDateTime(), nullable=False, default=utcnow)
+
+
+class ApplicationProvisioningPolicy(Base):
+    __tablename__ = 'application_provisioning_policies'
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    application_key = Column(String(80), ForeignKey('applications.key', ondelete='CASCADE'), primary_key=True)
+    enabled = Column(Boolean, nullable=False, default=False)
+    generation = Column(Integer, nullable=False, default=0)
+    version = Column(Integer, nullable=False, default=0)
+    identity_subject = Column(String(255), nullable=True)
+    pending_enabled = Column(Boolean, nullable=True)
+    pending_generation = Column(Integer, nullable=True)
+    unlink_operation_id = Column(String(36), nullable=True)
+    unlink_payload = Column(JSON, nullable=True)
+    updated_at = Column(UTCDateTime(), nullable=False, default=utcnow, onupdate=utcnow)
+
+
 class ApplicationRole(Base):
     __tablename__ = "application_roles"
     __table_args__ = (UniqueConstraint("application_key", "key", name="uq_application_role_key"),)

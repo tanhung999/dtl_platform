@@ -12,10 +12,8 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.db.applications import (
     Application,
-    ApplicationPermission,
-    ApplicationRole,
-    ApplicationRolePermission,
     UserApplicationAccess,
+    ApplicationProvisioningPolicy,
 )
 from app.db.models import User
 
@@ -25,6 +23,8 @@ Database = Annotated[AsyncSession, Depends(get_db, scope="function")]
 
 
 class EntitlementView(BaseModel):
+    provisioning_policy_enforced: bool = True
+    auto_provision_allowed: bool = False
     allowed: bool
     application: str
     subject: str
@@ -34,6 +34,8 @@ class EntitlementView(BaseModel):
     full_name: str | None = None
     department: str | None = None
     role_key: str | None = None
+    role_keys: list[str] = Field(default_factory=list)
+    policy_import_id: str | None = None
     permission_keys: list[str] = Field(default_factory=list)
     project_names: list[str] = Field(default_factory=list)
 
@@ -106,18 +108,15 @@ async def check_subject_entitlement(
     if not row:
         return EntitlementView(allowed=False, application=application_key, subject=subject)
     user, grant = row
-    role = await db.get(ApplicationRole, grant.role_id) if grant.role_id else None
-    permission_keys = set()
-    if role and role.application_key == application_key:
-        permission_keys.update((await db.scalars(
-            select(ApplicationPermission.code)
-            .join(ApplicationRolePermission, ApplicationRolePermission.permission_id == ApplicationPermission.id)
-            .where(ApplicationRolePermission.role_id == role.id)
-        )).all())
-    for code, allowed in (grant.permission_overrides or {}).items():
-        permission_keys.add(code) if allowed else permission_keys.discard(code)
+    from .router import _access_view
+    policy = await _access_view(db, await db.get(Application, application_key), grant)
+    creation = await db.get(ApplicationProvisioningPolicy, (user.id, application_key))
+    if creation and creation.unlink_operation_id:
+        return EntitlementView(allowed=False, application=application_key, subject=subject)
     return EntitlementView(
         allowed=True,
+        auto_provision_allowed=bool(creation and creation.enabled and creation.pending_enabled is None
+            and creation.identity_subject == user.identity_subject and not policy.policy_import_id),
         application=application_key,
         subject=subject,
         user_id=user.id,
@@ -125,7 +124,9 @@ async def check_subject_entitlement(
         email=user.email,
         full_name=user.full_name,
         department=user.department,
-        role_key=role.key if role else None,
-        permission_keys=sorted(permission_keys),
+        role_key=policy.role_key,
+        role_keys=policy.role_keys,
+        policy_import_id=policy.policy_import_id,
+        permission_keys=policy.permission_keys,
         project_names=sorted(grant.project_names or []),
     )

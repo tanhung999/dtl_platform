@@ -1,0 +1,21 @@
+.access-section-tabs { display:flex; gap:6px; padding:5px; margin:18px 0 22px; border-radius:11px; background:var(--bg-subtle); }
+.access-section-tabs button { display:flex; flex:1; align-items:center; justify-content:center; gap:8px; min-height:40px; padding:9px 12px; border:1px solid transparent; border-radius:8px; font:inherit; font-size:13px; font-weight:600; color:var(--text-secondary); background:transparent; cursor:pointer; }
+.access-section-tabs button[aria-selected=true] { border-color:var(--border); background:var(--bg-card-solid); color:var(--accent-text); box-shadow:var(--shadow-sm); }
+.platform-permission-set { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; min-width:0; padding:0; margin:20px 0; border:0; }
+.platform-permission-set legend { display:flex; align-items:center; gap:8px; width:100%; padding:0 0 10px; font-size:13px; font-weight:600; color:var(--text-secondary); }
+.platform-permission-option { display:flex; align-items:flex-start; gap:12px; padding:13px 14px; border:1px solid var(--border); border-radius:10px; cursor:pointer; background:var(--bg-card-solid); transition:background .15s,border-color .15s; }
+.platform-permission-set>.access-permission-note { grid-column:1 / -1; margin:4px 0 0; }
+.platform-permission-set:first-of-type { grid-template-columns:1fr; }
+.platform-permission-option.is-checked { background:color-mix(in srgb,var(--primary) 5%,var(--bg-card-solid)); border-color:color-mix(in srgb,var(--primary) 30%,var(--border)); }
+.platform-permission-option input { flex-shrink:0; width:16px; height:16px; margin:2px 0 0; accent-color:var(--primary); }
+.platform-permission-option span { display:grid; gap:5px; min-width:0; }
+.platform-permission-option strong { font-size:13px; font-weight:600; line-height:1.5; }
+.platform-permission-option small { font-size:12px; line-height:1.6; color:var(--text-secondary); }
+.platform-permission-option:has(input:focus-visible) { outline:2px solid var(--primary); outline-offset:2px; }
+.platform-permission-set:disabled .platform-permission-option { opacity:.65; cursor:not-allowed; }
+.platform-policy-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; border-top:1px solid var(--border); margin-top:20px; padding-top:16px; }
+.platform-policy-footer>span { color:var(--text-muted); font-size:12px; }
+.platform-policy-footer>div { display:flex; flex-wrap:wrap; gap:8px; }
+.platform-permissions .access-revoke-confirm strong { display:flex; align-items:center; gap:8px; }
+@media(max-width:1050px) { .admin-layout { grid-template-columns:175px minmax(0,1fr); gap:16px; } .access-management { grid-template-columns:1fr; } .access-account-list { max-height:240px; overflow:auto; } }
+@media(max-width:700px) { .admin-page { padding:18px 12px 28px; } .admin-layout { grid-template-columns:1fr; } .admin-sidebar { display:flex; flex-wrap:wrap; padding:8px; gap:4px; } .admin-sidebar>span { display:none; } .admin-sidebar>a { width:auto; flex:1 1 auto; justify-content:center; padding:10px; font-size:12px; } .admin-sidebar>a+a { margin-top:0; } .admin-card { padding:18px; } .platform-permission-set { grid-template-columns:1fr; } }

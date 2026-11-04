@@ -23,7 +23,6 @@ class User(Base):
     department = Column(String(100), default="Công Nghệ & Chuyển Đổi Số")
     job_title = Column(String(100), default="Quản Trị Viên Hệ Thống")
     position_id = Column(String(36), ForeignKey("positions.id", ondelete="SET NULL"), nullable=True, index=True)
-    manager_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     work_location_id = Column(String(36), ForeignKey("work_locations.id", ondelete="SET NULL"), nullable=True, index=True)
     employee_code = Column(String(50), default="DTL-001")
     phone = Column(String(30), default="0901.525.178")

@@ -1,8 +1,8 @@
 from tests.support.api_case import ApiTestCase
 from app.db.access import AccessPermission, AccessRole, RolePermission, UserRole
 from app.db.models import User
-from app.db.organization import Department, JobLevel, Position
-from app.core.security import create_access_token, hash_password
+from app.db.organization import Department, Position
+from app.core.security import create_access_token
 
 
 class DelegationFollowerTests(ApiTestCase):
@@ -11,7 +11,12 @@ class DelegationFollowerTests(ApiTestCase):
             db.add_all([AccessRole(id='assigner',name='Task assigner'),AccessPermission(code='tasks.assign',name='Assign tasks')])
             await db.flush()
             db.add_all([RolePermission(role_id='assigner',permission_code='tasks.assign'),UserRole(user_id='alice',role_id='assigner')])
-            bob = await db.get(User, 'bob'); bob.manager_id = 'alice'
+            department = Department(id='test-dept', code='TEST', name='Test department')
+            db.add(department); await db.flush()
+            position = Position(id='test-pos', code='TEST-POS', name='Staff', department_id=department.id)
+            db.add(position); await db.flush()
+            for name in ('alice', 'bob'):
+                user = await db.get(User, name); user.position_id = position.id
             await db.commit()
 
     async def test_assignment_permissions_and_assignee_field_policy(self):
@@ -35,24 +40,15 @@ class DelegationFollowerTests(ApiTestCase):
         self.assertEqual((await self.request('PATCH', path, user='bob', payload={'read': True}))[0], 204)
         self.assertEqual((await self.request('PATCH', path, user='bob', payload={'read': False}))[0], 204)
 
-    async def test_manager_can_only_assign_inside_reporting_tree(self):
+    async def test_explicit_grant_is_scoped_to_the_current_department(self):
+        await self.grant_assignment()
         async with self.sessions() as db:
-            department = Department(code='TECH', name='Công nghệ')
-            manager_level = JobLevel(code='LEAD', name='Quản lý', rank=10, is_management=True)
-            db.add_all([department, manager_level]); await db.flush()
-            manager_position = Position(code='LEAD-POS', name='Trưởng nhóm', department_id=department.id, job_level_id=manager_level.id)
-            db.add(manager_position); await db.flush()
-            alice = await db.get(User, 'alice'); bob = await db.get(User, 'bob')
-            alice.position_id = manager_position.id; bob.manager_id = 'alice'
-            charlie = User(id='charlie', username='charlie', email='charlie@example.com', full_name='Charlie', password_hash=hash_password('test-password'))
-            db.add(charlie); await db.commit()
-        self.tokens['charlie'] = create_access_token({'sub':'charlie'})
-        code, task = await self.request('POST','/api/tasks',payload={'title':'For report','assignee_id':'bob'})
-        self.assertEqual(code,201); self.assertEqual(task['assignee_id'],'bob')
-        code, _ = await self.request('POST','/api/tasks',payload={'title':'Outside tree','assignee_id':'charlie'})
-        self.assertEqual(code,403)
-        code, options = await self.request('GET','/api/access/me')
-        self.assertEqual(code,200); self.assertTrue(options['can_assign_tasks'])
+            db.add(User(id='charlie', username='charlie', email='charlie@example.com', full_name='Charlie', password_hash='unused'))
+            await db.commit()
+        self.assertEqual((await self.request('POST', '/api/tasks', payload={'title':'Within department','assignee_id':'bob'}))[0], 201)
+        self.assertEqual((await self.request('POST', '/api/tasks', payload={'title':'Outside department','assignee_id':'charlie'}))[0], 403)
+        _, options = await self.request('GET', '/api/access/me')
+        self.assertTrue(options['can_assign_tasks'])
 
     async def test_created_by_me_excludes_personal_tasks(self):
         await self.grant_assignment()
@@ -112,7 +108,7 @@ class DelegationFollowerTests(ApiTestCase):
     async def test_swap_assignee_and_follower_by_adding_preserves_the_previous_assignee(self):
         await self.grant_assignment()
         async with self.sessions() as db:
-            db.add(User(id='charlie', username='charlie', email='charlie@example.com', full_name='Hà', manager_id='alice', password_hash='unused'))
+            db.add(User(id='charlie', username='charlie', email='charlie@example.com', full_name='Hà', position_id='test-pos', password_hash='unused'))
             await db.commit()
         self.tokens['charlie'] = create_access_token({'sub': 'charlie'})
         code, task = await self.request('POST', '/api/tasks', payload={
@@ -135,7 +131,7 @@ class DelegationFollowerTests(ApiTestCase):
     async def test_reassignment_without_follower_field_only_removes_the_new_assignee_from_followers(self):
         await self.grant_assignment()
         async with self.sessions() as db:
-            db.add(User(id='charlie', username='charlie', email='charlie@example.com', full_name='Hà', manager_id='alice', password_hash='unused'))
+            db.add(User(id='charlie', username='charlie', email='charlie@example.com', full_name='Hà', position_id='test-pos', password_hash='unused'))
             await db.commit()
         _, task = await self.request('POST', '/api/tasks', payload={
             'title': 'Reassign only', 'assignee_id': 'bob', 'follower_ids': ['charlie']})

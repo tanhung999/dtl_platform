@@ -36,6 +36,7 @@ class CalendarSharingTests(ApiTestCase):
             'can_share':False,
             'can_manage':True,
             'can_assign_tasks':True,
+            'can_access_admin':True,
         })
         code, _ = await self.request('PUT','/api/calendar-sharing/mine/bob',payload={'expected_version':0})
         self.assertEqual(code,403)

@@ -1,0 +1,11 @@
+.application-account-lifecycle{margin-top:14px;padding:16px;border:1px solid var(--border-color,#dce5f0);border-radius:12px;background:var(--bg-secondary,#f8fafc)}
+.application-account-heading,.application-bound-account,.application-unlink-confirm>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.application-account-heading>strong{display:flex;align-items:center;gap:8px;font-size:14px}
+.application-account-lifecycle p,.application-create-option small{font-size:13px;line-height:1.55;color:var(--text-secondary,#52647c);margin:6px 0}
+.application-create-option{display:flex;align-items:flex-start;gap:10px;margin-top:12px;cursor:pointer}
+.application-create-option input{margin-top:4px;accent-color:var(--primary-color,#2457e5);width:17px;height:17px;flex-shrink:0}
+.application-create-option strong,.application-create-option small{display:block}.application-create-option strong,.application-bound-account strong{font-size:14px}
+.application-account-warning{display:flex;align-items:center;gap:8px}.application-unlink-confirm{margin-top:12px;padding:14px;border:1px solid #efb9b9;border-radius:10px}
+.application-bound-account{margin-top:12px}.application-unlink-confirm>div{justify-content:flex-end}
+@media(max-width:600px){.application-bound-account{align-items:flex-start;flex-direction:column}}
+.application-account-fieldset{border:0;padding:0;margin:0;min-width:0}

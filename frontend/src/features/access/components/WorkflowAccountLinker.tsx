@@ -19,7 +19,7 @@ interface LinkState {
 }
 interface Candidates {items: WorkflowAccount[]; total: number; offset: number; limit: number}
 
-export function WorkflowAccountLinker({ targetId, revision, onLinked }: {targetId: string; revision: number; onLinked: () => void}) {
+export function WorkflowAccountLinker({ targetId, revision, onLinked, unlinkOnly = false }: {targetId: string; revision: number; onLinked: () => void; unlinkOnly?: boolean}) {
   const [open, setOpen] = useState(false), [state, setState] = useState<LinkState>();
   const [query, setQuery] = useState(''), [offset, setOffset] = useState(0), [data, setData] = useState<Candidates>();
   const [selected, setSelected] = useState<WorkflowAccount>(), [busy, setBusy] = useState(false);
@@ -65,7 +65,7 @@ export function WorkflowAccountLinker({ targetId, revision, onLinked }: {targetI
     && state.roles.some(r => r.key === state.policy?.role_key)
     && state.policy.permission_keys.every(code => state.permission_keys.includes(code))));
   const link = async () => {
-    if (inFlight.current || !selected || !state || !policyReady || state.blocked_reason) return;
+    if (unlinkOnly || inFlight.current || !selected || !state || !policyReady || state.blocked_reason) return;
     inFlight.current = true; setBusy(true); setError(''); setSuccess('');
     operation.current ||= createRequestId();
     try {
@@ -125,7 +125,7 @@ export function WorkflowAccountLinker({ targetId, revision, onLinked }: {targetI
   };
   return <div className="workflow-linking">
     <button type="button" className="btn btn-outline btn-sm" aria-expanded={open} disabled={busy}
-      onClick={() => { setOpen(value => !value); setSuccess(''); }}><Link2 size={15}/>{open ? 'Ẩn liên kết tài khoản' : 'Liên kết tài khoản'}</button>
+      onClick={() => { setOpen(value => !value); setSuccess(''); }}><Link2 size={15}/>{open ? 'Ẩn liên kết tài khoản' : unlinkOnly ? 'Quản lý liên kết Workflow' : 'Liên kết tài khoản'}</button>
     {open && <section className="workflow-link-panel" aria-label="Liên kết tài khoản DT Workflow" aria-busy={busy || loading}>
       <header><div><h4>Liên kết tài khoản DT Workflow</h4><p>Chọn tài khoản Workflow hiện có của cùng một người.</p></div>
         <button type="button" className="task-icon-button" aria-label="Đóng liên kết tài khoản" disabled={busy} onClick={() => setOpen(false)}><X size={17}/></button></header>
@@ -135,8 +135,8 @@ export function WorkflowAccountLinker({ targetId, revision, onLinked }: {targetI
       {notice && <p className="workflow-link-note" role="status">{notice}</p>}
       {state && (linked ? <div className="workflow-linked-account"><CheckCircle2 size={20}/>
         <div><strong>Đã liên kết: {linked.full_name}</strong><p>@{linked.username} · {linked.email || 'Chưa có email'}</p>
-        <span>{linked.preserves_local_permissions ? 'Giữ quyền Workflow hiện tại theo ngoại lệ quản trị.' : 'Quyền được đồng bộ từ Platform khi đăng nhập SSO.'}</span>
-        {!unlinkAccount && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || uncertain} onClick={() => prepareUnlink(linked)}><Unlink size={15}/>Hủy liên kết</button>}</div></div> : !state.blocked_reason && <>
+        <span>Quyền được quản lý tại Platform.</span>
+        {!unlinkAccount && <button type="button" className="btn btn-danger-outline btn-sm" disabled={busy || uncertain} onClick={() => prepareUnlink(linked)}><Unlink size={15}/>Hủy liên kết</button>}</div></div> : !state.blocked_reason && !unlinkOnly && <>
         <label className="workflow-link-search"><span><Search size={15}/>Tìm tài khoản Workflow</span>
           <input className="form-input" value={query} disabled={busy || uncertain || !!unlinkAccount} maxLength={100} placeholder="Tên đăng nhập, họ tên hoặc email"
             onChange={event => { setQuery(event.target.value); setOffset(0); setSelected(undefined); operation.current = undefined; setError(''); setNotice(''); }}/></label>

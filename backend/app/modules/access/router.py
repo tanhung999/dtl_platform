@@ -13,7 +13,8 @@ from app.db.models import User, utcnow
 from app.db.access import CalendarShare, UserRole, AccessAccountVersion, AccessAuditLog
 from app.modules.auth.dependencies import get_current_user
 from .audit import record
-from .service import has_permission, require, MANAGE, SHARE, permission_users
+from .service import CAPABILITY_ROLES, effective_permissions, has_permission, require, MANAGE, SHARE, permission_users
+from .platform_policy import PlatformPolicyWrite, policy_view, save_policy
 from app.modules.tasks.permissions import can_assign_tasks
 
 router = APIRouter(prefix='/api/access', tags=['Access'])
@@ -35,8 +36,11 @@ def search_condition(value):
 
 @router.get('/me')
 async def me(user: UserArg, db: DbArg):
-    return {'can_share': await has_permission(db, user.id, SHARE), 'can_manage': await has_permission(db, user.id, MANAGE),
-            'can_assign_tasks': await can_assign_tasks(db, user)}
+    permissions = await effective_permissions(db, user.id)
+    capabilities = {'can_share': SHARE in permissions,
+        'can_manage': MANAGE in permissions,
+        'can_assign_tasks': await can_assign_tasks(db, user)}
+    return capabilities | {'can_access_admin': capabilities['can_manage']}
 
 
 @router.get('/users')
@@ -69,6 +73,20 @@ async def account(target_id: str, user: UserArg, db: DbArg):
     row = (await db.execute(account_query().where(User.id == target_id))).mappings().first()
     if not row: raise HTTPException(404, 'Không tìm thấy tài khoản.')
     return dict(row)
+
+
+@router.get('/users/{target_id}/platform-permissions')
+async def platform_permissions(target_id: str, user: UserArg, db: DbArg):
+    await require(db, user.id, MANAGE)
+    target = await db.get(User, target_id)
+    if not target:
+        raise HTTPException(404, 'Không tìm thấy tài khoản.')
+    return await policy_view(db, target)
+
+
+@router.put('/users/{target_id}/platform-permissions')
+async def update_platform_permissions(target_id: str, payload: PlatformPolicyWrite, user: UserArg, db: DbArg):
+    return await save_policy(db, user, target_id, payload)
 
 
 @router.get('/history')
@@ -114,7 +132,7 @@ async def assign(target_id: str, payload: Assignment, user: UserArg, db: DbArg):
     if payload.enabled:
         db.add(UserRole(user_id=target_id, role_id='calendar_sharer'))
     else:
-        await db.execute(delete(UserRole).where(UserRole.user_id == target_id, UserRole.role_id == 'calendar_sharer'))
+        await db.execute(delete(UserRole).where(UserRole.user_id == target_id, UserRole.role_id.in_(('calendar_sharer', CAPABILITY_ROLES[SHARE]))))
         if await has_permission(db, target_id, SHARE):
             raise HTTPException(409, 'Quyền này còn được cấp qua vai trò khác. Hãy điều chỉnh vai trò đó trước.')
         viewers = (await db.scalars(select(CalendarShare.viewer_id).where(CalendarShare.owner_id == target_id, CalendarShare.revoked_at.is_(None)))).all()

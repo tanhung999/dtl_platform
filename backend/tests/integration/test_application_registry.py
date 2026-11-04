@@ -4,7 +4,7 @@ from app.db.applications import (
     UserApplicationAccess,
 )
 from app.db.access import AccessPermission, AccessRole, RolePermission, UserRole
-from app.modules.access.service import APPLICATIONS_MANAGE
+from app.modules.access.service import MANAGE
 from app.core.config import settings
 from app.db.models import User
 from app.db.migrations.development_applications import migrate_development_applications
@@ -35,7 +35,7 @@ class ApplicationRegistryTests(ApiTestCase):
         async with self.sessions() as db:
             db.add_all([
                 AccessRole(id='application-admin', name='Application administrator'),
-                AccessPermission(code=APPLICATIONS_MANAGE, name='Manage applications'),
+                AccessPermission(code=MANAGE, name='Manage applications'),
                 Application(key='allowed', display_name='Allowed app', description='Visible',
                     icon_key='platform', launch_url='https://allowed.test', permission_prefix='allowed'),
                 Application(key='denied', display_name='Denied app', description='Hidden',
@@ -51,7 +51,7 @@ class ApplicationRegistryTests(ApiTestCase):
             ])
             await db.flush()
             db.add_all([
-                RolePermission(role_id='application-admin', permission_code=APPLICATIONS_MANAGE),
+                RolePermission(role_id='application-admin', permission_code=MANAGE),
                 UserRole(user_id='alice', role_id='application-admin'),
             ])
             await db.commit()
