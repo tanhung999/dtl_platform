@@ -1,7 +1,7 @@
 .dashboard-column { display: flex; flex-direction: column; gap: 1.5rem; min-width: 0; align-self: start; }
 
 .dashboard-app { min-height:100dvh; display:flex; flex-direction:column; }
-.dashboard-app .platform-navbar { zoom:0.9; min-height:82px; padding:10px 24px; flex-direction:row; flex-wrap:nowrap; gap:24px; }
+.dashboard-app .platform-navbar { zoom:0.9; min-height:69.7px; padding:6px 24px; flex-direction:row; flex-wrap:nowrap; gap:24px; }
 .dashboard-app .nav-brand { flex-shrink:0; gap:12px; align-items:center; text-decoration:none; cursor:pointer; color:inherit; border-radius:12px; transition:opacity .15s ease, transform .15s ease; }
 .dashboard-app .nav-brand:hover { opacity:.9; }
 .dashboard-app .nav-brand:active { transform:scale(.99); }
@@ -16,14 +16,10 @@
 .dashboard-app .user-name,.dashboard-app .user-dept { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .dashboard-app .user-avatar { position:relative; flex-shrink:0; width:34px; height:34px; overflow:hidden; }
 .dashboard-app .user-avatar img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-.workspace-search { display:flex; align-items:center; gap:10px; max-width:520px; min-width:150px; flex:1; margin-left:auto; padding:11px 14px; border:1px solid var(--border); border-radius:14px; background:var(--bg-subtle); color:var(--text-muted); }
-.workspace-search:focus-within { outline:2px solid var(--accent); outline-offset:2px; }
-.workspace-search input::placeholder { color:var(--text-muted); opacity:1; }
-.workspace-search input { border:0; background:transparent; outline:none; color:var(--text-main); font:inherit; font-size:13px; width:100%; min-width:0; }
 .workspace-shell { display:grid; grid-template-columns:minmax(0,1fr); flex:1; align-items:start; }
 .workspace-not-found { display:flex; flex-direction:column; align-items:flex-start; gap:16px; }
 .workspace-not-found p { color:var(--text-secondary); line-height:1.6; }
-.workspace-content { min-width:0; min-height:calc(100dvh - 73.8px); display:flex; flex-direction:column; }
+.workspace-content { min-width:0; min-height:calc(100dvh - 62.73px); display:flex; flex-direction:column; }
 .workspace-main { flex:1; min-width:0; }
 .workspace-home { display:grid; grid-template-columns:minmax(0,1fr) minmax(320px,.46fr); align-items:start; gap:20px; max-width:1680px; padding:24px; margin:0 auto; }
 .workspace-home-main { display:flex; flex-direction:column; gap:18px; min-width:0; }
@@ -133,13 +129,13 @@
   .workspace-home { grid-template-columns:minmax(0,1fr); }
   .workspace-home-calendar { grid-row:2; }
   .workspace-home .calendar-widget { max-height:540px; }
-  .dashboard-app .platform-navbar { gap:15px; padding:10px 16px; }
+  .dashboard-app .platform-navbar { gap:15px; padding:6px 16px; }
   .dashboard-app .nav-actions { gap:8px; }
   .dashboard-app .user-info { display:none; }
   .dashboard-app .user-badge { padding:4px; }
 }
 @media (max-width:700px) {
-  .dashboard-app .platform-navbar { position:relative; flex-wrap:wrap; gap:10px; min-height:0; padding:10px 12px; }
+  .dashboard-app .platform-navbar { position:relative; flex-wrap:wrap; gap:10px; min-height:0; padding:8px 12px; }
   .dashboard-app .nav-brand { gap:6px; }
   .nav-brand-mark { --brand-mark-height:30px; }
   .dashboard-app .nav-brand-text { gap:2px; }
@@ -147,7 +143,6 @@
   .dashboard-app .nav-brand-text > span { font-size:7.5px; line-height:10px; letter-spacing:0; }
   .dashboard-app .nav-actions { gap:5px; flex-wrap:wrap; justify-content:center; max-width:100%; margin-left:0; }.dashboard-app .theme-toggle-btn > span,.dashboard-app .theme-toggle-btn > svg:last-child { display:none; }
   .dashboard-app .theme-toggle-btn { padding:8px; }.dashboard-app .workspace-logout { padding:8px; }
-  .workspace-search { order:3; flex-basis:100%; max-width:none; padding:10px 12px; }
   .workspace-shell { grid-template-columns:minmax(0,1fr); }
   .workspace-home { padding:14px; gap:16px; }.workspace-home-main { gap:14px; }
   .workspace-home .widget-box { padding:15px; }.workspace-home .widget-title { font-size:13px; }
@@ -235,5 +230,4 @@
 @media(max-width:700px) {
   .dashboard-app .nav-home { padding:7px 8px; min-height:34px; font-size:12px; }
   .dashboard-app .nav-admin { padding:7px 8px; min-height:34px; font-size:12px; }
-  .dashboard-app .workspace-search { order:4; flex:1 1 150px; min-width:0; margin-left:0; padding:9px 10px; }
 }

@@ -1,7 +1,7 @@
 import { NotificationBell } from '../features/notifications/NotificationBell';
 import { Link, useLocation } from 'react-router-dom';
 import { workspaceRoutes } from '../features/dashboard/navigation';
-import { Home, ShieldCheck, LogOut, Search } from 'lucide-react';
+import { Home, ShieldCheck, LogOut } from 'lucide-react';
 import brandLogo from '../assets/logo-source.png';
 import { User } from '../types';
 import { NavbarClock } from './NavbarClock';
@@ -9,10 +9,9 @@ import { ThemeToggle } from './ThemeToggle';
 
 interface NavbarProps {
   canManage: boolean; user: User; onOpenProfile: () => void; onLogout: () => void; onOpenNotifications: () => void;
-  query: string; onSearch: (query: string) => void;
 }
 
-export function Navbar({ canManage, user, onOpenProfile, onLogout, onOpenNotifications, query, onSearch }: NavbarProps) {
+export function Navbar({ canManage, user, onOpenProfile, onLogout, onOpenNotifications }: NavbarProps) {
   const location = useLocation();
   const isDashboard = location.pathname === '/' || location.pathname === workspaceRoutes.dashboard.path;
   const isAdmin = location.pathname.startsWith(workspaceRoutes.admin.path);
@@ -24,9 +23,6 @@ export function Navbar({ canManage, user, onOpenProfile, onLogout, onOpenNotific
       <span className="nav-brand-mark"><img src={brandLogo} alt="Đông Tây One" className="nav-brand-logo" /></span>
       <div className="nav-brand-text"><strong className="nav-brand-name">ĐÔNG TÂY ONE</strong><span>Everything In One Place</span></div>
     </Link>
-    <label className="workspace-search"><Search size={19} aria-hidden="true" />
-      <input type="search" aria-label="Tìm kiếm toàn hệ thống" placeholder="Tìm ứng dụng, công việc, ghi chú, sự kiện…" value={query} maxLength={200} onChange={event => onSearch(event.target.value)} />
-    </label>
     <div className="nav-actions">
       <Link to={workspaceRoutes.dashboard.path} className={`btn nav-home ${isDashboard ? 'is-active' : ''}`} aria-label="Về trang chủ" title="Về trang chủ">
         <Home size={18} aria-hidden="true" /><span>Trang chủ</span>
