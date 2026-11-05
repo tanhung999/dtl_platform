@@ -1,0 +1,42 @@
+/* Compact pinned controls keep the scroll area available to form fields. */
+dialog > header,
+dialog > form > header,
+.note-editor-dialog .modal-header {
+  position:sticky;
+  top:0;
+  z-index:5;
+  padding:10px 18px;
+  background:var(--bg-card-solid);
+}
+dialog > footer,
+dialog > form > footer,
+.note-editor-dialog .modal-footer {
+  position:sticky;
+  bottom:0;
+  z-index:5;
+  padding:9px 18px;
+  background:var(--bg-card-solid);
+}
+dialog > header h2, dialog > form > header h2 { margin:0;font-size:17px;line-height:1.4; }
+.calendar-event-dialog .calendar-dialog-header h2 { margin-top:2px; }
+.calendar-event-dialog .calendar-dialog-header,
+.task-dialog .task-dialog-header,
+.reschedule-dialog > header { padding:10px 18px; }
+.calendar-event-dialog .calendar-dialog-footer,
+.task-dialog .task-dialog-footer,
+.reschedule-dialog form > footer { padding:9px 18px; }
+.reschedule-dialog > header { border-bottom:1px solid var(--border); }
+.reschedule-dialog header p { margin-top:3px;line-height:1.4; }
+.note-editor-dialog .modal-content { overflow:visible; }
+.note-editor-dialog .modal-content > .modal-header { background:inherit; }
+.note-editor-dialog .modal-content .modal-footer { background:var(--bg-card-solid); }
+dialog > footer .btn, dialog > form > footer .btn,
+.note-editor-dialog .modal-footer .btn { min-height:34px;padding-top:7px;padding-bottom:7px; }
+@media(max-width:600px) {
+  dialog > header, dialog > form > header,
+  .calendar-event-dialog .calendar-dialog-header, .task-dialog .task-dialog-header,
+  .reschedule-dialog > header, .note-editor-dialog .modal-header { padding:10px 14px; }
+  dialog > footer, dialog > form > footer,
+  .calendar-event-dialog .calendar-dialog-footer, .task-dialog .task-dialog-footer,
+  .note-editor-dialog .modal-footer, .reschedule-dialog form > footer { padding:8px 14px; }
+}

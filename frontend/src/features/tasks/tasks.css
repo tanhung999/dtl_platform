@@ -41,6 +41,18 @@
 .task-pending-badge { padding: 3px 8px; background: var(--primary-light); color: var(--accent-text); border-radius: 12px; font-size: 0.65rem; font-weight: 700; white-space: nowrap; }
 .task-overdue-badge { align-self: flex-start; border: 1px solid #ef444440; border-radius: 8px; padding: 0.4rem 0.7rem; background: #ef444415; color: var(--error); font: 700 0.75rem var(--font-family); cursor: pointer; }
 .task-quick-form { display: flex; flex-direction: column; gap: 14px; }
+.task-create-fields { display:flex; flex-direction:column; gap:14px; border:0; padding:0; margin:0; min-width:0; }
+.task-create-fields > .reminder-fields { margin-top:0; }
+.task-dialog.task-create-dialog { width:min(590px,calc(100vw - 24px)); }
+.task-create-dialog h2 { display:flex;align-items:center;gap:8px; }
+.task-create-dialog .task-create-fields { padding:16px 20px; }
+.task-create-dialog .quick-input-bar { display:grid;grid-template-columns:minmax(0,1fr) 145px;align-items:end;gap:12px; }
+.task-create-dialog .task-create-title > input { width:100%;min-width:0;min-height:40px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--input-bg);color:var(--text-main);font:inherit;font-weight:400; }
+.task-create-dialog .task-quick-deadline { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.task-create-dialog .task-create-actions { position:sticky;bottom:0;z-index:5;gap:8px;padding:10px 20px;border-top:1px solid var(--border);background:var(--bg-card-solid); }
+.task-create-error { margin:0 20px; }
+.task-create-dialog .task-create-actions > .btn-outline { min-width:80px; }
+@media(max-width:420px) { .task-create-dialog .quick-input-bar { grid-template-columns:minmax(0,1fr); }.task-create-dialog .task-create-priority { max-width:160px; }.task-create-dialog .task-create-actions .btn { min-width:0;flex:1; } }
 .tasks-widget .quick-input-bar { display:grid; grid-template-columns:minmax(0,1fr) 150px; align-items:end; gap:12px; }
 .task-create-field { display:grid; gap:7px; min-width:0; color:var(--text-main); font-size:13px; font-weight:600; line-height:1.5; }
 .tasks-widget .task-create-title > input { width:100%; min-height:40px; font-size:14px; font-weight:400; }

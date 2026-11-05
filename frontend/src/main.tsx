@@ -4,6 +4,7 @@ import App from './App'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import './themes.css'
+import './components/compact-dialogs.css'
 import { installVietnameseValidation } from './services/formValidation'
 
 const removeValidation = installVietnameseValidation()

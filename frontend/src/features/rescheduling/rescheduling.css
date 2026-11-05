@@ -42,6 +42,7 @@
 
 .btn.reschedule-open { background:var(--primary-light); color:var(--accent-text); border-color:color-mix(in srgb,var(--accent) 35%,var(--border)); font-weight:600; }
 .btn.reschedule-open:hover { background:var(--primary-light); color:var(--accent-text); border-color:var(--accent); }
+.reschedule-dialog .dialog-section-tabs { padding:12px 22px; }
 
 .reschedule-dialog form > fieldset { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .reschedule-dialog form > fieldset > * { grid-column:1/-1; min-width:0; }

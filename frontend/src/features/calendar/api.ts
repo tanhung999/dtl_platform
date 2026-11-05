@@ -1,3 +1,4 @@
+import type { CalendarTaskGroup } from '../tasks/types';
 import type { CalendarDays } from './types';
 import { CalendarEvent, CalendarEventInput } from './types';
 import { requestWithTimeout } from '../../services/requestTimeout';
@@ -13,7 +14,7 @@ const matches = (event: CalendarEvent, payload: Partial<CalendarEventInput>) => 
 });
 
 export const calendarApi = {
-  days: (start: string, end: string, signal?: AbortSignal) => requestWithTimeout<CalendarDays>(`/api/calendar/days?${new URLSearchParams({ start, end })}`, { signal }),
+  days: (start: string, end: string, signal?: AbortSignal, taskGroup: CalendarTaskGroup = 'all') => requestWithTimeout<CalendarDays>(`/api/calendar/days?${new URLSearchParams({ start, end, task_group: taskGroup })}`, { signal }),
   list(start: string, end: string, signal?: AbortSignal, includeEvents = true, includeNotes = true, offset = 0) {
     const query = new URLSearchParams({ start, end, include_events: String(includeEvents), include_notes: String(includeNotes), offset: String(offset) });
     return requestWithTimeout<EventRange>(`${base}/collection?${query}`, { signal });

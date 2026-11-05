@@ -1,3 +1,4 @@
+import type { CalendarTaskGroup } from '../../tasks/types';
 import { CSSProperties, useEffect, useRef, useState } from 'react';
 import { useDialogDismiss } from '../../../components/useDialogDismiss';
 import { CalendarDays, CheckSquare, Clock, Eye, LoaderCircle, Plus, StickyNote, X } from 'lucide-react';
@@ -20,6 +21,7 @@ interface Props {
   showEvents: boolean;
   showNotes: boolean;
   showTasks: boolean;
+  taskGroup?: CalendarTaskGroup;
   onClose: () => void;
   onCreate: (draft: EventDraft) => void;
   onSelect: (event: CalendarEvent, day: string, signal: AbortSignal) => Promise<void>;
@@ -31,7 +33,7 @@ function OpeningFeedback({ pending, error }: { pending: boolean; error?: string 
   return null;
 }
 
-export function DayItemsDialog({ day, showEvents, showNotes, showTasks, onClose, onCreate, onSelect }: Props) {
+export function DayItemsDialog({ day, showEvents, showNotes, showTasks, taskGroup = 'all', onClose, onCreate, onSelect }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opening = useLatestRequest();
   const pendingId = useRef<string>();
@@ -56,7 +58,7 @@ export function DayItemsDialog({ day, showEvents, showNotes, showTasks, onClose,
   };
   const key = dateKey(day), end = addDays(day, 1);
   const events = useCalendarEvents(toTimestamp(day), toTimestamp(end), showEvents, showNotes);
-  const deadlines = useTaskRange(key, dateKey(end), showTasks);
+  const deadlines = useTaskRange(key, dateKey(end), showTasks, taskGroup);
   const tasks = useTasks();
   const group = calendarDayGroups(events.events, deadlines.tasks, day, 1)[0];
   const sections = [
@@ -111,6 +113,6 @@ export function DayItemsDialog({ day, showEvents, showNotes, showTasks, onClose,
         {deadlines.truncated && <button type="button" className="btn btn-outline btn-sm" disabled={deadlines.loading} onClick={() => { void deadlines.loadMore(); }}>Tải thêm công việc</button>}
       </div>}
     </div>
-    <footer><button type="button" className="btn btn-primary btn-sm" onClick={() => { close(); onCreate({ date: day }); }}><Plus size={16} />Tạo sự kiện</button></footer>
+    <footer><button type="button" className="btn btn-primary btn-sm" onClick={() => { close(); onCreate({ date: day }); }}><Plus size={16} />Thêm lịch</button></footer>
   </dialog>;
 }

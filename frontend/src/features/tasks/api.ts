@@ -1,9 +1,9 @@
 import { Task } from '../../types';
-import { TaskInput, TaskFilter, TaskCollection, TaskScope } from './types';
+import { TaskInput, TaskFilter, TaskCollection, TaskScope, CalendarTaskGroup } from './types';
 import { requestWithTimeout } from '../../services/requestTimeout';
 import { CreateAttempt, createWithRecovery, deleteWithRecovery, recoverMutation } from '../../services/mutationRecovery';
 
-export interface TaskRange { items: Task[]; total: number; truncated: boolean }
+export interface TaskRange { items: Task[]; total: number; truncated: boolean; assigned_total: number; other_total: number }
 const matchesTask = (task: Task, payload: Partial<TaskInput> & { is_completed?: boolean }) => Object.entries(payload).every(([key, value]) => {
   if (key.startsWith('expected_')) return true;
   if (key === 'description') return (task.description ?? '') === (value ?? '');
@@ -20,12 +20,12 @@ const matchesTask = (task: Task, payload: Partial<TaskInput> & { is_completed?: 
 
 export const tasksApi = {
   get(id: string, signal?: AbortSignal) { return requestWithTimeout<Task>(`/api/tasks/${encodeURIComponent(id)}`, { cache: 'no-store', signal }, 5000); },
-  collection(filter: TaskFilter, scope: TaskScope, offset: number, overdueOffset: number, signal?: AbortSignal, after?: string, overdueAfter?: string, limit = 8, query = '') {
-    const params = new URLSearchParams({ filter, scope, offset: String(offset), overdue_offset: String(overdueOffset), limit: String(limit), q: query });
+  collection(filter: TaskFilter, scope: TaskScope, offset: number, overdueOffset: number, signal?: AbortSignal, after?: string, overdueAfter?: string, limit = 8, query = '', taskGroup: CalendarTaskGroup = 'all') {
+    const params = new URLSearchParams({ filter, scope, offset: String(offset), overdue_offset: String(overdueOffset), limit: String(limit), q: query, task_group: taskGroup });
     if (after) params.set('after', after); if (overdueAfter) params.set('overdue_after', overdueAfter);
     return requestWithTimeout<TaskCollection>(`/api/tasks/collection?${params}`, { signal });
   },
-  calendar(start: string, end: string, signal?: AbortSignal, offset = 0) { return requestWithTimeout<TaskRange>(`/api/tasks/calendar/page?${new URLSearchParams({ start, end, offset: String(offset) })}`, { signal }); },
+  calendar(start: string, end: string, signal?: AbortSignal, offset = 0, taskGroup: CalendarTaskGroup = 'all') { return requestWithTimeout<TaskRange>(`/api/tasks/calendar/page?${new URLSearchParams({ start, end, offset: String(offset), task_group: taskGroup })}`, { signal }); },
   create(payload: TaskInput, attempt: CreateAttempt<TaskInput>) {
     return createWithRecovery<Task, TaskInput>('/api/tasks', payload, attempt, matchesTask,
       (task, input) => tasksApi.update(task.id, { ...input, expected_version: task.version }));
