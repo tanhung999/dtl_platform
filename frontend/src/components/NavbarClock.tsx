@@ -13,5 +13,10 @@ export function NavbarClock() {
     const timer = window.setInterval(() => setTime(currentTime()), 1000);
     return () => window.clearInterval(timer);
   }, []);
-  return <div className="nav-clock"><Clock size={15} /><span className="nav-clock-time">{time}</span></div>;
+  const [hours, minutes, seconds] = time.split(':');
+  return <div className="nav-clock"><Clock size={20} aria-hidden="true" />
+    <time className="nav-clock-time" dateTime={time} aria-label={`Giờ hiện tại: ${hours}:${minutes}:${seconds}`}>
+      <span className="nav-clock-main">{hours}:{minutes}</span><span className="nav-clock-seconds">:{seconds}</span>
+    </time>
+  </div>;
 }
