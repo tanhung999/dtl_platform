@@ -16,6 +16,7 @@ from app.core.database import Base, get_db
 from app.core.config import settings
 from app.core.security import create_access_token, hash_password
 from app.db.models import User
+from app.db import task_history as _task_history  # noqa: F401 register lazily used result history before create_all
 from app.main import app
 from app.core.realtime import prepare_changes, broadcast
 
