@@ -57,7 +57,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
     if (owner) query.set('owner', owner); else query.delete('owner');
     navigate(workspaceRoutes.calendar.path + (query.size ? `?${query}` : ''));
   };
-  const search = (query: string) => navigate(query.trim() ? `${workspaceRoutes.search.path}?${new URLSearchParams({ q: query })}` : workspaceRoutes.dashboard.path, { replace: activeTab === 'search' });
   useEffect(() => {
     const open = (event: Event) => {
       const owner = (event as CustomEvent<unknown>).detail;
@@ -72,7 +71,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onUserUpdate
     <SharingCapabilityContext.Provider value={access.can_share && !access.loading && !access.error}><TasksProvider key={user.id} canAssignTasks={access.can_assign_tasks && !access.loading && !access.error} fullPage={activeTab === 'tasks'} collectionEnabled={activeTab === 'dashboard' || activeTab === 'tasks' || activeTab === 'calendar'}><NotificationsProvider userId={user.id}><div className={`dashboard-app${activeTab === 'calendar' ? ' calendar-is-active' : ''}`}>
       <DashboardBranding page={activeTab} notFound={!activeTab && location.pathname !== '/'} />
       <RescheduleToast />
-      <Navbar canManage={(access.can_access_admin ?? access.can_manage) && !access.loading && !access.error} user={user} query={searchQuery} onSearch={search}
+      <Navbar canManage={(access.can_access_admin ?? access.can_manage) && !access.loading && !access.error} user={user}
         onOpenProfile={() => navigate(workspaceRoutes.profile.path)} onOpenNotifications={() => navigate(workspaceRoutes.notifications.path)} onLogout={onLogout} />
       <div className="workspace-shell">
         <div className="workspace-content"><main className="workspace-main" id="workspace-main">
