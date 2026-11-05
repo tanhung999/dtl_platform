@@ -85,12 +85,19 @@ class TaskReminderPreference(Base):
 class ExternalNotificationState(Base):
     """Bind an external delivery to one confirmed account link and read revision."""
     __tablename__ = 'external_notification_states'
+    __table_args__ = (
+        Index("ix_external_notification_link_id", "link_operation_id", "external_id"),
+    )
     notification_id = Column(String(36), ForeignKey('notifications.id', ondelete='CASCADE'), primary_key=True)
     external_id = Column(String(160), nullable=False)
     identity_subject = Column(String(255), nullable=False)
     external_user_id = Column(String(100), nullable=False)
     link_operation_id = Column(String(36), nullable=False)
     read_version = Column(Integer, nullable=False, default=0, server_default='0')
+    source_read_version = Column(Integer, nullable=False, default=0, server_default="0")
+    source_visible = Column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
 
 
 class NotificationReadOutbox(Base):

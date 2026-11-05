@@ -4,6 +4,7 @@ from app.db.applications import (
     Application,
     ApplicationPolicyOwnership,
     UserApplicationAccess,
+    ApplicationProvisioningPolicy,
 )
 from app.db.models import User
 from app.db.notifications import ExternalNotificationState as State
@@ -21,6 +22,11 @@ def application_access(user_id, source):
             UserApplicationAccess.application_key == source,
             UserApplicationAccess.enabled.is_(True),
             Application.is_active.is_(True),
+            ~select(ApplicationProvisioningPolicy.user_id).where(
+                ApplicationProvisioningPolicy.user_id == UserApplicationAccess.user_id,
+                ApplicationProvisioningPolicy.application_key == UserApplicationAccess.application_key,
+                ApplicationProvisioningPolicy.unlink_operation_id.is_not(None),
+            ).correlate(UserApplicationAccess).exists(),
         )
     )
 
@@ -42,6 +48,7 @@ def external_visibility():
         )
         .where(
             State.notification_id == N.id,
+            State.source_visible.is_(True),
             User.is_active.is_(True),
             State.identity_subject == User.identity_subject,
             State.external_user_id == ApplicationPolicyOwnership.external_user_id,

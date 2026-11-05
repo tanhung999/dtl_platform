@@ -133,7 +133,14 @@ async def lifespan(app: FastAPI):
         await upgrade(conn)
     await seed_initial_data()
     try:
-        async with listen(settings.DATABASE_URL), run_worker(settings.NOTIFICATIONS_WORKER_ENABLED), run_cleanup_worker(settings.MAINTENANCE_ENABLED):
+        from app.modules.notifications.source_bridge import run_source_bridge
+
+        async with (
+            listen(settings.DATABASE_URL),
+            run_worker(settings.NOTIFICATIONS_WORKER_ENABLED),
+            run_cleanup_worker(settings.MAINTENANCE_ENABLED),
+            run_source_bridge(),
+        ):
             yield
     finally:
         await engine.dispose()

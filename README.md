@@ -232,3 +232,13 @@ Lịch sử cũ chưa có ràng buộc liên kết vẫn được giữ trong da
 
 Migration notifications_006_external_read_sync chỉ thêm bảng ràng buộc và outbox, không xóa thông báo hoặc dữ liệu nghiệp vụ.
 Ba website đích cần triển khai hợp đồng này trước khi luồng thông báo và đồng bộ đã đọc hai chiều hoạt động đầy đủ.
+
+## Source notification adapters
+
+To enable the built-in background bridge, deploy the matching Workflow, Assets and Booking 360 source adapters and their additive migrations first. Set each source's dedicated `PLATFORM_NOTIFICATIONS_SECRET` to match Platform's existing `NOTIFICATIONS_WORKFLOWS_SECRET`, `NOTIFICATIONS_ITAM_SECRET` or `NOTIFICATIONS_BOOKINGREPORTS_SECRET`. Keep all three keys independent and server-only.
+
+Set the corresponding `NOTIFICATIONS_WORKFLOWS_SYNC_URL`, `NOTIFICATIONS_ITAM_SYNC_URL` and `NOTIFICATIONS_BOOKINGREPORTS_SYNC_URL` to the private base URL ending in `/api/integrations/platform/notification-sync` (without `/feed` or `/read`). Blank URLs disable that source. No additional public port is required. `NOTIFICATIONS_SYNC_INTERVAL_SECONDS` defaults to 2, with bounded concurrency/batches and per-link retry backoff. One elected PostgreSQL worker performs reconciliation; reads/writes in user forms do not wait for another website. This provides near-realtime reconciliation followed by SSE delivery, rather than zero-delay source webhooks.
+
+Only active users with an active app grant and a confirmed account binding are synchronized. Pending unlink operations stop access. Assets receives the current signed Platform permission/role snapshot, without writing its local roles. Historical data is paginated and duplicates do not overwrite saved content/read state. Missing/deleted/inaccessible source notifications are hidden while their Platform history is preserved. Read changes remain in the durable outbox during outages; stale revisions cannot overwrite newer clicks or acknowledge a newer pending change.
+
+Migration `notifications_007_source_bridge` adds source revision/visibility metadata and a link lookup index. It does not delete notices, users or business records. Rehearse migrations on isolated databases and back up all databases before coordinated deployment. Destination adapters must be deployed before enabling the URLs. Existing signed notification-ingress APIs remain available for compatibility.

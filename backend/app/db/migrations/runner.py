@@ -2,18 +2,18 @@
 from sqlalchemy import inspect, text
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.db import models, calendar, organization
-from app.db import note_scheduling
-from app.db import create_requests
-from app.db import access
+from app.db import models, calendar, organization  # noqa: F401 - register model tables before migrations
+from app.db import note_scheduling  # noqa: F401 - register model tables before migrations
+from app.db import create_requests  # noqa: F401 - register model tables before migrations
+from app.db import access  # noqa: F401 - register model tables before migrations
+from app.db import notifications  # noqa: F401 - register model tables before migrations
+from app.db import calendar_exceptions  # noqa: F401 - register model tables before migrations
+from app.db import applications  # noqa: F401 - register model tables before migrations
+from app.db import task_history  # noqa: F401 - register model tables before migrations
 from app.db import workspace_versions
 from app.db import schedule_changes
 from .sharing_reliability import migrate_sharing_reliability
 from .calendar_sharing import migrate_calendar_privacy, migrate_access_catalog
-from app.db import notifications
-from app.db import calendar_exceptions
-from app.db import applications
-from app.db import task_history
 from .notifications import migrate_notifications
 from .task_deadlines import migrate_task_deadlines
 from .note_versions import migrate_note_versions
@@ -388,6 +388,18 @@ async def upgrade(conn):
         from .notification_sync import migrate_notification_sync
         await migrate_notification_sync(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+    version = "notifications_007_source_bridge"
+    if not await conn.scalar(
+        text("SELECT version FROM schema_migrations WHERE version=:version"),
+        {"version": version},
+    ):
+        from .notification_bridge import migrate_notification_bridge
+
+        await migrate_notification_bridge(conn)
+        await conn.execute(
+            text("INSERT INTO schema_migrations (version) VALUES (:version)"),
+            {"version": version},
+        )
 
 async def run():
     try:
