@@ -11,6 +11,7 @@ from app.db.note_scheduling import NoteCalendarSchedule as Schedule
 from app.db.models import Task, User, utcnow
 from app.modules.auth.dependencies import get_current_user
 from app.modules.tasks.deadlines import VN
+from app.modules.tasks.calendar_filters import CalendarTaskGroup, calendar_task_group
 from app.modules.tasks.queries import overdue_condition
 
 from .recurrence import occurrence_count, occurrence_page, overlaps, attach_exclusions
@@ -62,7 +63,7 @@ async def events_page(user: UserArg, db: DbArg, start: datetime, end: datetime, 
 
 
 @router.get("/days")
-async def day_counts(user: UserArg, db: DbArg, start: date, end: date):
+async def day_counts(user: UserArg, db: DbArg, start: date, end: date, task_group: CalendarTaskGroup = 'all'):
     size = (end - start).days
     if size <= 0 or size > 93:
         raise HTTPException(422, "Khoảng xem phải lớn hơn 0 và tối đa 93 ngày.")
@@ -86,7 +87,7 @@ async def day_counts(user: UserArg, db: DbArg, start: date, end: date):
             result[day][category] += occurrence_count(row, begins, finishes)
     attention = and_(Task.is_completed.is_(False), (Task.priority == "URGENT") | overdue_condition(utcnow()))
     tasks = (await db.execute(select(Task.due_date, func.count(), func.max(case((attention, 1), else_=0)))
-        .where(visible_tasks(user.id), Task.due_date >= start, Task.due_date < end).group_by(Task.due_date))).all()
+        .where(visible_tasks(user.id), calendar_task_group(user.id, task_group), Task.due_date >= start, Task.due_date < end).group_by(Task.due_date))).all()
     for day, count, urgent in tasks:
         result[str(day)].update(tasks=count, attention=bool(urgent))
     return result

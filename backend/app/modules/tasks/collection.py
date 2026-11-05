@@ -12,6 +12,7 @@ from app.modules.tasks.deadlines import VN
 from app.modules.tasks.schemas import TaskResponse
 from .queries import overdue_condition, task_order, after_task
 from .access import visible_tasks, serialize_tasks
+from .calendar_filters import CalendarTaskGroup, calendar_task_group, received_assignment
 from app.db.models import TaskFollower
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
@@ -21,13 +22,14 @@ TaskFilter = Literal["ALL", "PENDING", "DONE", "OVERDUE"]
 TaskScope = Literal["all", "assigned_to_me", "created_by_me", "following"]
 
 @router.get("/collection")
-async def collection(user: UserArg, db: DbArg, filter: TaskFilter = "ALL", scope: TaskScope = "all", offset: int = Query(0, ge=0), limit: int = Query(25, ge=1, le=100), overdue_offset: int = Query(0, ge=0), after: str | None = Query(None, max_length=64), overdue_after: str | None = Query(None, max_length=64), q: str = Query('', max_length=200)):
+async def collection(user: UserArg, db: DbArg, filter: TaskFilter = "ALL", scope: TaskScope = "all", offset: int = Query(0, ge=0), limit: int = Query(25, ge=1, le=100), overdue_offset: int = Query(0, ge=0), after: str | None = Query(None, max_length=64), overdue_after: str | None = Query(None, max_length=64), q: str = Query('', max_length=200), task_group: CalendarTaskGroup = 'all'):
     now = utcnow()
     local = now.astimezone(VN)
     overdue = overdue_condition(now)
     followed = Task.id.in_(select(TaskFollower.task_id).where(TaskFollower.user_id == user.id))
     owned = {"all": visible_tasks(user.id), "assigned_to_me": Task.assignee_id == user.id,
         "created_by_me": and_(Task.user_id == user.id, Task.assignee_id != user.id), "following": followed}[scope]
+    owned = and_(owned, calendar_task_group(user.id, task_group))
     counts = (await db.execute(select(func.count(), func.count().filter(Task.is_completed.is_(False)), func.count().filter(overdue),
         func.min(Task.due_time).filter(Task.is_completed.is_(False), Task.due_date == local.date(), Task.due_time > local.strftime("%H:%M")),
         func.count().filter(Task.is_completed.is_(False), Task.due_date.is_not(None))).where(owned))).one()
@@ -67,15 +69,17 @@ async def calendar_tasks(user: UserArg, db: DbArg, start: date, end: date):
     return await serialize_tasks(db, rows, user)
 
 @router.get("/calendar/page")
-async def calendar_page(user: UserArg, db: DbArg, start: date, end: date, limit: int = Query(500, ge=1, le=500), offset: int = Query(0, ge=0)):
+async def calendar_page(user: UserArg, db: DbArg, start: date, end: date, limit: int = Query(500, ge=1, le=500), offset: int = Query(0, ge=0), task_group: CalendarTaskGroup = 'all'):
     if end <= start or (end - start).days > 93:
         raise HTTPException(422, "Khoảng xem phải lớn hơn 0 và tối đa 93 ngày.")
     owned = (visible_tasks(user.id), Task.due_date >= start, Task.due_date < end)
-    total = await db.scalar(select(func.count()).select_from(Task).where(*owned))
+    assigned_total, other_total = (await db.execute(select(func.count().filter(received_assignment(user.id)), func.count().filter(~received_assignment(user.id))).where(*owned))).one()
+    owned = (*owned, calendar_task_group(user.id, task_group))
+    total = {"all": assigned_total + other_total, "assigned": assigned_total, "other": other_total, "none": 0}[task_group]
     rows = (await db.scalars(select(Task).where(*owned).order_by(*task_order(db)).offset(offset).limit(limit))).all()
     items = await serialize_tasks(db, rows, user)
     for item in items: item["description"] = None
-    return {"items": items, "total": total, "offset": offset, "limit": limit, "truncated": offset + len(items) < total}
+    return {"items": items, "total": total, "assigned_total": assigned_total, "other_total": other_total, "offset": offset, "limit": limit, "truncated": offset + len(items) < total}
 
 @router.get("/reminders/schedule", deprecated=True)
 async def reminder_schedule(user: UserArg):

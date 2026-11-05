@@ -24,3 +24,6 @@ export interface TaskCollection {
   counts: Record<TaskFilter, number>; offset: number; limit: number; total: number; has_more: boolean;
   overdue_offset: number; overdue_has_more: boolean;
 }
+
+export type CalendarTaskGroup = 'all' | 'assigned' | 'other' | 'none';
+export const calendarTaskGroup = (showTasks: boolean, showAssigned: boolean): CalendarTaskGroup => showTasks ? showAssigned ? 'all' : 'other' : showAssigned ? 'assigned' : 'none';

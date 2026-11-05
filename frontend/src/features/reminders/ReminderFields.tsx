@@ -10,8 +10,8 @@ import { ReminderValue, noReminder, reminderAvailable, reminderCutoff, reminderB
 export { noReminder, reminderValue, sameReminder } from './reminderUtils';
 export type { ReminderValue } from './reminderUtils';
 
-export function ReminderFields({ eventId, value, onChange, anchor: savedAnchor, allDay, endsAt: savedEnd, recurrence = 'NONE', disabled = false, allowUnscheduled = false, heading = 'Thông báo' }: {
-  eventId?: string; recurrence?: import("../calendar/types").Recurrence; value: ReminderValue; onChange: (value: ReminderValue) => void; anchor?: string | null; allDay: boolean; endsAt?: string | null; disabled?: boolean; allowUnscheduled?: boolean; heading?: string;
+export function ReminderFields({ eventId, value, onChange, anchor: savedAnchor, allDay, endsAt: savedEnd, recurrence = 'NONE', disabled = false, allowUnscheduled = false, heading = 'Thông báo', showExpiredWarning = true }: {
+  eventId?: string; recurrence?: import("../calendar/types").Recurrence; value: ReminderValue; onChange: (value: ReminderValue) => void; anchor?: string | null; allDay: boolean; endsAt?: string | null; disabled?: boolean; allowUnscheduled?: boolean; heading?: string; showExpiredWarning?: boolean;
 }) {
   const [now, setNow] = useState(Date.now);
   const calendarPeriod = recurrence === 'DAILY' ? 86400000 : recurrence === 'WEEKLY' ? 7 * 86400000 : 0;
@@ -98,7 +98,7 @@ export function ReminderFields({ eventId, value, onChange, anchor: savedAnchor, 
       <div><span>Giờ thông báo</span><TimePicker label="Giờ thông báo" required disabled={locked} value={eventTime(value.reminder_at)} onChange={time => { if (time) onChange({ ...value, reminder_minutes: null, reminder_at: toTimestamp(eventDate(value.reminder_at!), time) }); }} /></div></div>}
     {!available && hasReminder ? <p className="reminder-warning" role="alert">Ngày giờ bắt đầu hoặc kết thúc chưa hợp lệ. Hãy kiểm tra lại lịch. Chọn <strong>Không nhắc</strong> để bỏ thông báo này, hoặc chỉnh lại lịch để đặt thông báo mới.</p>
       : beyondLimit ? <p className="reminder-warning" role="alert"><strong>{limitMessage}</strong><br />Chọn ngày hoặc giờ thông báo khác hoặc chọn Không nhắc.</p> : !anchor && !allowUnscheduled ? <p>Chọn ngày bắt đầu và giờ để đặt thông báo trước giờ bắt đầu.</p> : !available ? <p>Ngày giờ bắt đầu hoặc kết thúc chưa hợp lệ. Hãy kiểm tra lại lịch.</p> : allDay && value.reminder_minutes != null ? <p className="reminder-warning">{'V\u1edbi m\u1ee5c c\u1ea3 ng\u00e0y, h\u00e3y ch\u1ecdn gi\u1edd th\u00f4ng b\u00e1o c\u1ee5 th\u1ec3.'}</p>
-      : stamp ? expired ? <p className="reminder-warning"><strong>{expiredMessage}</strong><br />Chọn {pastDay ? 'ngày' : 'giờ'} thông báo khác hoặc chọn Không nhắc.</p>
+      : stamp ? expired ? showExpiredWarning ? <p className="reminder-warning"><strong>{expiredMessage}</strong><br />Chọn {pastDay ? 'ngày' : 'giờ'} thông báo khác hoặc chọn Không nhắc.</p> : null
         : serverKey && next?.key !== serverKey ? <p role="status">Đang tính thông báo tiếp theo…</p> : serverKey && next?.error ? <p className="reminder-warning" role="alert">{next.error} <button type="button" className="btn btn-outline btn-sm" onClick={() => setRetry(value => value + 1)}>Thử lại</button></p> : serverKey && !displayStamp ? <p>Hiện không có thông báo tiếp theo.</p> : <p>{period ? 'Thông báo tiếp theo: ' : 'Thông báo lúc '}{label} (giờ Việt Nam).{period ? recurrence === 'DAILY' ? ' Lặp hằng ngày theo lịch.' : ' Lặp hằng tuần theo lịch.' : calendarPeriod || allDay ? ' Chỉ gửi một lần.' : ''}</p>
         : customInitial === null ? <p>Không còn thời điểm hợp lệ trước hạn hoặc giờ kết thúc. Chọn Không nhắc hoặc điều chỉnh lịch để có thời điểm thông báo phù hợp.</p>
         : <p>Chọn thời điểm để nhận thông báo.</p>}
