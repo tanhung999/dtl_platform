@@ -80,3 +80,25 @@ class TaskReminderPreference(Base):
     reminder_at = Column(UTCDateTime(), nullable=True)
     version = Column(Integer, nullable=False, default=0, server_default='0')
     updated_at = Column(UTCDateTime(), nullable=False, default=utcnow)
+
+
+class ExternalNotificationState(Base):
+    """Bind an external delivery to one confirmed account link and read revision."""
+    __tablename__ = 'external_notification_states'
+    notification_id = Column(String(36), ForeignKey('notifications.id', ondelete='CASCADE'), primary_key=True)
+    external_id = Column(String(160), nullable=False)
+    identity_subject = Column(String(255), nullable=False)
+    external_user_id = Column(String(100), nullable=False)
+    link_operation_id = Column(String(36), nullable=False)
+    read_version = Column(Integer, nullable=False, default=0, server_default='0')
+
+
+class NotificationReadOutbox(Base):
+    """Latest local read state survives restarts until the source acknowledges it."""
+    __tablename__ = 'notification_read_outbox'
+    __table_args__ = (Index('ix_notification_read_outbox_pending', 'updated_at', 'notification_id',
+        postgresql_where=text('acknowledged_revision < revision'), sqlite_where=text('acknowledged_revision < revision')), )
+    notification_id = Column(String(36), ForeignKey('external_notification_states.notification_id', ondelete='CASCADE'), primary_key=True)
+    revision = Column(Integer, nullable=False)
+    acknowledged_revision = Column(Integer, nullable=False, default=0, server_default='0')
+    updated_at = Column(UTCDateTime(), nullable=False, default=utcnow)

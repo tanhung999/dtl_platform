@@ -1,12 +1,12 @@
 import { appsApi, EnterpriseApp } from './api';
 import { FeatureIcon } from '../../components/FeatureIcon';
-import { FeatureIconName, brandIconCells } from '../../assets/featureIcons';
+import { FeatureIconName, featureIcons } from '../../assets/featureIcons';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, ExternalLink, LayoutGrid } from 'lucide-react';
 import { applicationHomePath } from './navigation';
 import { getSessionKey } from '../../services/api';
 
-const iconName = (value: string): FeatureIconName => value === 'tasks' || value in brandIconCells ? value as FeatureIconName : 'platform';
+const iconName = (value: string): FeatureIconName => Object.prototype.hasOwnProperty.call(featureIcons, value) ? value as FeatureIconName : 'platform';
 let appsCache: { session: string; items: EnterpriseApp[] } | undefined;
 
 export function AppLauncherWidget({ results, detailed = false, onOpenAll }: {

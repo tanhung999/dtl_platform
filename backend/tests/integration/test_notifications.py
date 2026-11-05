@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 from sqlalchemy import func, select
 from tests.support import api_case as test_calendar
+from tests.support.notification_fixtures import bind_history
 from app.core.config import settings
 from app.db.models import Task
 from app.db.notifications import Notification, NotificationJob
@@ -21,7 +22,13 @@ DAY = datetime(2026, 10, 20, 1, tzinfo=UTC)
 DUE = datetime(2026, 10, 20, 9, tzinfo=UTC)
 
 class NotificationsTests(unittest.IsolatedAsyncioTestCase):
-    asyncSetUp = test_calendar.ApiTestCase.asyncSetUp
+    async def asyncSetUp(self):
+        await test_calendar.ApiTestCase.asyncSetUp(self)
+        from tests.support.notification_fixtures import grants
+        async with self.sessions() as db:
+            await grants(db)
+            await bind_history(db)
+            await db.commit()
     asyncTearDown = test_calendar.ApiTestCase.asyncTearDown
     request = test_calendar.ApiTestCase.request
 
@@ -34,6 +41,7 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
     async def tick(self, now):
         async with self.sessions() as db:
             count = await deliver_batch(db, now)
+            await bind_history(db)
             await db.commit()
             return count
 
@@ -85,6 +93,7 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
         async with self.sessions() as db:
             db.add_all([Notification(user_id='alice', source='workflows', event_key='external-'+str(i), fingerprint='test', kind='external.info',
                 title='Delivery '+str(i), resource_type='workflows.record', resource_id='same-record', occurred_at=DAY) for i in range(2)])
+            await bind_history(db)
             await db.commit()
         preview = (await self.request('GET', '/api/notifications/summary'))[1]['preview']
         self.assertEqual(len(preview), 2)
@@ -120,6 +129,7 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
         async with self.sessions() as db:
             db.add_all([Notification(user_id='alice', source='workflows', event_key=str(i), fingerprint='x'*64, kind='external.info',
                 title=f'Notice {i}', occurred_at=stamp, created_at=stamp) for i in range(61)])
+            await bind_history(db)
             await db.commit()
         ids, cursor = [], None
         for _ in range(3):
@@ -136,6 +146,17 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.request('GET', '/api/notifications/summary'))[1]['unread_count'], 0)
 
     async def signed(self, source, payload, timestamp=None, signature_source=None):
+        from tests.support.notification_fixtures import link
+        name = payload.get('recipient_user_id', 'alice')
+        if name in ('alice', 'bob'):
+            async with self.sessions() as db:
+                owner = await link(db, name, source)
+                payload = {**payload, 'recipient_subject': name+'-subject', 'external_user_id': owner.external_user_id,
+                           'link_operation_id': owner.operation_id}
+                await bind_history(db)
+                await db.commit()
+        else:
+            payload = {**payload, 'recipient_subject': 'missing-subject', 'external_user_id': 'missing', 'link_operation_id': 'missing'}
         stamp = str(timestamp or int(time.time()))
         secret = 'integration-test-key-' + 'x'*32
         body = json.dumps(payload).encode()
@@ -173,6 +194,7 @@ class NotificationsTests(unittest.IsolatedAsyncioTestCase):
     async def test_legacy_bootstrap_does_not_invent_reminders(self):
         async with self.sessions() as db:
             db.add_all([Task(user_id='alice', title=f'Existing {i}', due_date='2026-12-20') for i in range(520)])
+            await bind_history(db)
             await db.commit()
         async with self.engine.begin() as conn:
             await migrate_notifications(conn); await migrate_notifications(conn)

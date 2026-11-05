@@ -6,11 +6,12 @@ import time
 from datetime import datetime, timezone
 from unittest.mock import patch
 import jwt
-from sqlalchemy import event
+from sqlalchemy import event, select
 from tests.support.api_case import ApiTestCase
 from app.core.config import settings
 from app.core.security import create_sso_ticket
 from app.db.models import User
+from app.db.applications import UserApplicationAccess, ApplicationPolicyOwnership
 from app.db.notifications import Notification
 
 SIGNING = 'platform-only-signing-key-for-tests-123456'
@@ -26,6 +27,8 @@ class NotificationApiAccessTests(ApiTestCase):
             setting.start()
             self.addCleanup(setting.stop)
         async with self.sessions() as db:
+            from tests.support.notification_fixtures import grants, bind_notice
+            await grants(db, linked=True)
             for name in ('alice', 'bob'):
                 user = await db.get(User, name)
                 user.allowed_apps = 'bookingreports,workflows,itam'
@@ -35,6 +38,9 @@ class NotificationApiAccessTests(ApiTestCase):
                     db.add(Notification(user_id=owner, source='workflows', event_key=str(i), fingerprint='test', kind='external.info',
                                         title=f'{owner}-{i}', resource_type='workflows.record', resource_id=str(i), action_path=f'/records/{i}',
                                         occurred_at=now, created_at=now))
+            await db.flush()
+            for notice in (await db.scalars(select(Notification))).all():
+                await bind_notice(db, notice)
             await db.commit()
 
     def ticket(self, source='workflows', user='alice'):
@@ -133,7 +139,7 @@ class NotificationApiAccessTests(ApiTestCase):
     async def test_disabled_account_revocation_and_rotated_key_take_effect_immediately(self):
         _, issued = await self.exchange()
         async with self.sessions() as db:
-            user = await db.get(User, 'alice'); user.allowed_apps = 'itam'
+            grant = await db.get(UserApplicationAccess, ('alice', 'workflows')); grant.enabled = False
             await db.commit()
         self.assertEqual((await self.delegated('GET', token=issued['access_token']))[0], 403)
         self.assertEqual((await self.exchange({'access_token': issued['access_token']}))[0], 403)
@@ -169,7 +175,7 @@ class NotificationApiAccessTests(ApiTestCase):
                 statements.clear()
                 code, feed = await self.delegated('GET', token=issued['access_token'], query={'limit': limit})
                 self.assertEqual(code, 200)
-                self.assertEqual(statements.count('SELECT'), 3)  # Authentication, owner labels, one bounded feed query.
+                self.assertEqual(statements.count('SELECT'), 5)  # User, current grant, binding, owner labels and one bounded feed query.
             path = '/api/notifications/' + feed['items'][0]['id']
             await self.delegated('PATCH', path, issued['access_token'], payload={'read': True})
             statements.clear()
@@ -177,3 +183,12 @@ class NotificationApiAccessTests(ApiTestCase):
             self.assertFalse(set(statements) & {'INSERT', 'UPDATE', 'DELETE'})
         finally:
             event.remove(self.engine.sync_engine, 'before_cursor_execute', observe)
+
+    async def test_old_tokens_cannot_read_or_renew_after_relink(self):
+        _, issued = await self.exchange()
+        async with self.sessions() as db:
+            link = await db.get(ApplicationPolicyOwnership, ('alice', 'workflows'))
+            link.external_user_id = 'replacement'; link.operation_id = 'replacement-link'
+            await db.commit()
+        self.assertEqual((await self.delegated('GET', token=issued['access_token']))[0], 401)
+        self.assertEqual((await self.exchange({'access_token': issued['access_token']}))[0], 401)

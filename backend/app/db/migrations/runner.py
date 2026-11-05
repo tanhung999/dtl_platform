@@ -383,6 +383,12 @@ async def upgrade(conn):
         await migrate_per_user_provisioning(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
+    version = 'notifications_006_external_read_sync'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .notification_sync import migrate_notification_sync
+        await migrate_notification_sync(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
+
 async def run():
     try:
         async with engine.begin() as conn:

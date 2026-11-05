@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ShieldCheck, CheckCircle2, ChevronDown, ChevronUp, History, LayoutGrid, Save, UserRound } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, ChevronDown, ChevronUp, History, LayoutGrid, UserRound } from 'lucide-react';
 import { accessApi, Account } from './api';
 import { AccessAccountList } from './components/AccessAccountList';
 import { AccessHistory } from './components/AccessHistory';
@@ -20,7 +20,6 @@ export function AccessManagement({ onChanged, revision, managePlatform, manageAp
   const [applicationBusy, setApplicationBusy] = useState<string>();
   const [configuredApp, setConfiguredApp] = useState<string>();
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [projectDrafts, setProjectDrafts] = useState<Record<string, string>>({});
   const targetRef=useRef(target);targetRef.current=target;
   useEffect(()=>{
     if(!target?.id)return;const controller=new AbortController();
@@ -31,7 +30,7 @@ export function AccessManagement({ onChanged, revision, managePlatform, manageAp
     if (!target?.id || !manageApplications) { setApplications([]); return; }
     let active = true; setApplicationLoading(true);
     appsApi.listUserAccess(target.id)
-      .then(value => { if (active) { setApplications(value); setProjectDrafts(Object.fromEntries(value.map(item => [item.key, item.project_names.join(', ')]))); } })
+      .then(value => { if (active) { setApplications(value); } })
       .catch(reason => { if (active) setError((reason as Error).message); })
       .finally(() => { if (active) setApplicationLoading(false); });
     return () => { active = false; };
@@ -53,11 +52,11 @@ export function AccessManagement({ onChanged, revision, managePlatform, manageAp
     } catch (reason) { setError((reason as Error).message); }
     finally { setApplicationBusy(undefined); }
   };
-  const saveAppPolicy = async (application: UserApplicationAccess, changes: Partial<Pick<UserApplicationAccess, 'role_key' | 'permission_keys' | 'project_names'>>) => {
+  const saveAppPolicy = async (application: UserApplicationAccess, changes: Partial<Pick<UserApplicationAccess, 'role_key' | 'permission_keys'>>) => {
     if (!target || applicationBusy) return;
     if (!(changes.role_key !== undefined && (application.role_keys?.length || 0) > 1) && sameFields({ role_key:changes.role_key ?? application.role_key,
       permission_keys:[...(changes.permission_keys ?? application.permission_keys)].sort(),
-      project_names:[...new Set(changes.project_names ?? application.project_names)].sort() },
+      project_names:[...new Set(application.project_names)].sort() },
       { role_key:application.role_key, permission_keys:[...application.permission_keys].sort(), project_names:[...application.project_names].sort() })) {
       setError(''); setSuccess('Thông tin chưa thay đổi.'); return;
     }
@@ -68,10 +67,9 @@ export function AccessManagement({ onChanged, revision, managePlatform, manageAp
         expected_updated_at: application.access_updated_at,
         role_key: changes.role_key,
         permission_keys: changes.permission_keys === undefined ? application.permission_keys : changes.permission_keys,
-        project_names: changes.project_names === undefined ? application.project_names : changes.project_names,
+        project_names: application.project_names,
       });
       setApplications(current => current.map(item => item.key === application.key ? result : item));
-      setProjectDrafts(current => ({ ...current, [application.key]: result.project_names.join(', ') }));
       setSuccess(`Đã cập nhật phân quyền ${application.display_name}.`); onChanged();
     } catch (reason) { setError((reason as Error).message); }
     finally { setApplicationBusy(undefined); }
@@ -108,8 +106,7 @@ export function AccessManagement({ onChanged, revision, managePlatform, manageAp
             {(application.role_keys?.length || 0)>1&&<p className="access-permission-note">Đang giữ: {application.role_display_name}. Chọn một vai trò trong danh sách để thay thế các vai trò hiện có và áp dụng bộ quyền mặc định của vai trò đó.</p>}
             <div className="access-policy-heading"><strong>Quyền được cấp</strong><span>{application.permission_keys.length}/{application.permissions.length}</span></div>
             <div className="access-permission-grid">{application.permissions.map(permission=><label key={permission.code} title={permission.code}><input type="checkbox" checked={application.permission_keys.includes(permission.code)} disabled={!!applicationBusy || (application.key==='bookingreports'&&application.role_key==='admin')} onChange={event=>{const next=event.target.checked?[...application.permission_keys,permission.code]:application.permission_keys.filter(code=>code!==permission.code);void saveAppPolicy(application,{permission_keys:next});}}/><span>{permission.display_name}</span></label>)}</div>
-            {application.key==='bookingreports'&&application.role_key==='admin'?<p className="access-permission-note">Quản trị viên có toàn quyền và truy cập mọi dự án. Chọn vai trò khác để giới hạn quyền.</p>:<><label><span>Phạm vi dự án</span><textarea rows={2} value={projectDrafts[application.key] || ''} placeholder="Tên dự án, cách nhau bằng dấu phẩy" onChange={event=>setProjectDrafts(current=>({...current,[application.key]:event.target.value}))}/></label>
-            <button type="button" className="btn btn-primary btn-sm access-policy-save" disabled={!!applicationBusy} onClick={()=>void saveAppPolicy(application,{project_names:(projectDrafts[application.key]||'').split(',').map(value=>value.trim()).filter(Boolean)})}><Save size={14}/>Lưu phạm vi dự án</button></>}
+
           </div>}{['workflows', 'itam', 'bookingreports'].includes(application.key) && <fieldset className="application-account-fieldset" disabled={!!applicationBusy}><ApplicationAccountLifecycle key={`${target.id}:${application.key}`} applicationKey={application.key} name={application.display_name} targetId={target.id} username={target.username} accessEnabled={application.enabled} revision={revision} roleNames={Object.fromEntries(application.roles.map(role=>[role.key,role.display_name]))} onChanged={onChanged} onBusy={value=>setApplicationBusy(value?application.key:undefined)}/></fieldset>}</div>)}
         </div>
         </div>}

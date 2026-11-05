@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import companyIcon from '../assets/logo-source.png';
-import { brandIconAtlas, brandIconCells, taskIcon, type FeatureIconName, ATLAS_COLS, ATLAS_ROWS } from '../assets/featureIcons';
+import { featureIcons, type FeatureIconName } from '../assets/featureIcons';
 import { workspaceRoutes, type RoutedPage } from '../features/dashboard/navigation';
 
 const icons = new Map<FeatureIconName, Promise<string>>();
@@ -25,24 +25,15 @@ function loadImage(source: string) {
 function featureFavicon(name: FeatureIconName) {
   let icon = icons.get(name);
   if (!icon) {
-    icon = loadImage(name === 'tasks' ? taskIcon : brandIconAtlas).then(image => {
+    icon = loadImage(featureIcons[name]).then(image => {
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 64;
       const context = canvas.getContext('2d');
       if (!context) throw new Error('Không thể hiển thị icon trang.');
       context.imageSmoothingQuality = 'high';
-      if (name === 'tasks') {
-        const scale = Math.min(64 / image.naturalWidth, 64 / image.naturalHeight);
-        const width = image.naturalWidth * scale, height = image.naturalHeight * scale;
-        context.drawImage(image, (64 - width) / 2, (64 - height) / 2, width, height);
-      } else {
-        const [column, row] = brandIconCells[name];
-        const width = image.naturalWidth / ATLAS_COLS, height = image.naturalHeight / ATLAS_ROWS;
-        context.beginPath();
-        context.arc(32, 32, 64 * .45, 0, Math.PI * 2);
-        context.clip();
-        context.drawImage(image, column * width, row * height, width, height, 0, 0, 64, 64);
-      }
+      const scale = Math.min(64 / image.naturalWidth, 64 / image.naturalHeight);
+      const width = image.naturalWidth * scale, height = image.naturalHeight * scale;
+      context.drawImage(image, (64 - width) / 2, (64 - height) / 2, width, height);
       return canvas.toDataURL('image/png');
     });
     icons.set(name, icon);

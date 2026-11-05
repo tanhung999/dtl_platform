@@ -3,7 +3,7 @@ import { CalendarItemTitle } from './components/CalendarItemTitle';
 import { AnimatedCount } from '../../components/AnimatedCount';
 import { useState } from 'react';
 import { useLatestRequest } from '../../services/useLatestRequest';
-import { ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, MapPin, Plus } from 'lucide-react';
+import { ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { CSSProperties } from 'react';
 import { addDays, dateKey, eventDayLabel, eventsOnDay, formatDate, startOfWeek, today, toTimestamp, WEEKDAYS } from './dateUtils';
 import { CalendarEvent, EventDraft } from './types';
@@ -69,7 +69,6 @@ export function CalendarWidget({ onOpenCalendar }: Props) {
 
   return <div className="glass-panel widget-box calendar-widget">
     <div className="widget-header"><div className="widget-title"><FeatureIcon name="calendar" /><span>DT Calendar</span></div>
-      <button type="button" className="btn btn-secondary btn-sm" aria-label="Tạo sự kiện" title="Tạo sự kiện" onClick={() => { opening.cancel(); setOpenError(''); setSelected(undefined); setDraft({ date }); }}><Plus size={14} /><span>Thêm</span></button>
     </div>
     <div className="calendar-widget-date"><div><span className="calendar-eyebrow">{dateKey(date) === todayKey ? 'HÔM NAY' : 'LỊCH TRONG NGÀY'}</span><h3>{formatDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</h3></div>
       <div className="calendar-inline-actions"><button type="button" className="calendar-icon-button" aria-label="Ngày trước" onClick={() => setDate(addDays(date, -1))}><ChevronLeft size={17} /></button><button type="button" className="calendar-icon-button" aria-label="Ngày sau" onClick={() => setDate(addDays(date, 1))}><ChevronRight size={17} /></button></div>
