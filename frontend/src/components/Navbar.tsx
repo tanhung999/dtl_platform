@@ -19,22 +19,26 @@ export function Navbar({ canManage, user, onOpenProfile, onLogout, onOpenNotific
   const initials = (names[0]?.[0] || '') + (names.length > 1 ? names[names.length - 1][0] : '');
 
   return <header className="platform-navbar">
-    <Link to={workspaceRoutes.dashboard.path} className="nav-brand" aria-label="Đông Tây One" title="Đông Tây One - Về trang chủ">
-      <span className="nav-brand-mark"><img src={brandLogo} alt="Đông Tây One" className="nav-brand-logo" /></span>
-      <div className="nav-brand-text"><strong className="nav-brand-name">ĐÔNG TÂY ONE</strong><span>Everything In One Place</span></div>
-    </Link>
-    <div className="nav-actions">
-      <Link to={workspaceRoutes.dashboard.path} className={`btn nav-home ${isDashboard ? 'is-active' : ''}`} aria-label="Về trang chủ" title="Về trang chủ">
-        <Home size={18} aria-hidden="true" /><span>Trang chủ</span>
+    <div className="nav-start">
+      <Link to={workspaceRoutes.dashboard.path} className="nav-brand" aria-label="Đông Tây One" title="Đông Tây One - Về trang chủ">
+        <span className="nav-brand-mark"><img src={brandLogo} alt="Đông Tây One" className="nav-brand-logo" /></span>
+        <div className="nav-brand-text"><strong className="nav-brand-name">ĐÔNG TÂY ONE</strong><span>Everything In One Place</span></div>
       </Link>
-      {canManage && (
-        <Link to={workspaceRoutes.admin.path} className={`btn nav-admin ${isAdmin ? 'is-active' : ''}`} aria-label="Quản trị" title="Quản trị hệ thống">
-          <ShieldCheck size={18} aria-hidden="true" /><span>Quản trị</span>
+      <nav className="nav-primary" aria-label="Điều hướng chính">
+        <Link to={workspaceRoutes.dashboard.path} className={`btn nav-home ${isDashboard ? 'is-active' : ''}`} aria-label="Về trang chủ" title="Về trang chủ">
+          <Home size={18} aria-hidden="true" /><span>Trang chủ</span>
         </Link>
-      )}
-      <NavbarClock />
-      <ThemeToggle />
+        {canManage && (
+          <Link to={workspaceRoutes.admin.path} className={`btn nav-admin ${isAdmin ? 'is-active' : ''}`} aria-label="Quản trị" title="Quản trị hệ thống">
+            <ShieldCheck size={18} aria-hidden="true" /><span>Quản trị</span>
+          </Link>
+        )}
+      </nav>
+    </div>
+    <NavbarClock />
+    <div className="nav-actions">
       <NotificationBell onOpenAll={onOpenNotifications} />
+      <ThemeToggle />
       <button type="button" className="user-badge" onClick={onOpenProfile} title="Xem hồ sơ tài khoản" aria-label={`Hồ sơ của ${user.full_name}`}>
         <span className="user-avatar"><span>{initials.toUpperCase()}</span>{user.avatar_url && <img key={user.avatar_url} src={user.avatar_url} alt="" onError={event => { event.currentTarget.style.display = 'none'; }} />}</span>
         <span className="user-info"><span className="user-name">{user.full_name}</span><span className="user-dept">{user.department}</span></span>

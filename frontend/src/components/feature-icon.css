@@ -1,0 +1,4 @@
+.feature-icon--tasks {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f0faff 0%, #dceeff 55%, #c9dcff 100%);
+}
