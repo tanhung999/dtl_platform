@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import set_committed_value
 from app.core.config import settings
 from app.core.database import get_db
 from app.db.models import Task, User, utcnow
@@ -115,7 +116,16 @@ class ReadAll(BaseModel):
 @router.post('/read-all', status_code=204)
 async def read_all(payload: ReadAll, user: UserArg, db: DbArg):
     now = utcnow()
-    result = await db.execute(update(N).where(visible_notice(), N.user_id == user.id, N.read_at.is_(None), N.dismissed_at.is_(None), N.created_at <= min(payload.through, now)).values(read_at=now))
+    from app.db.notifications import ExternalNotificationState
+    from .external_sync import record_read_change
+    filters = (visible_notice(), N.user_id == user.id, N.read_at.is_(None),
+               N.dismissed_at.is_(None), N.created_at <= min(payload.through, now))
+    external = (await db.scalars(select(N).join(ExternalNotificationState,
+        ExternalNotificationState.notification_id == N.id).where(*filters).order_by(N.id).with_for_update(of=N))).all()
+    result = await db.execute(update(N).where(*filters).values(read_at=now).execution_options(synchronize_session=False))
+    for notice in external:
+        set_committed_value(notice, 'read_at', now)
+        await record_read_change(db, notice)
     if result.rowcount:
         changed(db, user.id)
 
@@ -141,6 +151,9 @@ async def set_state(id: str, payload: NotificationWrite, user: UserArg, db: DbAr
         field = 'read_at' if key == 'read' else 'dismissed_at'
         if (getattr(row, field) is not None) != value:
             setattr(row, field, utcnow() if value else None)
+            if key == 'read' and row.source != 'platform':
+                from .external_sync import record_read_change
+                await record_read_change(db, row)
             modified = True
     if modified:
         changed(db, user.id)
@@ -200,6 +213,6 @@ async def destination(id: str, user: UserArg, db: DbArg):
         if not task:
             raise HTTPException(404, 'Công việc đã bị xóa hoặc bạn không còn quyền truy cập.')
         return {'task_id': task.id}
-    if row.source not in (user.allowed_apps or '').split(','):
-        raise HTTPException(403, 'Bạn không còn quyền truy cập ứng dụng này.')
+    from .external_access import require_application_access
+    await require_application_access(db, user.id, row.source)
     return {'target_app': row.source, 'action_path': row.action_path}

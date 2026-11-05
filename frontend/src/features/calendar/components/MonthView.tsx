@@ -26,7 +26,7 @@ export function MonthView({ anchor, events, tasks, onCreate, onSelect, onShowDay
                 {dayEvents.slice(0, remaining).map(event => <EventButton key={event.id} event={event} day={dateKey(day)} compact onSelect={onSelect} />)}
                 {extra > 0 && <button type="button" className="calendar-more" aria-label={`Xem thêm ${extra} mục ngày ${formatDate(day)}`} onClick={() => onShowDay(day)}>+{extra} mục khác</button>}
               </div>
-              <button className="calendar-cell-create" type="button" aria-label={`Thêm sự kiện ngày ${formatDate(day)}`} onClick={() => onCreate({ date: day })} />
+              <button className="calendar-cell-create" type="button" aria-label={`Thêm lịch ngày ${formatDate(day)}`} onClick={() => onCreate({ date: day })} />
             </div>;
           })}
         </div>

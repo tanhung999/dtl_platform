@@ -66,6 +66,8 @@ async def exchange(source: Literal['bookingreports', 'workflows', 'itam'], reque
     user = await db.scalar(select(User).where(User.id == user_id, User.is_active.is_(True)))
     if not user or (payload.sso_ticket and user.username != claims.get('sub')):
         raise HTTPException(401, 'Tài khoản không tồn tại hoặc đã bị khóa.')
-    if source not in (user.allowed_apps or '').split(','):
-        raise HTTPException(403, 'Người dùng không có quyền truy cập ứng dụng này.')
-    return issue_notification_token(user.id, source, session_exp, scopes)
+    from .external_access import notification_binding
+    binding = await notification_binding(db, user, source)
+    if payload.access_token and any(claims.get(key) != value for key, value in binding.items()):
+        raise HTTPException(401, 'Liên kết tài khoản đã thay đổi. Không thể gia hạn phiên cũ.')
+    return issue_notification_token(user.id, source, session_exp, scopes, binding=binding)

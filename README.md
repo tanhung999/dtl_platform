@@ -210,3 +210,25 @@ npm run test:notifications
 ```
 
 Các bộ kiểm thử trình duyệt yêu cầu Docker đang chạy. Chi tiết nhóm, điều kiện và lệnh tại [hướng dẫn kiểm thử giao diện](frontend/tests/README.md) và [hướng dẫn kiểm thử máy chủ](backend/tests/README.md).
+
+
+### Thông báo liên ứng dụng và trạng thái đã đọc
+
+Platform nhận thông báo qua POST /api/integrations/{source}/notifications, với source là workflows, itam hoặc bookingreports.
+Yêu cầu có chữ ký HMAC, external_id, nội dung, recipient_subject, external_user_id và link_operation_id khớp liên kết đã xác nhận.
+recipient_user_id chỉ là kiểm tra bổ sung, không thay thế định danh liên kết. Quyền được kiểm tra từ user_application_access và trạng thái ứng dụng.
+Lịch sử cũ chưa có ràng buộc liên kết vẫn được giữ trong database nhưng không xuất hiện trong hộp thư.
+
+- Gửi lại cùng nội dung và mã trả về bản đã lưu, không đặt lại trạng thái đã đọc.
+- Website đích gửi thay đổi qua POST /api/integrations/{source}/notification-read-state, gồm thông tin liên kết, external_id, read và expected_version.
+  Platform trả read_version mới; HTTP 409 kèm trạng thái hiện tại khi có xung đột. Phải hòa giải theo phiên bản mới nhất, không gửi lại trạng thái cũ một cách tự động.
+- Thay đổi đọc/chưa đọc trên Platform (kể cả đọc tất cả) được ghi vào outbox cùng giao dịch.
+  Backend đích lấy tối đa 100 mục qua POST /api/integrations/{source}/notification-read-changes với {"limit":100}.
+  Sau khi lưu ở đích, xác nhận qua POST /api/integrations/{source}/notification-read-ack với {"items":[{"id":"...","read_version":1}]}.
+  Mục chưa xác nhận sẽ được trả lại ở lần lấy tiếp theo. Xác nhận phiên bản cũ không làm mất thay đổi mới; thay đổi từ nguồn không tạo vòng lặp trả ngược.
+- Ba API trạng thái dùng NOTIFICATIONS_{SOURCE}_SECRET và chữ ký có purpose bằng tên endpoint cuối: notification-read-state, notification-read-changes hoặc notification-read-ack.
+  Không đưa khóa xuống trình duyệt. Timestamp và chữ ký dùng cùng quy tắc của API nhận thông báo hiện có.
+- Hộp thư phát cập nhật SSE sau khi commit. Hủy liên kết, đổi tài khoản đích, khóa tài khoản hoặc thu hồi quyền chặn truy cập qua liên kết cũ.
+
+Migration notifications_006_external_read_sync chỉ thêm bảng ràng buộc và outbox, không xóa thông báo hoặc dữ liệu nghiệp vụ.
+Ba website đích cần triển khai hợp đồng này trước khi luồng thông báo và đồng bộ đã đọc hai chiều hoạt động đầy đủ.

@@ -34,7 +34,8 @@ def visible_notice():
     personal = and_(N.calendar_owner_id.is_(None), or_(
         N.kind.notin_(('task.follow_reminder', 'task.personal_reminder', 'event.follow_reminder')),
         and_(N.kind.in_(('task.follow_reminder', 'task.personal_reminder')), followed_task), and_(N.kind == 'event.follow_reminder', followed_event)))
-    return or_(personal, and_(N.source == 'platform', grant))
+    from .external_access import external_visibility
+    return or_(and_(N.source == 'platform', or_(personal, grant)), and_(N.source != 'platform', external_visibility()))
 
 
 async def ownership_labels(db, viewer_id):

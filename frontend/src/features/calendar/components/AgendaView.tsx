@@ -21,7 +21,7 @@ export function AgendaView({ anchor, events, tasks, onCreate, onSelect }: Calend
   const todayKey = dateKey(today());
   if (!occupied.length) return <div ref={scroll} className="calendar-empty calendar-agenda-empty">
     <CalendarDays size={38} /><h3>Không có mục nào hiển thị</h3><p>Không có mục phù hợp với bộ lọc trong 30 ngày từ {formatDate(anchor)}. Bạn có thể bật lại Sự kiện, Công việc hoặc Ghi chú để kiểm tra.</p>
-    <button type="button" className="btn btn-primary" onClick={() => onCreate({ date: anchor })}><Plus size={16} /> Tạo sự kiện</button>
+    <button type="button" className="btn btn-primary" onClick={() => onCreate({ date: anchor })}><Plus size={16} /> Thêm lịch</button>
   </div>;
 
   return <div className="calendar-agenda" ref={scroll}>

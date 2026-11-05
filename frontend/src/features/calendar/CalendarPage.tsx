@@ -76,6 +76,7 @@ export function CalendarPage({ initialDate, onDateChange, userName, userId, shar
   };
   const opening = useLatestRequest();
   const onCreate = (value: EventDraft) => { opening.cancel(); setOpenError(''); setSelected(undefined); setDraft(value); };
+  const openCreateChoice = (value: EventDraft) => { opening.cancel(); setOpenError(''); setSelected(undefined); setDraft(undefined); setCreateChoice(value); };
   const onSelect = async (event: CalendarEvent, day?: string, signal?: AbortSignal) => {
     const controller = opening.start();
     const abort = () => controller.abort();
@@ -99,12 +100,12 @@ export function CalendarPage({ initialDate, onDateChange, userName, userId, shar
       ? `${formatDate(anchor)} – ${formatDate(addDays(anchor, 29))}`
       : formatDate(anchor, { month: 'long', year: 'numeric' });
   const visibleEvents = useMemo(() => data.events.filter(event => event.scheduled_note_id ? showNotes : showEvents), [data.events, showNotes, showEvents]);
-  const viewProps = { anchor, events: visibleEvents, tasks: visibleTasks, onCreate, onSelect };
+  const viewProps = { anchor, events: visibleEvents, tasks: visibleTasks, onCreate: openCreateChoice, onSelect };
 
   return <div className={`calendar-page ${sharingControls ? 'has-sharing' : ''}`}>
     <div className="calendar-shell">
       <aside className="calendar-sidebar">
-        <button type="button" className="calendar-create-button" onClick={() => setCreateChoice({ date: anchor })}><Plus size={23} /><span>Thêm lịch</span></button>
+        <button type="button" className="calendar-create-button" onClick={() => openCreateChoice({ date: anchor })}><Plus size={23} /><span>Thêm lịch</span></button>
         <div className="calendar-sidebar-scroll" tabIndex={0} role="region" aria-label="Danh sách và bộ lọc lịch">
         <MiniCalendar month={miniMonth} selected={anchor} onMonthChange={setMiniMonth} onSelect={selectDate} events={[]} tasks={[]} counts={miniData.days} showEvents={showEvents} showNotes={showNotes} showTasks={showTasks || showAssigned} highlightWeek={view === 'week'} />
         <div className="calendar-sidebar-section"><span className="calendar-eyebrow">LỊCH CỦA TÔI</span><h3 className="calendar-owner-name">{ownerName}</h3><label className="calendar-task-toggle calendar-event-toggle"><input type="checkbox" aria-label="Hiện sự kiện" checked={showEvents} onChange={event => setShowEvents(event.target.checked)} /><span>Sự kiện</span><span className="calendar-toggle-count" title="Số sự kiện trong khoảng đang xem"><AnimatedCount value={data.eventTotal} /></span></label><label className="calendar-task-toggle calendar-deadline-toggle"><input type="checkbox" aria-label="Hiện công việc" checked={showTasks} onChange={event => setShowTasks(event.target.checked)} /><span>Công việc</span><span className="calendar-toggle-count" title="Số công việc trong khoảng đang xem"><AnimatedCount value={deadlineCount} /></span></label><label className="calendar-task-toggle calendar-assigned-toggle"><input type="checkbox" aria-label="Hiện việc được giao" checked={showAssigned} onChange={event => setShowAssigned(event.target.checked)} /><span>Việc được giao</span><span className="calendar-toggle-count"><AnimatedCount value={assignedCount} /></span></label><label className="calendar-task-toggle calendar-note-toggle"><input type="checkbox" aria-label="Hiện ghi chú" checked={showNotes} onChange={event => setShowNotes(event.target.checked)} /><span>Ghi chú</span><span className="calendar-toggle-count" title="Số ghi chú đã đặt lịch trong khoảng đang xem"><AnimatedCount value={data.noteTotal} /></span></label><div className="calendar-event-legend-section"><h4>Trạng thái sự kiện và ghi chú</h4><EventStatusLegend /></div>{(showTasks || showAssigned) && <TaskStatusLegend />}</div>
@@ -122,7 +123,7 @@ export function CalendarPage({ initialDate, onDateChange, userName, userId, shar
           <div className="calendar-toolbar-actions"><button type="button" className="calendar-icon-button" title="Tải lại" disabled={data.loading} aria-label="Làm mới lịch" onClick={() => { data.refresh(); tasksData.refresh(); }}><RefreshCw size={17} className={data.loading ? 'calendar-spin' : ''} /></button>
             {view === 'week' && <label className="calendar-night-toggle" title="Hiện khung giờ 00:00–06:00"><input type="checkbox" aria-label="Hiện khung giờ đêm" checked={showEarlyHours} onChange={event => setShowEarlyHours(event.target.checked)} /><span>Hiện khung giờ đêm</span></label>}
             <div className="calendar-view-switch" role="group" aria-label="Chế độ xem lịch">{([{ value: 'week', label: 'Tuần' }, { value: 'month', label: 'Tháng' }, { value: 'agenda', label: 'Danh sách' }] as const).map(option => <button type="button" key={option.value} aria-pressed={view === option.value} className={view === option.value ? 'is-active' : ''} onClick={() => setView(option.value)}>{option.label}</button>)}</div>
-            <button type="button" className="btn btn-primary btn-sm calendar-mobile-create" onClick={() => setCreateChoice({ date: anchor })}><Plus size={16} /> Thêm lịch</button>
+            <button type="button" className="btn btn-primary btn-sm calendar-mobile-create" onClick={() => openCreateChoice({ date: anchor })}><Plus size={16} /> Thêm lịch</button>
           </div>
         </div>
         <div className="calendar-status" aria-live="polite"><button type="button" className={`calendar-count-chip ${showEvents ? 'is-active' : ''}`} aria-label="Bật/tắt sự kiện" aria-pressed={showEvents} title="Bật/tắt hiển thị sự kiện" onClick={() => setShowEvents(value => !value)}><AnimatedCount value={data.eventTotal} /> sự kiện</button><button type="button" className={`calendar-count-chip ${showNotes ? 'is-active' : ''}`} aria-label="Bật/tắt ghi chú" aria-pressed={showNotes} title="Bật/tắt hiển thị ghi chú" onClick={() => setShowNotes(value => !value)}><AnimatedCount value={data.noteTotal} /> ghi chú</button><button type="button" className={`calendar-count-chip ${showTasks ? 'is-active' : ''}`} aria-label="Bật/tắt công việc" aria-pressed={showTasks} title="Bật/tắt hiển thị công việc" onClick={() => setShowTasks(value => !value)}><AnimatedCount value={deadlineCount} /> công việc</button><button type="button" className={`calendar-count-chip ${showAssigned ? 'is-active' : ''}`} aria-label="Bật/tắt việc được giao" aria-pressed={showAssigned} onClick={() => setShowAssigned(value => !value)}><AnimatedCount value={assignedCount} /> việc được giao</button>{(data.loading || deadlineData.loading || tasksData.loading) && <span>Đang tải lịch…</span>}</div>
@@ -143,7 +144,7 @@ export function CalendarPage({ initialDate, onDateChange, userName, userId, shar
           </div>
       </section>
     </div>
-    {dayList && <DayItemsDialog day={dayList} showEvents={showEvents} showNotes={showNotes} showTasks={showTasks || showAssigned} taskGroup={taskGroup} onClose={() => setDayList(undefined)} onCreate={setCreateChoice} onSelect={onSelect} />}
+    {dayList && <DayItemsDialog day={dayList} showEvents={showEvents} showNotes={showNotes} showTasks={showTasks || showAssigned} taskGroup={taskGroup} onClose={() => setDayList(undefined)} onCreate={openCreateChoice} onSelect={onSelect} />}
     {createChoice && <AddCalendarDialog onClose={() => setCreateChoice(undefined)} onEvent={() => { const value = createChoice; setCreateChoice(undefined); onCreate(value); }} onTask={() => { setTaskDraft(createChoice); setCreateChoice(undefined); }} />}
     {taskDraft && <TaskCreateDialog date={dateKey(taskDraft.date)} time={taskDraft.hour === undefined ? '' : `${String(taskDraft.hour).padStart(2, '0')}:00`} onClose={() => setTaskDraft(undefined)} />}
     {draft && <CalendarItemModal event={selected} draft={draft} onClose={close} onSave={data.save} onDelete={data.remove} />}

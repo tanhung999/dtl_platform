@@ -7,6 +7,7 @@ from unittest.mock import patch
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from tests.support.api_case import ApiTestCase
+from tests.support.notification_fixtures import bind_history
 from app.core import database
 from app.core.database import Base, get_db
 from app.db.models import User
@@ -29,6 +30,7 @@ class NotificationConnectionRecoveryTests(ApiTestCase):
                     db.add(User(id='alice', username='alice', email='alice@example.com', full_name='Alice', password_hash='unused'))
                     await db.flush()
                     db.add(Notification(user_id='alice', source='workflows', event_key='recovery', fingerprint='recovery', kind='external.info', title='Recovery', occurred_at=stamp, created_at=stamp))
+                    await bind_history(db)
                     await db.commit()
 
                 with patch.object(database, 'async_session_maker', sessions):

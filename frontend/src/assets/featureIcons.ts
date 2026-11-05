@@ -1,23 +1,18 @@
-import taskArtwork from './icon-tasks.png';
-import brandAtlas from './dt-brand-icons.png';
+import platform from './feature-icons/platform.webp';
+import assets from './feature-icons/assets.webp';
+import workflow from './feature-icons/workflow.webp';
+import link from './feature-icons/link.webp';
+import booking from './feature-icons/booking.webp';
+import income from './feature-icons/income.webp';
+import notes from './feature-icons/notes.webp';
+import calendar from './feature-icons/calendar.webp';
+import hrm from './feature-icons/hrm.webp';
+import salesCommission from './feature-icons/sales-commission.webp';
+import tasks from './feature-icons/tasks.webp';
 
-export const ATLAS_COLS = 4;
-export const ATLAS_ROWS = 3;
-
-// Equal cells in the brand artwork; unused products stay available as assets.
-export const brandIconAtlas = brandAtlas;
-export const taskIcon = taskArtwork;
-export const brandIconCells = {
-  platform: [0, 0],
-  assets: [1, 0],
-  workflow: [2, 0],
-  link: [3, 0],
-  booking: [0, 1],
-  booking360: [0, 1],
-  income: [1, 1],
-  notes: [2, 1],
-  calendar: [3, 1],
-  hrm: [0, 2],
-  salesCommission: [1, 2],
+// Individual artwork keeps small icons independent of the full source sheet.
+export const featureIcons = {
+  platform, assets, workflow, link, booking, booking360: booking,
+  income, notes, calendar, hrm, salesCommission, tasks,
 } as const;
-export type FeatureIconName = keyof typeof brandIconCells | 'tasks';
+export type FeatureIconName = keyof typeof featureIcons;

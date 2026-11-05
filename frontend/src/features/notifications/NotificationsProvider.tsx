@@ -66,9 +66,7 @@ export function NotificationsProvider({ userId, children }: { userId: string; ch
         else if (destination.calendar_owner_id) window.dispatchEvent(new CustomEvent('calendar:open-shared', { detail: destination.calendar_owner_id }));
         else if (destination.task_id) await tasks.openTask(destination.task_id, controller.signal);
         else if (destination.target_app) {
-          const session = await appsApi.launchSubApp(destination.target_app, 15000);
-          // Deep paths are retained by the integration API; existing apps currently
-          // support only their normal SSO callback, so do not invent a redirect contract.
+          const session = await appsApi.launchSubApp(destination.target_app, 15000, destination.action_path || '/');
           if (!controller.signal.aborted) window.location.assign(session.launch_url);
         }
       });

@@ -49,12 +49,14 @@ def decode_notification_token(token, *, for_renewal=False):
     return claims
 
 
-def issue_notification_token(user_id, source, session_exp, scopes=SCOPES):
+def issue_notification_token(user_id, source, session_exp, scopes=SCOPES, *, binding=None):
     now = int(datetime.now(timezone.utc).timestamp())
     expires = min(now + settings.NOTIFICATIONS_API_TOKEN_SECONDS, session_exp)
     claims = {'iss': 'dtl-platform', 'aud': AUDIENCE, 'sub': user_id, 'app': source,
               'token_use': 'notification_access', 'scope': list(scopes), 'jti': secrets.token_urlsafe(24),
               'iat': now, 'exp': expires, 'session_exp': session_exp, 'client_key_id': key_id(client_secret(source))}
+    if binding:
+        claims.update(binding)
     return {'access_token': jwt.encode(claims, settings.NOTIFICATIONS_API_SIGNING_SECRET, algorithm='HS256'),
             'token_type': 'Bearer', 'expires_in': expires - now, 'session_expires_at': datetime.fromtimestamp(session_exp, timezone.utc),
             'scope': ' '.join(scopes)}
@@ -82,6 +84,8 @@ async def notification_user(request: Request, response: Response,
     user = await db.scalar(select(User).where(User.id == claims['sub'], User.is_active.is_(True)))
     if not user:
         raise HTTPException(401, 'Tài khoản không tồn tại hoặc đã bị khóa.')
-    if claims['app'] not in (user.allowed_apps or '').split(','):
-        raise HTTPException(403, 'Bạn không còn quyền truy cập ứng dụng này.')
+    from .external_access import notification_binding
+    binding = await notification_binding(db, user, claims['app'])
+    if any(claims.get(key) != value for key, value in binding.items()):
+        raise HTTPException(401, 'Liên kết tài khoản đã thay đổi. Vui lòng mở lại ứng dụng từ Platform.')
     return user

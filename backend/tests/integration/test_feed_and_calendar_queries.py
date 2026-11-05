@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 from sqlalchemy import event, select
 from tests.support.api_case import ApiTestCase
+from tests.support.notification_fixtures import bind_history
 from app.db.models import Task, Note
 from app.db.calendar import CalendarEvent
 from app.db.notifications import Notification
@@ -23,6 +24,7 @@ class FeedProjectionTests(ApiTestCase):
                     kind='info',title='Saved title '+state,body='Saved body',resource_type='record' if state=='external' else 'task',resource_id=task_id or '',task_id=task_id,
                     deadline_version=1,due_at=NOW+timedelta(hours=-1 if state=='overdue' else 1),occurred_at=NOW,created_at=NOW-timedelta(minutes=i),
                     read_at=NOW if state=='changed' else None,dismissed_at=NOW if state=='no-deadline' else None))
+            await bind_history(db)
             await db.commit()
         queries=[{}, {'filter':'unread'}, {'filter':'hidden'}, {'source':'platform'}, {'limit':2}]
         baseline = lambda: (select(Notification, Task, CalendarEvent, Note).outerjoin(Task, Task.id == Notification.task_id).outerjoin(CalendarEvent, CalendarEvent.id == Notification.event_id).outerjoin(Note, (Notification.resource_type == 'note') & (Note.id == Notification.resource_id)))
@@ -70,6 +72,7 @@ class CalendarInvalidationTests(ApiTestCase):
         async with self.sessions() as db:
             await seed_catalog(db)
             db.add(UserRole(user_id='alice', role_id='calendar_sharer'))
+            await bind_history(db)
             await db.commit()
         status,note=await self.request('POST','/api/notes',payload={'title':'Meeting note','content':'Keep this content','calendar_schedule':{'starts_at':'2026-10-12T09:00:00+07:00','ends_at':'2026-10-12T10:00:00+07:00','is_all_day':False}});self.assertEqual(status,201)
         event_id=note['calendar_schedule']['event_id'];version=(await self.versions())['notes']
