@@ -15,7 +15,7 @@ from app.db.notifications import Notification as N, NotificationJob as Job, Noti
 from .auth import notification_user
 from .sharing import visible_notice, ownership_labels
 from app.modules.tasks.deadlines import deadline_at
-from .service import changed, insert_unique, select_feed, serialize, utc
+from .service import changed, insert_unique, select_feed, serialize, utc, notification_time, notification_time_column
 
 router = APIRouter(prefix='/api/notifications', tags=['Notifications'])
 UserArg = Annotated[User, Depends(notification_user)]
@@ -30,7 +30,7 @@ def preference_data(row):
     return {key: getattr(row, key) if row else True for key in ('task_reminders', *SOURCES)} | {'version': row.version if row else 0, 'connected': connected()}
 
 def cursor_for(item):
-    return base64.urlsafe_b64encode(json.dumps([utc(item.created_at).isoformat(), item.id]).encode()).decode()
+    return base64.urlsafe_b64encode(json.dumps(['source-time-v1', notification_time(item).isoformat(), item.id]).encode()).decode()
 
 @router.get('')
 async def inbox(user: UserArg, db: DbArg, filter: Literal['all', 'unread', 'hidden'] = 'all', source: Source | None = None,
@@ -40,15 +40,29 @@ async def inbox(user: UserArg, db: DbArg, filter: Literal['all', 'unread', 'hidd
     stmt = select_feed().where(visible_notice(), N.user_id == user.id, N.dismissed_at.is_not(None) if filter == 'hidden' else N.dismissed_at.is_(None))
     if filter == 'unread': stmt = stmt.where(N.read_at.is_(None))
     if source: stmt = stmt.where(N.source == source)
+    ordering_time = notification_time_column()
     if before:
         try:
-            stamp, id = json.loads(base64.urlsafe_b64decode(before.encode()))
+            cursor = json.loads(base64.urlsafe_b64decode(before.encode()))
+            if not isinstance(cursor, list):
+                raise ValueError()
+            legacy = len(cursor) == 2
+            if legacy:
+                stamp, id = cursor
+            else:
+                version, stamp, id = cursor
+                if version != 'source-time-v1':
+                    raise ValueError()
             stamp = datetime.fromisoformat(stamp)
-            if not stamp.tzinfo or not isinstance(id, str) or len(id) > 36: raise ValueError()
+            if not stamp.tzinfo or not isinstance(id, str) or len(id) > 36:
+                raise ValueError()
         except (ValueError, TypeError, json.JSONDecodeError, UnicodeError):
             raise HTTPException(422, 'Mốc phân trang không hợp lệ.')
-        stmt = stmt.where(or_(N.created_at < stamp, and_(N.created_at == stamp, N.id < id)))
-    rows = (await db.execute(stmt.order_by(N.created_at.desc(), N.id.desc()).limit(limit + 1))).all()
+        # Old open tabs restart safely rather than mixing ingestion-time cursors
+        # with source-time ordering after an update.
+        if not legacy:
+            stmt = stmt.where(or_(ordering_time < stamp, and_(ordering_time == stamp, N.id < id)))
+    rows = (await db.execute(stmt.order_by(ordering_time.desc(), N.id.desc()).limit(limit + 1))).all()
     visible = rows[:limit]
     return {'items': [serialize(n, task, now, event, note, owners) for n, task, event, note in visible], 'has_more': len(rows) > limit,
             'next_cursor': cursor_for(visible[-1][0]) if len(rows) > limit else None, 'server_now': now}
@@ -67,7 +81,7 @@ async def summary(user: UserArg, db: DbArg):
         Task.deadline_version == N.deadline_version, Task.due_date.is_not(None), N.due_at > now).subquery()
     actionable = or_(N.resource_type != 'task', N.reminder_version.is_not(None), N.id.in_(select(ranked.c.id).where(ranked.c.rank == 1)))
     rows = (await db.execute(select_feed().where(visible_notice(), N.user_id == user.id, actionable, N.read_at.is_(None), N.dismissed_at.is_(None))
-        .order_by(N.created_at.desc(), N.id.desc()).limit(4))).all()
+        .order_by(notification_time_column().desc(), N.id.desc()).limit(4))).all()
     return {'has_shared_calendars': bool(owners), 'unread_count': unread, 'preview': [serialize(n, task, now, event, note, owners) for n, task, event, note in rows], 'server_now': now}
 
 @router.get('/preferences')

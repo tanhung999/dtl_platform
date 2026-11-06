@@ -5,6 +5,7 @@ import { useNotificationFeed } from './useNotificationFeed';
 import { NotificationCard } from './NotificationCard';
 import { NotificationSettings } from './NotificationSettings';
 import { NotificationSource, SOURCE_LABELS } from './types';
+import { notificationTime } from './notificationTime';
 export function NotificationsPage() {
   const data = useNotifications(), feed = useNotificationFeed();
   const [settings, setSettings] = useState(false), [error, setError] = useState('');
@@ -20,7 +21,7 @@ export function NotificationsPage() {
     {(feed.error || data.error || error) && <p role="alert" className="notification-error">{feed.error || data.error || error}<button type="button" onClick={data.refresh}>Thử lại</button></p>}
     {feed.loading && <p className="collection-loading-status" role="status">Đang tải thông báo…</p>}
     <div className="notifications-feed" aria-busy={feed.loading}>{!feed.page?.items.length && !feed.loading ? <p className="notification-empty">Không có thông báo trong nhóm này.</p> : feed.page?.items.map(item => {
-      const day = new Date(item.created_at).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }), heading = previousDay !== day; previousDay = day;
+      const day = new Date(notificationTime(item)).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }), heading = previousDay !== day; previousDay = day;
       return <div key={item.id}>{heading && <h2 className="notification-day-heading">{day === today ? 'Hôm nay' : day}</h2>}<NotificationCard item={item} /></div>;
     })}</div>
     <footer className="notification-pagination"><button type="button" className="btn btn-outline btn-sm" disabled={feed.pending || feed.index === 0} onClick={feed.previous}>Trang trước</button><span>Trang {feed.index + 1}</span><button type="button" className="btn btn-outline btn-sm" disabled={feed.pending || !feed.page?.has_more} onClick={feed.next}>Trang sau</button></footer>
