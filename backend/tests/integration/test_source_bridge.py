@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import httpx
 from fastapi import HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 
 from app.db.applications import UserApplicationAccess, ApplicationPolicyOwnership
 from app.db.applications import ApplicationProvisioningPolicy
@@ -20,6 +20,21 @@ from tests.support.notification_fixtures import grants
 
 
 class SourceBridgeTests(ApiTestCase):
+    async def test_first_import_preserves_foreign_key_insert_order(self):
+        async with self.engine.begin() as conn:
+            await conn.execute(text("PRAGMA foreign_keys=ON"))
+        row = await self.merge([self.item("fk-first"), self.item("fk-second")])
+        self.assertIsNotNone(row)
+        async with self.sessions() as db:
+            self.assertEqual(
+                await db.scalar(
+                    select(func.count()).select_from(ExternalNotificationState)
+                ),
+                2,
+            )
+        await self.merge([self.item("fk-first"), self.item("fk-second")])
+        self.assertEqual(await self.summary(), 2)
+
     async def test_background_selection_excludes_pending_unlink_and_carries_current_asset_policy(
         self,
     ):

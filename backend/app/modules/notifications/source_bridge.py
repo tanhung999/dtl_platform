@@ -225,6 +225,7 @@ async def merge_feed(db, binding, data, known_ids):
 
     pref = await db.get(NotificationPreference, user.id)
     muted = pref is not None and not getattr(pref, binding["source"])
+    new_states = []
     for raw in items:
         external_id = raw.get("external_id")
         validate_read(raw, external_id)
@@ -271,7 +272,7 @@ async def merge_feed(db, binding, data, known_ids):
                 source_read_version=raw["read_version"],
                 source_visible=True,
             )
-            db.add(state)
+            new_states.append(state)
             saved[external_id] = notice, state
             changed(db, user.id)
         else:
@@ -292,6 +293,12 @@ async def merge_feed(db, binding, data, known_ids):
         if key in saved and saved[key][1].source_visible:
             saved[key][1].source_visible = False
             changed(db, user.id)
+    if new_states:
+        # These mappers have no ORM relationship to order their inserts. Persist
+        # parents first, then add link rows in the same transaction (one batch).
+        await db.flush()
+        db.add_all(new_states)
+        await db.flush()
 
 
 async def sync_binding(client, config, binding, cursor="", known_offset=0):
