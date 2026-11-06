@@ -29,6 +29,8 @@
 .notification-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 10px; margin-top: 6px; font-size: 11px; color: var(--text-muted); }
 .notification-state { padding: 1px 6px; border-radius: 5px; background: var(--input-bg); font-weight: 600; }
 .notification-state.is-overdue { color: #b91c1c; background: #fee2e2; }
+.notification-source-label { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 5px; background: var(--primary-light); color: var(--accent-text); font-size: 11px; font-weight: 700; line-height: 1.5; }
+.notification-meta time { font-variant-numeric: tabular-nums; }
 .notification-card-actions { display: flex; align-items: center; gap: 1px; }
 .notification-action-error, .notification-error { flex-basis: 100%; margin: 8px 0; font-size: 12px; color: #b91c1c; }
 .notification-error { padding: 0 16px; }

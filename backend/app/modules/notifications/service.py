@@ -2,7 +2,7 @@
 import hashlib
 import json
 from datetime import datetime, timezone
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.orm import load_only
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -13,6 +13,12 @@ from app.db.notifications import Notification
 
 def utc(value):
     return value.replace(tzinfo=timezone.utc) if isinstance(value, datetime) and value.tzinfo is None else value
+
+def notification_time(notification):
+    return utc(notification.created_at if notification.source == 'platform' else notification.occurred_at)
+
+def notification_time_column():
+    return case((Notification.source == 'platform', Notification.created_at), else_=Notification.occurred_at)
 
 def fingerprint(data):
     return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()

@@ -43,7 +43,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLa
 
 
   return <>
-    <button ref={trigger} type="button" onClick={() => setOpen(true)}
+    <button ref={trigger} type="button" onClick={() => setOpen(value => !value)}
       className={`theme-toggle-btn theme-picker-trigger ${className}`} title={`Giao diện: ${selected.name}`}
       aria-label="Chọn giao diện" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined}>
       <Icon size={17} /><span className={showLabel ? '' : 'theme-trigger-label'}>Giao diện</span><ChevronDown size={12} />
