@@ -1,4 +1,4 @@
-"""Follower invitations use the current department, without delegation or admin exceptions."""
+"""Follower invitations use the current department, with an explicit administrator exception."""
 from sqlalchemy import select
 
 from tests.support.api_case import ApiTestCase
@@ -36,16 +36,75 @@ class DepartmentFollowerTests(ApiTestCase):
             with self.subTest(path=path):
                 self.assertEqual((await self.request('POST', path, payload=payload))[0], 403)
 
-    async def test_admin_and_multi_department_assignment_do_not_expand_follower_scope(self):
+    async def test_multi_department_assignment_does_not_expand_follower_scope(self):
         async with self.sessions() as db:
             await seed_catalog(db)
-            db.add_all([UserRole(user_id='alice', role_id='access_admin'),
-                        UserRole(user_id='alice', role_id=CAPABILITY_ROLES[TASKS_ASSIGN])])
+            db.add(UserRole(user_id='alice', role_id=CAPABILITY_ROLES[TASKS_ASSIGN]))
             db.add(TaskAssignmentPolicy(user_id='alice', enabled=True, mode='selected_departments', home_department_id='fixture-dept'))
             await db.flush()
             db.add(TaskAssignmentDepartment(user_id='alice', department_id='other-dept'))
             await db.commit()
         self.assertEqual((await self.request('POST', '/api/tasks', payload={'title': 'Assigned', 'assignee_id': 'charlie'}))[0], 201)
+        self.assertEqual((await self.request('GET', '/api/colleagues', query={'q': 'char'}))[1], [])
+        self.assertEqual((await self.request('POST', '/api/tasks', payload={'title': 'Task', 'follower_ids': ['charlie']}))[0], 403)
+
+    async def grant_admin(self):
+        async with self.sessions() as db:
+            await seed_catalog(db)
+            db.add(UserRole(user_id='alice', role_id='access_admin'))
+            await db.commit()
+
+    async def test_admin_can_find_and_add_followers_from_other_departments(self):
+        await self.grant_admin()
+        status, users = await self.request('GET', '/api/colleagues', query={'q': 'char'})
+        self.assertEqual(status, 200)
+        self.assertEqual([row['id'] for row in users], ['charlie'])
+        for path, payload in [('/api/tasks', {'title': 'Task', 'follower_ids': ['charlie']}),
+                              ('/api/calendar/events', self.event_payload(follower_ids=['charlie']))]:
+            with self.subTest(path=path):
+                status, row = await self.request('POST', path, payload=payload)
+                self.assertEqual(status, 201, row)
+                self.assertEqual([follower['id'] for follower in row['followers']], ['charlie'])
+
+    async def test_admin_can_add_out_of_department_followers_during_edit(self):
+        await self.grant_admin()
+        _, task = await self.request('POST', '/api/tasks', payload={'title': 'Task'})
+        _, event = await self.request('POST', payload=self.event_payload())
+        for method, path, payload in [
+            ('PATCH', '/api/tasks/' + task['id'], {'follower_ids': ['charlie']}),
+            ('PUT', '/api/calendar/events/' + event['id'], self.event_payload(follower_ids=['charlie']))]:
+            with self.subTest(path=path):
+                status, row = await self.request(method, path, payload=payload)
+                self.assertEqual(status, 200, row)
+                self.assertEqual([follower['id'] for follower in row['followers']], ['charlie'])
+
+    async def test_admin_does_not_need_a_department_and_can_invite_users_without_positions(self):
+        await self.grant_admin()
+        async with self.sessions() as db:
+            (await db.get(User, 'alice')).position_id = None
+            (await db.get(User, 'charlie')).position_id = None
+            await db.commit()
+        self.assertEqual([row['id'] for row in (await self.request('GET', '/api/colleagues', query={'q': 'char'}))[1]], ['charlie'])
+        self.assertEqual((await self.request('POST', '/api/tasks', payload={'title': 'Task', 'follower_ids': ['charlie']}))[0], 201)
+
+    async def test_admin_cannot_invite_inactive_accounts(self):
+        await self.grant_admin()
+        async with self.sessions() as db:
+            (await db.get(User, 'charlie')).is_active = False
+            await db.commit()
+        self.assertEqual((await self.request('GET', '/api/colleagues', query={'q': 'char'}))[1], [])
+        for path, payload in [('/api/tasks', {'title': 'Task', 'follower_ids': ['charlie']}),
+                              ('/api/calendar/events', self.event_payload(follower_ids=['charlie']))]:
+            with self.subTest(path=path):
+                self.assertEqual((await self.request('POST', path, payload=payload))[0], 404)
+
+    async def test_revoking_admin_permission_restores_department_scope(self):
+        from sqlalchemy import delete
+        await self.grant_admin()
+        self.assertTrue((await self.request('GET', '/api/colleagues', query={'q': 'char'}))[1])
+        async with self.sessions() as db:
+            await db.execute(delete(UserRole).where(UserRole.user_id == 'alice', UserRole.role_id == 'access_admin'))
+            await db.commit()
         self.assertEqual((await self.request('GET', '/api/colleagues', query={'q': 'char'}))[1], [])
         self.assertEqual((await self.request('POST', '/api/tasks', payload={'title': 'Task', 'follower_ids': ['charlie']}))[0], 403)
 

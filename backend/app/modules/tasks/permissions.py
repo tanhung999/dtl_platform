@@ -46,7 +46,9 @@ def department_recipient_ids(department_ids):
 
 
 async def follower_department_ids(db, user):
-    """Following needs no delegation grant and is always limited to the user's own department."""
+    """Administrators may invite everyone; other users need only their own active department."""
+    if await has_permission(db, user.id, MANAGE):
+        return None
     department_id = await current_department_id(db, user)
     return {department_id} if department_id else set()
 
@@ -56,7 +58,8 @@ async def require_follower_targets(db, actor, added_ids):
     if not added_ids:
         return
     departments = await follower_department_ids(db, actor)
-    allowed = set((await db.scalars(department_recipient_ids(departments).where(User.id.in_(added_ids)))).all())
+    query = select(User.id).where(User.is_active.is_(True)) if departments is None else department_recipient_ids(departments)
+    allowed = set((await db.scalars(query.where(User.id.in_(added_ids)))).all())
     if allowed != set(added_ids):
         raise HTTPException(403, 'Bạn chỉ được thêm người theo dõi cùng phòng ban đang hoạt động của mình.')
 
