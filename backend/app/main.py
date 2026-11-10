@@ -134,12 +134,14 @@ async def lifespan(app: FastAPI):
     await seed_initial_data()
     try:
         from app.modules.notifications.source_bridge import run_source_bridge
+        from app.modules.applications.security_events import run_security_worker
 
         async with (
             listen(settings.DATABASE_URL),
             run_worker(settings.NOTIFICATIONS_WORKER_ENABLED),
             run_cleanup_worker(settings.MAINTENANCE_ENABLED),
             run_source_bridge(),
+            run_security_worker(),
         ):
             yield
     finally:

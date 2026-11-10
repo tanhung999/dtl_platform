@@ -51,6 +51,8 @@ async def task_calendar_schema(conn):
 async def upgrade(conn):
     if conn.dialect.name == 'postgresql':
         await conn.execute(text('SELECT pg_advisory_xact_lock(721042026)'))
+    from .linked_account_security import migrate_linked_account_security
+    await migrate_linked_account_security(conn)
     await migrate_task_deadlines(conn)
     await migrate_calendar_privacy(conn)
     # Add the timestamp before older upgrades inspect timestamp columns.
@@ -400,6 +402,8 @@ async def upgrade(conn):
             text("INSERT INTO schema_migrations (version) VALUES (:version)"),
             {"version": version},
         )
+
+    await conn.execute(text("INSERT INTO schema_migrations (version) VALUES ('applications_013_linked_security') ON CONFLICT (version) DO NOTHING"))
 
 async def run():
     try:

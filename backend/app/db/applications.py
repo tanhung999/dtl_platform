@@ -1,6 +1,7 @@
 """Dynamic enterprise application registry and user entitlements."""
 
 from datetime import datetime, timezone
+import uuid
 
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 
@@ -50,6 +51,23 @@ class UserApplicationAccess(Base):
     granted_by_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     granted_at = Column(UTCDateTime(), nullable=False, default=utcnow)
     updated_at = Column(UTCDateTime(), nullable=False, default=utcnow, onupdate=utcnow)
+
+
+class ApplicationSecurityEvent(Base):
+    """Durable, account-bound revocation; retries never rotate credentials."""
+    __tablename__ = 'application_security_events'
+    __table_args__ = (UniqueConstraint('user_id', 'application_key', 'operation_id', 'session_version', name='uq_application_security_delivery'),)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    application_key = Column(String(80), ForeignKey('applications.key', ondelete='CASCADE'), nullable=False)
+    identity_subject = Column(String(255), nullable=False)
+    external_user_id = Column(String(100), nullable=False)
+    operation_id = Column(String(36), nullable=False)
+    session_version = Column(Integer, nullable=False)
+    attempts = Column(Integer, nullable=False, default=0)
+    available_at = Column(UTCDateTime(), nullable=False, default=utcnow, index=True)
+    processed_at = Column(UTCDateTime(), nullable=True)
+    last_error = Column(String(80), nullable=True)
 
 
 class ApplicationPolicyOwnership(Base):

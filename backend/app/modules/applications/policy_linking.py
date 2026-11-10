@@ -70,13 +70,18 @@ async def remote(application, method, path, *, params=None, body=None):
 
 async def context(db, actor, application_key, target_id, *, lock=False):
     await require(db, actor.id, MANAGE)
-    target = await db.scalar(select(User).where(User.id == target_id).with_for_update() if lock else select(User).where(User.id == target_id))
+    target = await db.scalar(select(User).where(User.id == target_id).with_for_update())
     app = await db.get(Application, application_key)
     grant = await db.get(UserApplicationAccess, (target_id, application_key), with_for_update=lock, populate_existing=lock)
     if not target or not app:
         raise HTTPException(404, 'Không tìm thấy tài khoản hoặc ứng dụng.')
-    if not target.is_active or not app.is_active or not grant or not grant.enabled:
-        raise HTTPException(409, 'Tài khoản phải hoạt động và được cấp quyền mở ứng dụng trước khi liên kết.')
+    if not target.is_active or not app.is_active:
+        raise HTTPException(409, 'Tài khoản và ứng dụng phải đang hoạt động để liên kết.')
+    if grant is None:
+        grant = UserApplicationAccess(user_id=target.id, application_key=application_key,
+            enabled=False, permission_overrides={}, project_names=[], granted_by_id=actor.id)
+        db.add(grant)
+        await db.flush()
     if not target.identity_subject or target.identity_subject.startswith('platform:'):
         raise HTTPException(409, 'Tài khoản chưa có định danh SSO hiện tại.')
     return target, grant
