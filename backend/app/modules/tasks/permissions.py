@@ -45,6 +45,22 @@ def department_recipient_ids(department_ids):
         Position.is_active.is_(True), Department.is_active.is_(True), Department.id.in_(department_ids))
 
 
+async def follower_department_ids(db, user):
+    """Following needs no delegation grant and is always limited to the user's own department."""
+    department_id = await current_department_id(db, user)
+    return {department_id} if department_id else set()
+
+
+async def require_follower_targets(db, actor, added_ids):
+    """Validate new invitations only; retain previously saved followers after department changes."""
+    if not added_ids:
+        return
+    departments = await follower_department_ids(db, actor)
+    allowed = set((await db.scalars(department_recipient_ids(departments).where(User.id.in_(added_ids)))).all())
+    if allowed != set(added_ids):
+        raise HTTPException(403, 'Bạn chỉ được thêm người theo dõi cùng phòng ban đang hoạt động của mình.')
+
+
 async def require_assignable_target(db, actor: User, target_id: str):
     if target_id == actor.id:
         return

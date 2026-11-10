@@ -42,6 +42,8 @@ async def sync_followers(db, event, actor, follower_ids):
     current = set((await db.scalars(select(CalendarEventFollower.user_id).where(CalendarEventFollower.event_id == event.id))).all())
     from sqlalchemy import delete
     removed, added = current-requested, requested-current
+    from app.modules.tasks.permissions import require_follower_targets
+    await require_follower_targets(db, actor, added)
     if removed: await db.execute(delete(CalendarEventFollower).where(CalendarEventFollower.event_id == event.id, CalendarEventFollower.user_id.in_(removed)))
     for user_id in added:
         db.add(CalendarEventFollower(event_id=event.id,user_id=user_id,added_by_id=actor.id))

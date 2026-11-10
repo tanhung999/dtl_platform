@@ -27,7 +27,7 @@ class CollaborationControlsTests(ApiTestCase):
             clock = patch(name, return_value=NOW); clock.start(); self.addCleanup(clock.stop)
         await self.grant_assignment()
         async with self.sessions() as db:
-            db.add_all([User(id=name, username=name, email=f'{name}@example.invalid', full_name=name, password_hash='unused')
+            db.add_all([User(id=name, username=name, email=f'{name}@example.invalid', full_name=name, position_id='test-pos', password_hash='unused')
                         for name in ('charlie', 'dana')])
             await seed_catalog(db)
             db.add_all([UserRole(user_id=name, role_id='calendar_sharer') for name in ('alice', 'bob', 'charlie')])
@@ -204,7 +204,7 @@ class CollaborationControlsTests(ApiTestCase):
     async def test_500_boundaries_include_automatic_task_follower(self):
         ids = [f'person-{i:04d}' for i in range(501)]
         async with self.sessions() as db:
-            db.add_all([User(id=name, username=name, email=f'{name}@example.invalid', full_name=name, password_hash='unused') for name in ids])
+            db.add_all([User(id=name, username=name, email=f'{name}@example.invalid', full_name=name, position_id='test-pos', password_hash='unused') for name in ids])
             await db.commit()
         event = await self.event(follower_ids=ids[:500])
         self.assertEqual(len(event['followers']), 500)
