@@ -25,7 +25,7 @@ class DeadlineChangeNoticeTests(ApiTestCase):
             clock.start(); self.addCleanup(clock.stop)
         await self.grant_assignment()
         async with self.sessions() as db:
-            db.add(User(id='charlie', username='charlie', email='charlie@example.invalid', full_name='Charlie', password_hash='unused'))
+            db.add(User(id='charlie', username='charlie', email='charlie@example.invalid', full_name='Charlie', position_id='test-pos', password_hash='unused'))
             await seed_catalog(db)
             await db.commit()
 

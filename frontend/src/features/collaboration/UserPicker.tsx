@@ -58,7 +58,7 @@ export function UserPicker({ value, onChange, multiple=false, endpoint='/api/col
         {expandedSelected && <><button type="button" className="btn btn-outline btn-sm" disabled={!selectedOffset} onClick={() => setSelectedOffset(v => Math.max(0, v - 20))}>Trước</button><small>{selectedOffset + 1}–{Math.min(value.length, selectedOffset + 20)}</small>
           <button type="button" className="btn btn-outline btn-sm" disabled={selectedOffset + 20 >= value.length} onClick={() => setSelectedOffset(v => v + 20)}>Sau</button></>}</div>}
       <div className="people-picker-search"><Search size={15} aria-hidden="true" /><input id={id} aria-label={label} value={query} disabled={disabled || full} autoComplete="off"
-        placeholder={multiple ? 'Tìm người theo dõi…' : value.length ? 'Tìm người để giao lại…' : 'Tìm người nhận việc…'}
+        placeholder={multiple ? 'Tìm người cùng phòng ban…' : value.length ? 'Tìm người để giao lại…' : 'Tìm người nhận việc…'}
         role="combobox" aria-autocomplete="list" aria-expanded={expanded} aria-controls={expanded ? `${id}-results` : undefined}
         aria-activedescendant={expanded && options[active] ? `${id}-option-${active}` : undefined}
         onFocus={() => setFocused(true)} onChange={event => { setFocused(true); setQuery(event.target.value); setActive(0); }}

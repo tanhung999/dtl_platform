@@ -16,6 +16,7 @@ class User(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     identity_subject = Column(String(255), unique=True, index=True, nullable=True)
+    external_session_version = Column(Integer, nullable=False, default=0, server_default="0")
     username = Column(String(80), unique=True, index=True, nullable=False)
     email = Column(String(120), unique=True, index=True, nullable=False)
     full_name = Column(String(120), nullable=False)

@@ -63,7 +63,7 @@ export function ApplicationAccountLifecycle({ applicationKey, name, targetId, us
       {data.pending_enabled !== null && !data.pending_unlink && <div className="application-account-warning"><span>Đang chờ xác nhận {data.pending_enabled ? 'bật' : 'tắt'} tự tạo từ website đích.</span><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => { void change(data.pending_enabled!); }}>Thử lại</button></div>}
       {(confirmUnlink || data.pending_unlink) && <div className="application-unlink-confirm"><strong>Hủy liên kết với {name}?</strong><p>Giữ nguyên tài khoản và dữ liệu tại website đích. Thu hồi quyền truy cập từ Platform và tắt tự tạo tài khoản.</p>
         <div><button type="button" className="btn btn-outline btn-sm" disabled={busy || !!data.pending_unlink} onClick={() => setConfirmUnlink(false)}>Giữ liên kết</button><button type="button" className="btn btn-danger-outline btn-sm" disabled={busy} onClick={() => { void unlink(); }}>{busy ? 'Đang xử lý…' : data.pending_unlink ? 'Tiếp tục hủy liên kết' : 'Xác nhận hủy liên kết'}</button></div></div>}
-      {accessEnabled && !data.pending_unlink && !data.managed_by_platform && <ApplicationPolicyLinker applicationKey={applicationKey} name={name} targetId={targetId} username={username} linked={false} roleNames={roleNames} onLinked={() => { onChanged(); void load(); }} onBusy={onBusy}/>}
+      {!data.pending_unlink && !data.managed_by_platform && <ApplicationPolicyLinker applicationKey={applicationKey} name={name} targetId={targetId} username={username} linked={false} roleNames={roleNames} onLinked={() => { onChanged(); void load(); }} onBusy={onBusy}/>}
     </>}
     {error && <p className="alert-error" role="alert">{error}</p>}
   </section>;

@@ -185,4 +185,5 @@ async def task_assignees(user: CurrentUser, db: Database, q: str = Query(min_len
 
 @colleagues_router.get("")
 async def colleagues(user: CurrentUser, db: Database, q: str = Query(min_length=2,max_length=100)):
-    return await colleague_results(db, q, exclude_user_id=user.id)
+    from .permissions import follower_department_ids
+    return await colleague_results(db, q, department_ids=await follower_department_ids(db, user), exclude_user_id=user.id)

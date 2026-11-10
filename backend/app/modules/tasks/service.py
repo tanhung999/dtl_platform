@@ -32,6 +32,8 @@ async def sync_task_followers(db, task, actor, follower_ids, *, assignee_id=None
         raise HTTPException(404, "Có người theo dõi không tồn tại hoặc đã ngừng hoạt động.")
     current = set((await db.scalars(select(TaskFollower.user_id).where(TaskFollower.task_id == task.id))).all())
     removed, added = current - requested, requested - current
+    from .permissions import require_follower_targets
+    await require_follower_targets(db, actor, added - {task.user_id})
     if removed:
         await db.execute(delete(TaskFollower).where(TaskFollower.task_id == task.id, TaskFollower.user_id.in_(removed)))
     for user_id in added:

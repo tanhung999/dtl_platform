@@ -23,6 +23,7 @@ Database = Annotated[AsyncSession, Depends(get_db, scope="function")]
 
 
 class EntitlementView(BaseModel):
+    session_version: int = 0
     provisioning_policy_enforced: bool = True
     auto_provision_allowed: bool = False
     allowed: bool
@@ -115,6 +116,7 @@ async def check_subject_entitlement(
         return EntitlementView(allowed=False, application=application_key, subject=subject)
     return EntitlementView(
         allowed=True,
+        session_version=user.external_session_version,
         auto_provision_allowed=bool(creation and creation.enabled and creation.pending_enabled is None
             and creation.identity_subject == user.identity_subject and not policy.policy_import_id),
         application=application_key,

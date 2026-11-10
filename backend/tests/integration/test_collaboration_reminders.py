@@ -24,7 +24,7 @@ class CollaborationReminderTests(ApiTestCase):
         for name in ('app.modules.notifications.scheduling.utcnow', 'app.modules.tasks.router.utcnow'):
             clock = patch(name, return_value=NOW); clock.start(); self.addCleanup(clock.stop)
         async with self.sessions() as db:
-            db.add(User(id='charlie', username='charlie', email='charlie@example.com', full_name='Charlie', password_hash='unused'))
+            db.add(User(id='charlie', username='charlie', email='charlie@example.com', full_name='Charlie', position_id='fixture-pos', password_hash='unused'))
             await db.commit()
         self.tokens['charlie'] = create_access_token({'sub': 'charlie'})
 
@@ -35,6 +35,9 @@ class CollaborationReminderTests(ApiTestCase):
 
     async def test_assignee_followers_receive_once_and_can_open(self):
         await self.grant_assignment()
+        async with self.sessions() as db:
+            (await db.get(User, 'charlie')).position_id = 'test-pos'
+            await db.commit()
         row = await self.task(assignee_id='bob', follower_ids=['charlie'], reminder_minutes=15)
         await self.tick(START - timedelta(minutes=15))
         for name in ('alice', 'bob', 'charlie'):
@@ -45,6 +48,9 @@ class CollaborationReminderTests(ApiTestCase):
 
     async def test_personal_mute_does_not_mute_assigned_or_followed_items(self):
         await self.grant_assignment()
+        async with self.sessions() as db:
+            (await db.get(User, 'charlie')).position_id = 'test-pos'
+            await db.commit()
         async with self.sessions() as db:
             db.add_all([NotificationPreference(user_id=name, task_reminders=False) for name in ('alice', 'bob', 'charlie')]); await db.commit()
         await self.task(assignee_id='bob', follower_ids=['charlie'], reminder_minutes=15)
@@ -73,6 +79,9 @@ class CollaborationReminderTests(ApiTestCase):
 
     async def test_reassignment_and_removed_followers_use_current_membership(self):
         await self.grant_assignment()
+        async with self.sessions() as db:
+            (await db.get(User, 'charlie')).position_id = 'test-pos'
+            await db.commit()
         row = await self.task(assignee_id='bob', follower_ids=['charlie'], reminder_minutes=15)
         code, _ = await self.request('PATCH', '/api/tasks/' + row['id'], payload={'assignee_id': 'alice', 'follower_ids': []})
         self.assertEqual(code, 200)

@@ -16,6 +16,7 @@ from app.core.database import Base, get_db
 from app.core.config import settings
 from app.core.security import create_access_token, hash_password
 from app.db.models import User
+from app.db.organization import Department, Position
 from app.db import task_history as _task_history  # noqa: F401 register lazily used result history before create_all
 from app.main import app
 from app.core.realtime import prepare_changes, broadcast
@@ -30,9 +31,13 @@ class ApiTestCase(unittest.IsolatedAsyncioTestCase):
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         async with self.sessions() as session:
+            session.add(Department(id='fixture-dept', code='FIXTURE', name='Fixture department'))
+            await session.flush()
+            session.add(Position(id='fixture-pos', code='FIXTURE-POS', name='Staff', department_id='fixture-dept'))
+            await session.flush()
             session.add_all([
-                User(id="alice", username="alice", email="alice@example.com", full_name="Alice", password_hash=hash_password("test-password")),
-                User(id="bob", username="bob", email="bob@example.com", full_name="Bob", password_hash=hash_password("test-password")),
+                User(id="alice", username="alice", email="alice@example.com", full_name="Alice", position_id="fixture-pos", password_hash=hash_password("test-password")),
+                User(id="bob", username="bob", email="bob@example.com", full_name="Bob", position_id="fixture-pos", password_hash=hash_password("test-password")),
             ])
             await session.commit()
 

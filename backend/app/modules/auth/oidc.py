@@ -30,6 +30,8 @@ async def revoke_platform_sessions(db: AsyncSession, user_id: str) -> None:
 
 
 async def end_user_sessions(db: AsyncSession, user: User) -> None:
+    from app.modules.applications.security_events import enqueue_revocation
+    await enqueue_revocation(db, user)
     await revoke_platform_sessions(db, user.id)
     from app.modules.users.keycloak import keycloak_user_admin
     try:
