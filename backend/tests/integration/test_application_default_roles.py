@@ -95,3 +95,37 @@ class ApplicationDefaultRoleTests(ApiTestCase):
         self.assertEqual(status,200,value);self.assertTrue(value['enabled'])
         async with self.sessions() as db:
             self.assertTrue((await db.get(UserApplicationAccess,('bob','workflows'))).enabled)
+
+    async def test_assets_and_booking_hints_run_after_commit_only_when_changed(self):
+        await self.seed()
+        observed = []
+        async def committed(application, target_id, subject):
+            async with self.sessions() as db:
+                grant = await db.get(UserApplicationAccess, (target_id, application))
+                observed.append((application, grant.enabled))
+        with patch('app.modules.applications.policy_notifications.notify_application_policy_changed',
+                   AsyncMock(side_effect=committed)) as callback:
+            for application in ('itam', 'bookingreports'):
+                path = f'/api/admin/applications/{application}/users/bob'
+                self.assertEqual((await self.request('PUT', path, payload={'enabled': True}))[0], 200)
+                self.assertEqual((await self.request('PUT', path, payload={'enabled': True}))[0], 200)
+                self.assertEqual((await self.request('PUT', path, payload={'enabled': False}))[0], 200)
+            self.assertEqual(callback.await_count, 4)
+        self.assertEqual(observed, [('itam', True), ('itam', False), ('bookingreports', True), ('bookingreports', False)])
+
+    async def test_destination_hint_failure_does_not_undo_grant(self):
+        from fastapi import HTTPException
+        await self.seed()
+        with patch('app.modules.applications.policy_linking.integration', return_value=('http://private.test', 'private-secret')), \
+             patch('app.modules.applications.policy_linking.remote', AsyncMock(side_effect=HTTPException(503, 'Unavailable'))):
+            for application in ('itam', 'bookingreports'):
+                status, value = await self.request('PUT', f'/api/admin/applications/{application}/users/bob', payload={'enabled': True})
+                self.assertEqual(status, 200, value)
+                self.assertTrue(value['enabled'])
+
+    async def test_destination_hint_contains_identity_only(self):
+        from app.modules.applications.policy_notifications import notify_application_policy_changed
+        with patch('app.modules.applications.policy_linking.integration', return_value=('http://private.test', 'private-secret')), \
+             patch('app.modules.applications.policy_linking.remote', AsyncMock(return_value={'notified': 1})) as remote:
+            await notify_application_policy_changed('itam', 'bob', 'subject-bob')
+        remote.assert_awaited_once_with('itam', 'POST', '/policy-changed', body={'platform_user_id': 'bob', 'identity_subject': 'subject-bob'})

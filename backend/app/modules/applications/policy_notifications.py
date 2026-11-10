@@ -1,8 +1,22 @@
-"""Post-commit hints for Workflow; saved grants remain the source of truth."""
+"""Post-commit permission hints; saved grants remain the source of truth."""
 import logging
 from fastapi import HTTPException
 
 log = logging.getLogger(__name__)
+
+
+async def notify_application_policy_changed(application: str, platform_user_id: str, identity_subject: str | None):
+    from .policy_linking import integration, remote
+    try:
+        base, _ = integration(application)
+        if base is None:
+            return
+        await remote(application, 'POST', '/policy-changed', body={
+            'platform_user_id': platform_user_id,
+            'identity_subject': identity_subject or 'platform:' + platform_user_id,
+        })
+    except HTTPException as error:
+        log.warning('Application permission refresh hint failed (application=%s HTTP %s)', application, error.status_code)
 
 
 async def notify_workflow_policy_changed(platform_user_id: str, identity_subject: str | None):
