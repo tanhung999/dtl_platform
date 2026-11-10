@@ -457,6 +457,9 @@ async def set_user_access(
         from .policy_notifications import notify_workflow_policy_changed
         # Database's function-scoped dependency commits before BackgroundTasks run.
         background_tasks.add_task(notify_workflow_policy_changed, target.id, target.identity_subject)
+    elif application_key in {'itam', 'bookingreports'} and previous != current:
+        from .policy_notifications import notify_application_policy_changed
+        background_tasks.add_task(notify_application_policy_changed, application_key, target.id, target.identity_subject)
     return await _access_view(db, application, grant)
 
 
