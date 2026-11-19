@@ -10,10 +10,10 @@ from app.core.database import get_db
 from app.core.realtime import mark_changed
 from app.db.access import AccessRole
 from app.db.models import User
-from app.db.organization import Department, Position, TaskAssignmentDepartment, TaskAssignmentPolicy, WorkLocation
+from app.db.organization import Department, FollowerDepartment, Position, TaskAssignmentDepartment, TaskAssignmentPolicy, WorkLocation
 from app.modules.access.service import MANAGE, require
 from app.modules.auth.dependencies import get_current_user
-from app.modules.tasks.permissions import revoke_assignment_on_department_change
+from app.modules.tasks.permissions import revoke_assignment_on_department_change, revoke_follower_scope_on_department_change
 
 router = APIRouter(prefix='/api/admin/organization', tags=['Organization administration'])
 Current = Annotated[User, Depends(get_current_user)]
@@ -94,6 +94,7 @@ async def update_item(kind: Kind, item_id: str, payload: OrgWrite, actor: Curren
         for user in users:
             if old_department != row.department_id:
                 await revoke_assignment_on_department_change(db, user, actor)
+                await revoke_follower_scope_on_department_change(db, user, actor)
             user.department = department.name
             user.job_title = row.name
             mark_changed(db, user.id, 'calendar-sharing')
@@ -103,8 +104,10 @@ async def update_item(kind: Kind, item_id: str, payload: OrgWrite, actor: Curren
         for user in users:
             user.department = row.name
             mark_changed(db, user.id, 'calendar-sharing')
-        scoped_users = (await db.scalars(select(TaskAssignmentDepartment.user_id).where(
-            TaskAssignmentDepartment.department_id == row.id))).all()
+        scoped_users = set((await db.scalars(select(TaskAssignmentDepartment.user_id).where(
+            TaskAssignmentDepartment.department_id == row.id))).all())
+        scoped_users.update((await db.scalars(select(FollowerDepartment.user_id).where(
+            FollowerDepartment.department_id == row.id))).all())
         for user_id in scoped_users:
             mark_changed(db, user_id, 'calendar-sharing')
     else:
@@ -126,6 +129,7 @@ async def remove(kind: Kind, item_id: str, actor: Current, db: Db):
     elif cls is Department:
         used = await db.scalar(select(func.count()).select_from(Position).where(Position.department_id == item_id))
         used += await db.scalar(select(func.count()).select_from(TaskAssignmentDepartment).where(TaskAssignmentDepartment.department_id == item_id))
+        used += await db.scalar(select(func.count()).select_from(FollowerDepartment).where(FollowerDepartment.department_id == item_id))
         used += await db.scalar(select(func.count()).select_from(TaskAssignmentPolicy).where(TaskAssignmentPolicy.home_department_id == item_id))
     else:
         used = await db.scalar(select(func.count()).select_from(User).where(User.work_location_id == item_id))

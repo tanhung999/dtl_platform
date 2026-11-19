@@ -5,9 +5,9 @@ from sqlalchemy import delete, select
 from app.core.realtime import mark_changed
 from app.db.access import AccessAccountVersion, UserRole
 from app.db.models import User
-from app.db.organization import Department, Position, TaskAssignmentDepartment, TaskAssignmentPolicy
+from app.db.organization import Department, FollowerDepartment, FollowerDepartmentPolicy, Position, TaskAssignmentDepartment, TaskAssignmentPolicy
 from app.modules.access.audit import record
-from app.modules.access.service import CAPABILITY_ROLES, MANAGE, TASKS_ASSIGN, has_permission
+from app.modules.access.service import CAPABILITY_ROLES, FOLLOWERS_CROSS_DEPARTMENT, MANAGE, TASKS_ASSIGN, has_permission
 
 
 async def current_department_id(db, user):
@@ -46,11 +46,20 @@ def department_recipient_ids(department_ids):
 
 
 async def follower_department_ids(db, user):
-    """Administrators may invite everyone; other users need only their own active department."""
+    """Administrators may invite everyone; others get home department plus explicit grants."""
     if await has_permission(db, user.id, MANAGE):
         return None
     department_id = await current_department_id(db, user)
-    return {department_id} if department_id else set()
+    if not department_id:
+        return set()
+    allowed = {department_id}
+    if await has_permission(db, user.id, FOLLOWERS_CROSS_DEPARTMENT):
+        policy = await db.get(FollowerDepartmentPolicy, user.id)
+        if policy and policy.enabled and policy.home_department_id == department_id:
+            allowed.update((await db.scalars(select(FollowerDepartment.department_id).join(
+                Department, Department.id == FollowerDepartment.department_id).where(
+                    FollowerDepartment.user_id == user.id, Department.is_active.is_(True)))).all())
+    return allowed
 
 
 async def require_follower_targets(db, actor, added_ids):
@@ -103,6 +112,31 @@ async def revoke_assignment_on_department_change(db, target, actor):
         state.version += 1
     if had_grant:
         record(db, actor, target, 'task_assignment_revoked_department_change', {'reason': 'department_changed'})
+    mark_changed(db, target.id, 'calendar-sharing')
+    mark_changed(db, target.id, 'tasks')
+    mark_changed(db, actor.id, 'calendar-sharing')
+
+
+async def revoke_follower_scope_on_department_change(db, target, actor):
+    """Revoke the cross-department follower capability and its selected departments."""
+    policy = await db.get(FollowerDepartmentPolicy, target.id)
+    had_grant = await has_permission(db, target.id, FOLLOWERS_CROSS_DEPARTMENT)
+    if policy is None:
+        policy = FollowerDepartmentPolicy(user_id=target.id, enabled=False)
+        db.add(policy)
+    else:
+        policy.enabled = False
+        policy.home_department_id = None
+    await db.execute(delete(FollowerDepartment).where(FollowerDepartment.user_id == target.id))
+    await db.execute(delete(UserRole).where(UserRole.user_id == target.id,
+        UserRole.role_id == CAPABILITY_ROLES[FOLLOWERS_CROSS_DEPARTMENT]))
+    state = await db.get(AccessAccountVersion, target.id)
+    if state is None:
+        db.add(AccessAccountVersion(user_id=target.id, version=1))
+    else:
+        state.version += 1
+    if had_grant:
+        record(db, actor, target, 'follower_department_scope_revoked_department_change', {'reason': 'department_changed'})
     mark_changed(db, target.id, 'calendar-sharing')
     mark_changed(db, target.id, 'tasks')
     mark_changed(db, actor.id, 'calendar-sharing')

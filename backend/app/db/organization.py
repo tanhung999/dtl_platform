@@ -33,3 +33,15 @@ class TaskAssignmentDepartment(Base):
     __tablename__ = 'task_assignment_departments'
     user_id = Column(String(36), ForeignKey('task_assignment_policies.user_id', ondelete='CASCADE'), primary_key=True)
     department_id = Column(String(36), ForeignKey('departments.id', ondelete='RESTRICT'), primary_key=True, index=True)
+
+class FollowerDepartmentPolicy(Base):
+    """Per-account opt-in for adding calendar/task followers outside the home department."""
+    __tablename__ = 'follower_department_policies'
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    enabled = Column(Boolean, nullable=False, default=True, server_default='true')
+    home_department_id = Column(String(36), ForeignKey('departments.id', ondelete='SET NULL'), nullable=True, index=True)
+
+class FollowerDepartment(Base):
+    __tablename__ = 'follower_departments'
+    user_id = Column(String(36), ForeignKey('follower_department_policies.user_id', ondelete='CASCADE'), primary_key=True)
+    department_id = Column(String(36), ForeignKey('departments.id', ondelete='RESTRICT'), primary_key=True, index=True)

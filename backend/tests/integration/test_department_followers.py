@@ -5,8 +5,8 @@ from tests.support.api_case import ApiTestCase
 from app.db.access import UserRole
 from app.db.calendar import CalendarEventFollower
 from app.db.models import User, TaskFollower
-from app.db.organization import Department, Position, TaskAssignmentPolicy, TaskAssignmentDepartment
-from app.modules.access.service import CAPABILITY_ROLES, TASKS_ASSIGN, seed_catalog
+from app.db.organization import Department, Position, TaskAssignmentPolicy, TaskAssignmentDepartment, FollowerDepartment, FollowerDepartmentPolicy
+from app.modules.access.service import CAPABILITY_ROLES, FOLLOWERS_CROSS_DEPARTMENT, TASKS_ASSIGN, seed_catalog
 
 
 class DepartmentFollowerTests(ApiTestCase):
@@ -14,11 +14,15 @@ class DepartmentFollowerTests(ApiTestCase):
         await super().asyncSetUp()
         async with self.sessions() as db:
             db.add(Department(id='other-dept', code='OTHER', name='Other department'))
+            db.add(Department(id='third-dept', code='THIRD', name='Third department'))
             await db.flush()
             db.add(Position(id='other-pos', code='OTHER-POS', name='Staff', department_id='other-dept'))
+            db.add(Position(id='third-pos', code='THIRD-POS', name='Staff', department_id='third-dept'))
             await db.flush()
             db.add(User(id='charlie', username='charlie', email='charlie@example.com', full_name='Charlie',
                         position_id='other-pos', password_hash='unused'))
+            db.add(User(id='diana', username='diana', email='diana@example.com', full_name='Diana',
+                        position_id='third-pos', password_hash='unused'))
             await db.commit()
 
     async def test_employee_can_find_and_add_same_department_without_assignment_permission(self):
@@ -140,6 +144,61 @@ class DepartmentFollowerTests(ApiTestCase):
             with self.subTest(scenario=scenario):
                 self.assertEqual((await self.request('GET', '/api/colleagues', query={'q': 'bo'}))[1], [])
                 self.assertEqual((await self.request('POST', '/api/tasks', payload={'title': 'Task', 'follower_ids': ['bob']}))[0], 403)
+
+    async def grant_cross_department_followers(self, department_ids):
+        async with self.sessions() as db:
+            await seed_catalog(db)
+            if not await db.get(UserRole, ('alice', 'access_admin')):
+                db.add(UserRole(user_id='alice', role_id='access_admin'))
+                await db.commit()
+        _, policy = await self.request('GET', '/api/access/users/bob/platform-permissions', user='alice')
+        return await self.request('PUT', '/api/access/users/bob/platform-permissions', user='alice', payload={
+            'permissions': [FOLLOWERS_CROSS_DEPARTMENT],
+            'expected_permissions': policy['permissions'],
+            'expected_version': policy['access_version'],
+            'follower_department_ids': department_ids,
+        })
+
+    async def test_admin_can_grant_selected_follower_departments_without_granting_task_assignment(self):
+        status, policy = await self.grant_cross_department_followers(['other-dept', 'third-dept'])
+        self.assertEqual(status, 200, policy)
+        self.assertEqual(policy['follower_department_ids'], ['other-dept', 'third-dept'])
+        self.assertEqual(policy['permissions'], [FOLLOWERS_CROSS_DEPARTMENT])
+        self.assertEqual((await self.request('GET', '/api/colleagues', user='bob', query={'q': 'char'}))[1][0]['id'], 'charlie')
+        self.assertEqual((await self.request('GET', '/api/colleagues', user='bob', query={'q': 'diana'}))[1][0]['id'], 'diana')
+        self.assertEqual((await self.request('GET', '/api/task-assignees', user='bob', query={'q': 'char'}))[0], 403)
+        self.assertEqual((await self.request('POST', '/api/tasks', user='bob', payload={'title': 'Task', 'follower_ids': ['charlie', 'diana']}))[0], 201)
+        self.assertEqual((await self.request('POST', '/api/calendar/events', user='bob', payload=self.event_payload(follower_ids=['charlie', 'diana'])))[0], 201)
+
+    async def test_follower_scope_is_enforced_on_direct_write_and_revocation(self):
+        status, _ = await self.grant_cross_department_followers([])
+        self.assertEqual(status, 422)
+        self.assertEqual((await self.request('GET', '/api/colleagues', user='bob', query={'q': 'char'}))[1], [])
+        self.assertEqual((await self.request('POST', '/api/tasks', user='bob', payload={'title': 'Task', 'follower_ids': ['charlie']}))[0], 403)
+        await self.grant_cross_department_followers(['other-dept'])
+        self.assertEqual((await self.request('POST', '/api/tasks', user='bob', payload={'title': 'Task', 'follower_ids': ['charlie']}))[0], 201)
+        _, current = await self.request('GET', '/api/access/users/bob/platform-permissions', user='alice')
+        status, _ = await self.request('PUT', '/api/access/users/bob/platform-permissions', user='alice', payload={
+            'permissions': [], 'expected_permissions': current['permissions'], 'expected_version': current['access_version'],
+            'follower_department_ids': [],
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual((await self.request('GET', '/api/colleagues', user='bob', query={'q': 'char'}))[1], [])
+        self.assertEqual((await self.request('POST', '/api/tasks', user='bob', payload={'title': 'Task', 'follower_ids': ['charlie']}))[0], 403)
+
+    async def test_follower_scope_is_cleared_when_account_changes_department(self):
+        await self.grant_cross_department_followers(['other-dept'])
+        from app.modules.tasks.permissions import revoke_follower_scope_on_department_change
+        async with self.sessions() as db:
+            await revoke_follower_scope_on_department_change(db, await db.get(User, 'bob'), await db.get(User, 'alice'))
+            await db.commit()
+        async with self.sessions() as db:
+            policy = await db.get(FollowerDepartmentPolicy, 'bob')
+            scopes = (await db.scalars(select(FollowerDepartment).where(FollowerDepartment.user_id == 'bob'))).all()
+            self.assertFalse(policy.enabled)
+            self.assertEqual(scopes, [])
+        self.assertNotIn(FOLLOWERS_CROSS_DEPARTMENT, (await self.request('GET', '/api/access/users/bob/platform-permissions', user='alice'))[1]['permissions'])
+        self.assertEqual((await self.request('GET', '/api/colleagues', user='bob', query={'q': 'char'}))[1], [])
 
     async def test_inactive_recipient_is_never_searchable_or_invitable(self):
         async with self.sessions() as db:

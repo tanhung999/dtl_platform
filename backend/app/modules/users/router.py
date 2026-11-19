@@ -280,8 +280,9 @@ async def update_user(target_id: str, payload: UserUpdate, actor: CurrentUser, d
         setattr(target, field, value)
     target.position_id=position.id if position else None;target.work_location_id=location.id if location else None
     if previous_department_id != (position.department_id if position else None):
-        from app.modules.tasks.permissions import revoke_assignment_on_department_change
+        from app.modules.tasks.permissions import revoke_assignment_on_department_change, revoke_follower_scope_on_department_change
         await revoke_assignment_on_department_change(db, target, actor)
+        await revoke_follower_scope_on_department_change(db, target, actor)
     target.role = 'Quản Trị Viên' if payload.platform_admin else 'Người dùng'
     if not payload.is_active:
         from app.modules.auth.oidc import end_user_sessions
