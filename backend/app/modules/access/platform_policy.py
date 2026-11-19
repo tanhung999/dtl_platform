@@ -7,10 +7,10 @@ from sqlalchemy import delete, select, update
 from app.core.realtime import mark_changed
 from app.db.access import AccessAccountVersion, AccessRole, CalendarShare, RolePermission, UserRole
 from app.db.models import User, utcnow
-from app.db.organization import Department, TaskAssignmentDepartment, TaskAssignmentPolicy
+from app.db.organization import Department, FollowerDepartment, FollowerDepartmentPolicy, TaskAssignmentDepartment, TaskAssignmentPolicy
 from app.modules.tasks.permissions import can_assign_tasks, current_department_id
 from .audit import record
-from .service import CAPABILITY_ROLES, MANAGE, PLATFORM_PERMISSIONS, SHARE, TASKS_ASSIGN, effective_permissions, require
+from .service import CAPABILITY_ROLES, FOLLOWERS_CROSS_DEPARTMENT, MANAGE, PLATFORM_PERMISSIONS, SHARE, TASKS_ASSIGN, effective_permissions, require
 
 
 class AssignmentScope(BaseModel):
@@ -24,22 +24,27 @@ class AssignmentScope(BaseModel):
 
 class PlatformPolicyWrite(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    permissions: list[str] = Field(max_length=3)
-    expected_permissions: list[str] = Field(max_length=3)
+    permissions: list[str] = Field(max_length=4)
+    expected_permissions: list[str] = Field(max_length=4)
     expected_version: int = Field(ge=0)
     assignment_scope: AssignmentScope | None = None
+    follower_department_ids: list[str] = Field(default_factory=list, max_length=500)
 
 
 async def policy_view(db, target):
     permissions = (await effective_permissions(db, target.id)) & PLATFORM_PERMISSIONS.keys()
     state = await db.get(AccessAccountVersion, target.id)
     policy = await db.get(TaskAssignmentPolicy, target.id)
+    follower_policy = await db.get(FollowerDepartmentPolicy, target.id)
     selected = sorted((await db.scalars(select(TaskAssignmentDepartment.department_id).where(
         TaskAssignmentDepartment.user_id == target.id))).all()) if policy and policy.enabled else []
+    follower_departments = sorted((await db.scalars(select(FollowerDepartment.department_id).where(
+        FollowerDepartment.user_id == target.id))).all()) if follower_policy and follower_policy.enabled else []
     departments = (await db.scalars(select(Department).order_by(Department.name, Department.id))).all()
     return {'permissions': sorted(permissions), 'access_version': state.version if state else 0,
             'can_assign_tasks': await can_assign_tasks(db, target),
             'assignment_scope': {'mode': policy.mode if policy and policy.enabled else 'current_department', 'department_ids': selected},
+            'follower_department_ids': follower_departments,
             'home_department_id': await current_department_id(db, target),
             'departments': [{'id': row.id, 'name': row.name, 'is_active': row.is_active} for row in departments]}
 
@@ -55,17 +60,22 @@ async def save_policy(db, actor, target_id, payload):
     if not target:
         raise HTTPException(404, 'Không tìm thấy tài khoản đang hoạt động.')
     desired, expected = set(payload.permissions), set(payload.expected_permissions)
+    # Platform administrators already have this capability globally; avoid
+    # persisting a redundant per-account grant that could become confusing later.
+    if MANAGE in desired:
+        desired.discard(FOLLOWERS_CROSS_DEPARTMENT)
     if (desired | expected) - PLATFORM_PERMISSIONS.keys():
         raise HTTPException(422, 'Danh sách quyền Platform không hợp lệ.')
     current = await policy_view(db, target)
     scope = payload.assignment_scope.normalized() if payload.assignment_scope else current['assignment_scope']
+    follower_department_ids = sorted(set(payload.follower_department_ids)) if FOLLOWERS_CROSS_DEPARTMENT in desired else []
     if TASKS_ASSIGN not in desired:
         scope = AssignmentScope().normalized()
-    if current['access_version'] == payload.expected_version + 1 and set(current['permissions']) == desired and current['assignment_scope'] == scope:
+    if current['access_version'] == payload.expected_version + 1 and set(current['permissions']) == desired and current['assignment_scope'] == scope and current['follower_department_ids'] == follower_department_ids:
         return current
     if current['access_version'] != payload.expected_version or set(current['permissions']) != expected:
         raise HTTPException(409, 'Quyền vừa thay đổi. Hãy tải lại và kiểm tra trước khi lưu.')
-    if desired == expected and scope == current['assignment_scope']:
+    if desired == expected and scope == current['assignment_scope'] and follower_department_ids == current['follower_department_ids']:
         return current
     home = await current_department_id(db, target)
     if TASKS_ASSIGN in desired:
@@ -76,6 +86,17 @@ async def save_policy(db, actor, target_id, payload):
             active = set((await db.scalars(select(Department.id).where(Department.id.in_(ids), Department.is_active.is_(True)))).all())
             if not ids or set(ids) != active:
                 raise HTTPException(422, 'Chọn ít nhất một phòng ban đang hoạt động để giao việc.')
+    if FOLLOWERS_CROSS_DEPARTMENT in desired and MANAGE not in desired:
+        if home is None:
+            raise HTTPException(422, 'G\u00e1n t\u00e0i kho\u1ea3n v\u00e0o m\u1ed9t ph\u00f2ng ban \u0111ang ho\u1ea1t \u0111\u1ed9ng tr\u01b0\u1edbc khi m\u1edf r\u1ed9ng quy\u1ec1n th\u00eam ng\u01b0\u1eddi theo d\u00f5i.')
+        if not follower_department_ids:
+            raise HTTPException(422, 'Ch\u1ecdn \u00edt nh\u1ea5t m\u1ed9t ph\u00f2ng ban \u0111\u1ec3 m\u1edf r\u1ed9ng ph\u1ea1m vi theo d\u00f5i.')
+        active_follower_departments = set((await db.scalars(select(Department.id).where(
+            Department.id.in_(follower_department_ids), Department.is_active.is_(True)))).all())
+        if set(follower_department_ids) != active_follower_departments or home in follower_department_ids:
+            raise HTTPException(422, 'Ch\u1ec9 ch\u1ecdn ph\u00f2ng ban \u0111ang ho\u1ea1t \u0111\u1ed9ng kh\u00e1c ph\u00f2ng ban hi\u1ec7n t\u1ea1i.')
+    if MANAGE in desired:
+        follower_department_ids = []
     if actor.id == target_id and MANAGE not in desired:
         raise HTTPException(422, 'Không thể tự thu hồi quyền quản trị Platform của chính mình.')
     managed = {'access_admin', 'calendar_sharer', *CAPABILITY_ROLES.values()}
@@ -89,6 +110,7 @@ async def save_policy(db, actor, target_id, payload):
         .join(UserRole, UserRole.role_id == RolePermission.role_id)
         .where(UserRole.user_id == target_id, UserRole.role_id.not_in(managed)))).all()) & PLATFORM_PERMISSIONS.keys()
     inherited.discard(TASKS_ASSIGN)  # Its per-account grant can be revoked without removing unrelated roles.
+    inherited.discard(FOLLOWERS_CROSS_DEPARTMENT)
     if inherited - desired:
         raise HTTPException(409, 'Một số quyền được cấp qua vai trò khác. Hãy điều chỉnh vai trò đó trước.')
     await db.execute(delete(UserRole).where(UserRole.user_id == target_id, UserRole.role_id.in_(managed)))
@@ -104,6 +126,16 @@ async def save_policy(db, actor, target_id, payload):
     await db.execute(delete(TaskAssignmentDepartment).where(TaskAssignmentDepartment.user_id == target_id))
     if policy.enabled and scope['mode'] == 'selected_departments':
         db.add_all([TaskAssignmentDepartment(user_id=target_id, department_id=identifier) for identifier in scope['department_ids']])
+    follower_policy = await db.get(FollowerDepartmentPolicy, target_id)
+    if follower_policy is None:
+        follower_policy = FollowerDepartmentPolicy(user_id=target_id)
+        db.add(follower_policy)
+    follower_policy.enabled = FOLLOWERS_CROSS_DEPARTMENT in desired and MANAGE not in desired
+    follower_policy.home_department_id = home if follower_policy.enabled else None
+    await db.flush()
+    await db.execute(delete(FollowerDepartment).where(FollowerDepartment.user_id == target_id))
+    if follower_policy.enabled:
+        db.add_all([FollowerDepartment(user_id=target_id, department_id=identifier) for identifier in follower_department_ids])
     if SHARE in expected and SHARE not in desired:
         viewers = (await db.scalars(select(CalendarShare.viewer_id).where(
             CalendarShare.owner_id == target_id, CalendarShare.revoked_at.is_(None)))).all()
@@ -120,6 +152,10 @@ async def save_policy(db, actor, target_id, payload):
     record(db, actor, target, 'platform_permissions_updated', {
         'before': sorted(expected), 'after': sorted(desired), 'version': state.version,
         'scope_before': current['assignment_scope'], 'scope_after': scope,
+        'follower_departments_before': current['follower_department_ids'],
+        'follower_departments_after': follower_department_ids,
+        'follower_department_names_before': [item['name'] for item in current['departments'] if item['id'] in current['follower_department_ids']],
+        'follower_department_names_after': [item['name'] for item in current['departments'] if item['id'] in follower_department_ids],
         'scope_department_names': [item['name'] for item in current['departments'] if item['id'] in scope['department_ids']]})
     mark_changed(db, target_id, 'calendar-sharing')
     mark_changed(db, actor.id, 'calendar-sharing')

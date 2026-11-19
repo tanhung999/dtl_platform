@@ -404,6 +404,11 @@ async def upgrade(conn):
         )
 
     await conn.execute(text("INSERT INTO schema_migrations (version) VALUES ('applications_013_linked_security') ON CONFLICT (version) DO NOTHING"))
+    version = 'access_005_follower_department_scope'
+    if not await conn.scalar(text('SELECT version FROM schema_migrations WHERE version=:version'), {'version': version}):
+        from .follower_department_scope import migrate_follower_department_scope
+        await migrate_follower_department_scope(conn)
+        await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
 async def run():
     try:

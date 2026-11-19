@@ -2,17 +2,19 @@
 from sqlalchemy import select
 from fastapi import HTTPException
 from app.db.access import AccessRole, AccessPermission, RolePermission, UserRole
-from app.db.organization import TaskAssignmentPolicy
+from app.db.organization import FollowerDepartmentPolicy, TaskAssignmentPolicy
 
 MANAGE = 'access.assignments.manage'
 SHARE = 'calendar.share.manage'
 APPLICATIONS_MANAGE = 'applications.manage'
 TASKS_ASSIGN = 'tasks.assign'
+FOLLOWERS_CROSS_DEPARTMENT = 'calendar.followers.cross_department'
 
 PLATFORM_PERMISSIONS = {
     MANAGE: 'Quản trị Platform',
     SHARE: 'Chia sẻ lịch cá nhân',
     TASKS_ASSIGN: 'Giao công việc cho nhân viên',
+    FOLLOWERS_CROSS_DEPARTMENT: 'Thêm người theo dõi khác phòng ban',
 }
 CAPABILITY_ROLES = {code: 'platform_' + code.replace('.', '_') for code in PLATFORM_PERMISSIONS}
 
@@ -20,6 +22,8 @@ def permission_users(code):
     statement = select(UserRole.user_id).join(RolePermission, RolePermission.role_id == UserRole.role_id).where(RolePermission.permission_code == code)
     if code == TASKS_ASSIGN:
         statement = statement.where(UserRole.user_id.not_in(select(TaskAssignmentPolicy.user_id).where(TaskAssignmentPolicy.enabled.is_(False))))
+    if code == FOLLOWERS_CROSS_DEPARTMENT:
+        statement = statement.where(UserRole.user_id.not_in(select(FollowerDepartmentPolicy.user_id).where(FollowerDepartmentPolicy.enabled.is_(False))))
     return statement
 
 async def has_permission(db, user_id, code):
@@ -32,6 +36,9 @@ async def effective_permissions(db, user_id):
     policy = await db.get(TaskAssignmentPolicy, user_id)
     if policy is not None and not policy.enabled:
         permissions.discard(TASKS_ASSIGN)
+    follower_policy = await db.get(FollowerDepartmentPolicy, user_id)
+    if follower_policy is not None and not follower_policy.enabled:
+        permissions.discard(FOLLOWERS_CROSS_DEPARTMENT)
     return permissions
 
 async def require(db, user_id, code):
