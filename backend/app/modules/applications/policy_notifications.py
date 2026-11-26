@@ -1,8 +1,26 @@
 """Post-commit permission hints; saved grants remain the source of truth."""
 import logging
+
+import httpx
+from app.core.config import settings
 from fastapi import HTTPException
 
 log = logging.getLogger(__name__)
+
+
+async def notify_hrm_policy_changed(subject: str):
+    if not settings.HRM_POLICY_NOTIFY_URL or not settings.INTEGRATION_HRM_SECRET:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=3, trust_env=False) as client:
+            response = await client.post(
+                settings.HRM_POLICY_NOTIFY_URL,
+                json={"subject": subject},
+                headers={"X-DTL-Integration-Secret": settings.INTEGRATION_HRM_SECRET},
+            )
+            response.raise_for_status()
+    except httpx.HTTPError:
+        log.warning("HRM permission refresh notification failed")
 
 
 async def notify_application_policy_changed(application: str, platform_user_id: str, identity_subject: str | None):

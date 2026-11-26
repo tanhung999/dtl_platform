@@ -2,8 +2,9 @@
 
 import secrets
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,8 @@ Database = Annotated[AsyncSession, Depends(get_db, scope="function")]
 
 class EntitlementView(BaseModel):
     session_version: int = 0
+    grant_revision: str | None = None
+    policy_version: int | None = None
     provisioning_policy_enforced: bool = True
     auto_provision_allowed: bool = False
     allowed: bool
@@ -51,9 +54,10 @@ def _authorize(application_key: str, secret: str | None) -> None:
         "bookingreports": settings.INTEGRATION_BOOKINGREPORTS_SECRET,
         "workflows": settings.INTEGRATION_WORKFLOWS_SECRET,
         "itam": settings.INTEGRATION_ITAM_SECRET,
+        "hrm": settings.INTEGRATION_HRM_SECRET,
     }
     expected = application_secrets.get(application_key, "")
-    if not expected and (settings.APP_ENV.lower() != "production" or settings.ALLOW_INSECURE_LOCAL_CONFIG):
+    if application_key != "hrm" and not expected and (settings.APP_ENV.lower() != "production" or settings.ALLOW_INSECURE_LOCAL_CONFIG):
         expected = settings.INTEGRATION_SHARED_SECRET
     if not expected:
         raise HTTPException(503, "Kênh kiểm tra quyền ứng dụng chưa được cấu hình.")
@@ -109,6 +113,17 @@ async def check_subject_entitlement(
     if not row:
         return EntitlementView(allowed=False, application=application_key, subject=subject)
     user, grant = row
+    if application_key == "hrm":
+        from .hrm_policy import policy_snapshot
+
+        return EntitlementView(
+            **await policy_snapshot(db, user.id),
+            allowed=True,
+            application=application_key,
+            subject=subject,
+            session_version=user.external_session_version,
+            grant_revision=grant.updated_at.isoformat(),
+        )
     from .router import _access_view
     policy = await _access_view(db, await db.get(Application, application_key), grant)
     creation = await db.get(ApplicationProvisioningPolicy, (user.id, application_key))
@@ -132,3 +147,48 @@ async def check_subject_entitlement(
         permission_keys=policy.permission_keys,
         project_names=sorted(grant.project_names or []),
     )
+
+class HrmPolicyUpdate(BaseModel):
+    actor_subject: str = Field(min_length=1, max_length=255)
+    expected_version: int = Field(ge=0)
+    grant_revision: str = Field(min_length=1, max_length=64)
+    request_id: UUID
+    role_keys: list[str] = Field(max_length=10)
+    permission_keys: list[str] | None = Field(default=None, max_length=200)
+
+
+@router.put("/applications/hrm/subjects/{subject}/policy")
+async def update_hrm_policy(
+    subject: str,
+    payload: HrmPolicyUpdate,
+    db: Database,
+    background_tasks: BackgroundTasks,
+    integration_secret: Annotated[str | None, Header(alias="X-DTL-Integration-Secret")] = None,
+):
+    from .hrm_policy import apply_policy, policy_snapshot
+    from .policy_notifications import notify_hrm_policy_changed
+
+    _authorize("hrm", integration_secret)
+    users = (await db.scalars(select(User).where(
+        User.identity_subject.in_([subject, payload.actor_subject]),
+        User.is_active.is_(True),
+    ).order_by(User.id).with_for_update())).all()
+    by_subject = {user.identity_subject: user for user in users}
+    actor = by_subject.get(payload.actor_subject)
+    target = by_subject.get(subject)
+    application = await db.get(Application, "hrm")
+    if not actor or not target or not application or not application.is_active:
+        raise HTTPException(403, "Ứng dụng hoặc tài khoản Platform không còn hoạt động.")
+    actor_grant = await db.get(UserApplicationAccess, (actor.id, "hrm"))
+    policy = await policy_snapshot(db, actor.id)
+    if not actor_grant or not actor_grant.enabled or "hrm.access.manage" not in policy["permission_keys"]:
+        raise HTTPException(403, "Tài khoản không có quyền quản lý phân quyền HRM.")
+    grant = await db.get(UserApplicationAccess, (target.id, "hrm"), with_for_update=True)
+    if not grant or not grant.enabled or grant.updated_at.isoformat() != payload.grant_revision:
+        raise HTTPException(409, "Quyền vào HRM vừa thay đổi. Hãy tải lại.")
+    result = await apply_policy(
+        db, target, actor, payload.expected_version, payload.role_keys, payload.permission_keys,
+        origin="hrm", request_id=str(payload.request_id),
+    )
+    background_tasks.add_task(notify_hrm_policy_changed, subject)
+    return {**result, "grant_revision": payload.grant_revision}

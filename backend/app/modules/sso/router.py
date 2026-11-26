@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -13,6 +13,7 @@ from app.db.applications import Application, SsoTicketRedemption
 from app.db.models import User
 from app.modules.auth.dependencies import get_current_user
 from app.modules.applications.service import get_accessible_application
+from app.modules.applications.integration import _authorize
 
 router = APIRouter(prefix="/api/sso", tags=["Single Sign-On (SSO)"])
 
@@ -48,6 +49,9 @@ async def launch_sub_app(
         if not known.is_active:
             raise HTTPException(status_code=503, detail="Hệ thống đang trong giai đoạn phát triển")
         raise HTTPException(status_code=403, detail="Bạn chưa được cấp quyền truy cập ứng dụng này")
+
+    if target == "hrm" and (not settings.OIDC_ENABLED or not user.identity_subject):
+        raise HTTPException(403, "HRM yêu cầu tài khoản Keycloak đã liên kết.")
 
     user_dict = {
         "id": user.id,
@@ -85,8 +89,11 @@ async def launch_sub_app(
 async def verify_ticket_endpoint(
     payload: SsoVerifyRequest,
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
+    integration_secret: Annotated[str | None, Header(alias="X-DTL-Integration-Secret")] = None,
 ):
-    """Endpoint cho các app con gọi xác thực SSO Ticket nếu muốn đối soát tập trung."""
+    """Redeem a single-use SSO ticket for its intended application."""
+    if payload.expected_app == "hrm":
+        _authorize("hrm", integration_secret)
     try:
         claims = verify_sso_ticket(payload.ticket, expected_app=payload.expected_app)
         jti = claims.get("jti")

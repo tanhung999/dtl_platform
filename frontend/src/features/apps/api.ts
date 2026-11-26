@@ -20,6 +20,7 @@ export interface UserApplicationAccess {
   icon_key: string;
   enabled: boolean;
   access_updated_at?: string | null;
+  policy_version?: number | null;
   role_key?: string | null;
   role_display_name?: string | null;
   role_keys?: string[];
@@ -33,6 +34,8 @@ export interface UserApplicationAccess {
 export interface UserApplicationAccessInput {
   enabled: boolean;
   expected_updated_at?: string | null;
+  expected_policy_version?: number | null;
+  role_keys?: string[];
   role_key?: string | null;
   permission_keys?: string[];
   project_names?: string[];
