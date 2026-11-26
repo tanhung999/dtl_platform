@@ -1,0 +1,37 @@
+# Use with docker-compose.yml and project name platform-hrm-sso.
+services:
+  platform-backend:
+    container_name: platform-hrm-sso-backend
+    ports: !reset []
+    environment:
+      OIDC_ENABLED: "true"
+      OIDC_SESSION_COOKIE_NAME: platform_hrm_sso_local_session
+      OIDC_ISSUER: http://localhost:15173/auth/realms/dtl
+      OIDC_FRONTEND_URL: http://localhost:15173
+      OIDC_END_SESSION_URL: http://keycloak:8080/auth/realms/dtl/protocol/openid-connect/logout
+      INTEGRATION_HRM_SECRET: ${HRM_INTEGRATION_SECRET:?Set HRM_INTEGRATION_SECRET}
+      HRM_POLICY_NOTIFY_URL: http://hrm-sso-local-backend-1:8000/api/auth/platform/policy-changed
+      NOTIFICATIONS_WORKER_ENABLED: "false"
+      MAINTENANCE_ENABLED: "false"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log
+  platform-frontend:
+    container_name: platform-hrm-sso-frontend
+    ports: !override ["127.0.0.1:15173:5173"]
+    volumes:
+      - hrm_sso_frontend_modules:/app/node_modules
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+  platform-db:
+    container_name: platform-hrm-sso-db
+    ports: !reset []
+  keycloak:
+    container_name: platform-hrm-sso-keycloak
+    ports: !override ["127.0.0.1:18081:8080"]
+    environment:
+      KC_HOSTNAME: http://localhost:15173/auth
+      KC_HOSTNAME_ADMIN: http://localhost:18081/auth
+      JAVA_OPTS_KC_HEAP: "-Xms128m -Xmx512m"
+  keycloak-db:
+    container_name: platform-hrm-sso-keycloak-db
+
+volumes:
+  hrm_sso_frontend_modules:

@@ -89,6 +89,9 @@ export function AppContent() {
   if (!hasToken || !currentUser) {
     return <><PageBranding /><Routes>
       <Route path="/login" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} />
+      {new URLSearchParams(location.search).get("app") === "hrm" && (
+        <Route path="/applications/connect" element={<Navigate to={{ pathname: "/login", search: location.search }} replace />} />
+      )}
       <Route path="*" element={<Navigate to="/login" replace state={{ from: location.pathname + location.search + location.hash }} />} />
     </Routes></>;
   }

@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     BOOKINGREPORTS_ACCOUNT_LINKING_URL: str = ""
     BOOKINGREPORTS_ACCOUNT_LINKING_SECRET: str = ""
     INTEGRATION_ITAM_SECRET: str = ""
+    INTEGRATION_HRM_SECRET: str = ""
+    HRM_POLICY_NOTIFY_URL: str = ""
     # Deprecated development fallback. Production requires one secret per application.
     INTEGRATION_SHARED_SECRET: str = ""
     KEYCLOAK_ADMIN_BASE_URL: str = "http://localhost:8081/auth"

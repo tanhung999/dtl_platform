@@ -52,9 +52,9 @@ export function AccessManagement({ onChanged, revision, managePlatform, manageAp
     } catch (reason) { setError((reason as Error).message); }
     finally { setApplicationBusy(undefined); }
   };
-  const saveAppPolicy = async (application: UserApplicationAccess, changes: Partial<Pick<UserApplicationAccess, 'role_key' | 'permission_keys'>>) => {
+  const saveAppPolicy = async (application: UserApplicationAccess, changes: Partial<Pick<UserApplicationAccess, 'role_key' | 'role_keys' | 'permission_keys'>>) => {
     if (!target || applicationBusy) return;
-    if (!(changes.role_key !== undefined && (application.role_keys?.length || 0) > 1) && sameFields({ role_key:changes.role_key ?? application.role_key,
+    if (changes.role_keys === undefined && !(changes.role_key !== undefined && (application.role_keys?.length || 0) > 1) && sameFields({ role_key:changes.role_key ?? application.role_key,
       permission_keys:[...(changes.permission_keys ?? application.permission_keys)].sort(),
       project_names:[...new Set(application.project_names)].sort() },
       { role_key:application.role_key, permission_keys:[...application.permission_keys].sort(), project_names:[...application.project_names].sort() })) {
@@ -66,7 +66,9 @@ export function AccessManagement({ onChanged, revision, managePlatform, manageAp
         enabled: true,
         expected_updated_at: application.access_updated_at,
         role_key: changes.role_key,
-        permission_keys: changes.permission_keys === undefined ? application.permission_keys : changes.permission_keys,
+        role_keys: changes.role_keys,
+        expected_policy_version: application.key === 'hrm' ? application.policy_version : undefined,
+        permission_keys: application.key === 'hrm' ? changes.permission_keys : (changes.permission_keys ?? application.permission_keys),
         project_names: application.project_names,
       });
       setApplications(current => current.map(item => item.key === application.key ? result : item));
@@ -102,8 +104,17 @@ export function AccessManagement({ onChanged, revision, managePlatform, manageAp
               {applicationBusy === application.key ? 'Đang lưu…' : application.enabled ? 'Thu hồi' : 'Cấp quyền'}
             </button></div>
           </div>{application.enabled && configuredApp === application.key && application.roles.length > 0 && <div className="access-app-policy">
-            <label><span>Vai trò nghiệp vụ</span><select value={(application.role_keys?.length || 0)>1?'':application.role_key || ''} disabled={!!applicationBusy} onChange={event => { const role=application.roles.find(item=>item.key===event.target.value); if(role) void saveAppPolicy(application,{role_key:role.key,permission_keys:application.key==='bookingreports'&&role.key==='admin'?application.permissions.map(permission=>permission.code):role.permission_keys}); }}>{((application.role_keys?.length || 0)>1 || !application.role_key)&&<option value="" disabled>{(application.role_keys?.length || 0)>1?'Đang giữ các vai trò hiện có':'Chưa gán vai trò'}</option>}{application.roles.map(role=><option key={role.key} value={role.key}>{role.display_name}</option>)}</select></label>
-            {(application.role_keys?.length || 0)>1&&<p className="access-permission-note">Đang giữ: {application.role_display_name}. Chọn một vai trò trong danh sách để thay thế các vai trò hiện có và áp dụng bộ quyền mặc định của vai trò đó.</p>}
+            {application.key === 'hrm' ? <fieldset className="access-permission-grid"><legend>Vai trò HRM</legend>
+              {application.roles.map(role => <label key={role.key}>
+                <input type="checkbox" disabled={!!applicationBusy} checked={application.role_keys?.includes(role.key) ?? false}
+                  onChange={event => {
+                    const currentRoles = application.role_keys ?? [];
+                    void saveAppPolicy(application, {role_keys: event.target.checked ? [...currentRoles, role.key] : currentRoles.filter(key => key !== role.key)});
+                  }}/>
+                <span>{role.display_name}</span>
+              </label>)}
+            </fieldset> : <label><span>Vai trò nghiệp vụ</span><select value={(application.role_keys?.length || 0)>1?'':application.role_key || ''} disabled={!!applicationBusy} onChange={event => { const role=application.roles.find(item=>item.key===event.target.value); if(role) void saveAppPolicy(application,{role_key:role.key,permission_keys:application.key==='bookingreports'&&role.key==='admin'?application.permissions.map(permission=>permission.code):role.permission_keys}); }}>{((application.role_keys?.length || 0)>1 || !application.role_key)&&<option value="" disabled>{(application.role_keys?.length || 0)>1?'Đang giữ các vai trò hiện có':'Chưa gán vai trò'}</option>}{application.roles.map(role=><option key={role.key} value={role.key}>{role.display_name}</option>)}</select></label>}
+            {application.key !== 'hrm' && (application.role_keys?.length || 0)>1&&<p className="access-permission-note">Đang giữ: {application.role_display_name}. Chọn một vai trò trong danh sách để thay thế các vai trò hiện có và áp dụng bộ quyền mặc định của vai trò đó.</p>}
             <div className="access-policy-heading"><strong>Quyền được cấp</strong><span>{application.permission_keys.length}/{application.permissions.length}</span></div>
             <div className="access-permission-grid">{application.permissions.map(permission=><label key={permission.code} title={permission.code}><input type="checkbox" checked={application.permission_keys.includes(permission.code)} disabled={!!applicationBusy || (application.key==='bookingreports'&&application.role_key==='admin')} onChange={event=>{const next=event.target.checked?[...application.permission_keys,permission.code]:application.permission_keys.filter(code=>code!==permission.code);void saveAppPolicy(application,{permission_keys:next});}}/><span>{permission.display_name}</span></label>)}</div>
 

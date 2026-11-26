@@ -53,6 +53,18 @@ class UserApplicationAccess(Base):
     updated_at = Column(UTCDateTime(), nullable=False, default=utcnow, onupdate=utcnow)
 
 
+class HrmApplicationPolicy(Base):
+    """Canonical HRM assignments, versioned separately from application access."""
+
+    __tablename__ = "hrm_application_policies"
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    version = Column(Integer, nullable=False, default=0)
+    role_keys = Column(JSON, nullable=False, default=list)
+    permission_keys = Column(JSON, nullable=False, default=list)
+    last_request_id = Column(String(36), nullable=True)
+    last_fingerprint = Column(JSON, nullable=True)
+
+
 class ApplicationSecurityEvent(Base):
     """Durable, account-bound revocation; retries never rotate credentials."""
     __tablename__ = 'application_security_events'

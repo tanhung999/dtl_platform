@@ -98,6 +98,8 @@ class AccessInput(BaseModel):
     enabled: bool
     expected_updated_at: str | None = Field(default=None, max_length=64)
     role_key: str | None = Field(default=None, max_length=100)
+    role_keys: list[str] | None = Field(default=None, max_length=10)
+    expected_policy_version: int | None = Field(default=None, ge=0)
     permission_keys: list[str] | None = None
     project_names: list[str] | None = None
 
@@ -166,6 +168,7 @@ class UserApplicationAccessView(BaseModel):
     icon_key: str
     enabled: bool
     access_updated_at: str | None = None
+    policy_version: int | None = None
     role_key: str | None = None
     role_display_name: str | None = None
     role_keys: list[str] = Field(default_factory=list)
@@ -207,6 +210,15 @@ async def _access_view(
     effective = set().union(*(permissions_by_role.get(role.id, set()) for role in roles if role.key in selected_keys))
     for code, allowed in ((grant.permission_overrides if grant else {}) or {}).items():
         effective.add(code) if allowed else effective.discard(code)
+    policy_version = None
+    if application.key == "hrm":
+        from .hrm_policy import policy_snapshot
+
+        policy = await policy_snapshot(db, grant.user_id if grant else None)
+        selected_keys = policy["role_keys"]
+        effective = set(policy["permission_keys"])
+        policy_version = policy["policy_version"]
+        selected_role = next((role for role in roles if role.key in selected_keys), None)
     # Booking's admin role bypasses per-permission checks in the destination.
     # Report its actual semantics instead of displaying ineffective denials.
     if application.key == 'bookingreports' and selected_role and selected_role.key == 'admin':
@@ -218,6 +230,7 @@ async def _access_view(
         icon_key=application.icon_key,
         enabled=bool(grant and grant.enabled),
         access_updated_at=grant.updated_at.isoformat() if grant else None,
+        policy_version=policy_version,
         role_key=selected_role.key if selected_role else None,
         role_display_name=', '.join(role.display_name for role in roles if role.key in selected_keys) or None,
         role_keys=selected_keys,
@@ -368,6 +381,42 @@ async def set_user_access(
     if not target:
         raise HTTPException(404, "Không tìm thấy tài khoản.")
     grant = await db.get(UserApplicationAccess, (target_id, application_key), with_for_update=True, populate_existing=True)
+    if application_key == "hrm":
+        from .hrm_policy import apply_policy
+        from .policy_notifications import notify_hrm_policy_changed
+
+        grant_revision = grant.updated_at.isoformat() if grant else None
+        if payload.expected_updated_at != grant_revision:
+            raise HTTPException(409, "Quyền vào HRM vừa thay đổi. Hãy tải lại.")
+        policy_change = payload.role_keys is not None or payload.role_key is not None or payload.permission_keys is not None
+        if policy_change and (not grant or not grant.enabled or not payload.enabled):
+            raise HTTPException(409, "Hãy cấp quyền vào HRM trước khi sửa quyền nghiệp vụ.")
+        if policy_change and not target.identity_subject:
+            raise HTTPException(409, "Tài khoản chưa có định danh Keycloak.")
+        if policy_change:
+            role_keys = payload.role_keys
+            if role_keys is None and payload.role_key is not None:
+                role_keys = [payload.role_key]
+            await apply_policy(db, target, user, payload.expected_policy_version,
+                               role_keys, payload.permission_keys, origin="platform")
+        if grant is None or grant.enabled != payload.enabled:
+            before = bool(grant and grant.enabled)
+            if grant is None:
+                grant = UserApplicationAccess(user_id=target_id, application_key="hrm")
+                db.add(grant)
+            grant.enabled = payload.enabled
+            grant.granted_by_id = user.id
+            grant.updated_at = utcnow()
+            record(db, user, target, "application_access_updated", {
+                "application": "hrm", "before": {"enabled": before},
+                "after": {"enabled": payload.enabled},
+            })
+        await db.flush()
+        if target.identity_subject and (policy_change or grant_revision != grant.updated_at.isoformat()):
+            background_tasks.add_task(notify_hrm_policy_changed, target.identity_subject)
+        return await _access_view(db, application, grant)
+    if payload.role_keys is not None or payload.expected_policy_version is not None:
+        raise HTTPException(422, "Các trường phiên bản phân quyền chỉ áp dụng cho HRM.")
     from app.db.applications import ApplicationPolicyOwnership
     ownership = await db.get(ApplicationPolicyOwnership, (target_id, application_key))
     if ((payload.expected_updated_at is not None or ownership is not None)
