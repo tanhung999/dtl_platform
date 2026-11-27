@@ -410,6 +410,19 @@ async def upgrade(conn):
         await migrate_follower_department_scope(conn)
         await conn.execute(text('INSERT INTO schema_migrations (version) VALUES (:version)'), {'version': version})
 
+    version = "applications_014_hrm_authorization"
+    if not await conn.scalar(
+        text("SELECT version FROM schema_migrations WHERE version=:version"),
+        {"version": version},
+    ):
+        from .hrm_authorization import migrate_hrm_authorization
+
+        await migrate_hrm_authorization(conn)
+        await conn.execute(
+            text("INSERT INTO schema_migrations (version) VALUES (:version)"),
+            {"version": version},
+        )
+
 async def run():
     try:
         async with engine.begin() as conn:
